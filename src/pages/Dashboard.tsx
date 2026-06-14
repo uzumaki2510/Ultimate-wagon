@@ -1,24 +1,148 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+
 import { useAppStore } from "@/store/useAppStore";
 import { StatCard } from "@/components/StatCard";
-import { FileText, AlertTriangle, Wrench, ClipboardCheck, Train, CheckCircle2, Hourglass } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { FileText, AlertTriangle, Wrench, ClipboardCheck, Train, CheckCircle2, Hourglass, ListFilter, CalendarIcon, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { WagonInput } from "@/components/WagonInput";
+import { WagonTable } from "@/components/WagonTable";
+import { StatsCards } from "@/components/StatsCards";
+import { ExportButton } from "@/components/ExportButton";
+import {
+  WagonDetails,
+  WagonRepair,
+  SickLine,
+  BTPGLNWorkflowData,
+  BTPNWorkflowData,
+  RepairType,
+  generateId,
+  loadWagons,
+  saveWagons,
+  loadDeletedWagons,
+  saveDeletedWagons,
+  checkAndArchiveMonthlyData,
+} from "@/lib/wagonData";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { format } from "date-fns";
 
 export default function Dashboard() {
-  const { memos, wagons, audit } = useAppStore();
+  const { memos, wagons: storeWagons, audit } = useAppStore();
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
 
+  // ── Memo Stats ──────────────────────────────────────
   const totalMemos = memos.length;
-  const cutOff = wagons.filter((w) => w.status === "Cut Off").length;
-  const sickLine = wagons.filter((w) => w.status === "Sick Line").length;
-  const underRepair = wagons.filter((w) => w.status === "Under Repair").length;
-  const awaiting = wagons.filter((w) => w.status === "Awaiting Inspection").length;
-  const fit = wagons.filter((w) => w.status === "Fit For Loading").length;
+  const cutOff = storeWagons.filter((w) => w.status === "Cut Off").length;
+  const sickLine = storeWagons.filter((w) => w.status === "Sick Line").length;
+  const underRepair = storeWagons.filter((w) => w.status === "Under Repair").length;
+  const awaiting = storeWagons.filter((w) => w.status === "Awaiting Inspection").length;
+  const fit = storeWagons.filter((w) => w.status === "Fit For Loading").length;
   const pendingApproval = memos.reduce((n, m) => n + m.approvals.filter((a) => a.status === "Pending").length, 0);
+
+  // ── Wagon Register State ─────────────────────────────
+  const [wagons, setWagons] = useState<WagonRepair[]>([]);
+  const [deletedWagons, setDeletedWagons] = useState<WagonRepair[]>([]);
+  const [selectedWagons, setSelectedWagons] = useState<WagonRepair[]>([]);
+  const [tableFilter, setTableFilter] = useState<"in-repair" | "completed">("in-repair");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+
+  useEffect(() => {
+    const archiveResult = checkAndArchiveMonthlyData();
+    if (archiveResult.archived) {
+      toast({
+        title: "Monthly Archive Created",
+        description: `${archiveResult.wagonCount} wagons from ${archiveResult.monthLabel} have been archived.`,
+      });
+    }
+    setWagons(loadWagons());
+    setDeletedWagons(loadDeletedWagons());
+  }, []);
+
+  useEffect(() => { saveWagons(wagons); }, [wagons]);
+  useEffect(() => { saveDeletedWagons(deletedWagons); }, [deletedWagons]);
+
+  const filteredByDateWagons = useMemo(() => {
+    let result = wagons;
+    if (dateFrom) result = result.filter((w) => new Date(w.arrivalDate) >= dateFrom);
+    if (dateTo) {
+      const end = new Date(dateTo);
+      end.setHours(23, 59, 59, 999);
+      result = result.filter((w) => new Date(w.arrivalDate) <= end);
+    }
+    return result;
+  }, [wagons, dateFrom, dateTo]);
+
+  const handleWagonParsed = (
+    details: WagonDetails, trainNumber: string, arrivalDate: string,
+    arrivalTime: string, sickLine: string, repairTypes: RepairType[], comments: string
+  ) => {
+    const exists = wagons.some((w) => w.wagonNumber === details.wagonNumber);
+    if (exists) {
+      toast({ title: "Wagon Already Exists", description: `Wagon ${details.wagonNumber} is already in the system.`, variant: "destructive" });
+      return;
+    }
+    const newWagon: WagonRepair = {
+      id: generateId(),
+      wagonNumber: details.wagonNumber,
+      details,
+      repairTypes,
+      arrivalDate,
+      arrivalTime,
+      trainNumber,
+      sickLine: sickLine as SickLine,
+      status: "in-repair",
+      comments: comments || undefined,
+    };
+    setWagons((prev) => [newWagon, ...prev]);
+    toast({ title: "Wagon Added", description: `Wagon ${details.wagonNumber} added to arrival register.` });
+  };
+
+  const handleComplete = (id: string) => {
+    setWagons((prev) => prev.map((w) => w.id === id ? { ...w, status: "completed", completedDate: new Date().toISOString() } : w));
+    toast({ title: "Wagon Fit", description: "Wagon marked as fit (completed)." });
+  };
+
+  const handleUndoComplete = (id: string) => {
+    setWagons((prev) => prev.map((w) => w.id === id ? { ...w, status: "in-repair", completedDate: undefined } : w));
+    toast({ title: "Undo Successful", description: "Wagon reverted to sick (in-repair) status." });
+  };
+
+  const handleUpdateSickLine = (id: string, sickLine: SickLine) => {
+    setWagons((prev) => prev.map((w) => w.id === id ? { ...w, sickLine } : w));
+  };
+
+  const handleEditWagon = (id: string, updates: Partial<WagonRepair>) => {
+    setWagons((prev) => prev.map((w) => w.id === id ? { ...w, ...updates } : w));
+    toast({ title: "Wagon Updated", description: "Wagon details have been updated." });
+  };
+
+  const handleDelete = (id: string) => {
+    const wagonToDelete = wagons.find((w) => w.id === id);
+    if (wagonToDelete) {
+      setDeletedWagons((prev) => [wagonToDelete, ...prev]);
+      setWagons((prev) => prev.filter((w) => w.id !== id));
+      toast({ title: "Wagon Moved to Deleted", description: "Wagon moved to deleted section." });
+    }
+  };
+
+  const handleUpdateBTPGLNWorkflow = (id: string, workflow: BTPGLNWorkflowData) => {
+    setWagons((prev) => prev.map((w) => w.id === id ? { ...w, btpglnWorkflow: workflow } : w));
+  };
+
+  const handleUpdateBTPNWorkflow = (id: string, workflow: BTPNWorkflowData) => {
+    setWagons((prev) => prev.map((w) => w.id === id ? { ...w, btpnWorkflow: workflow } : w));
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
+
+      {/* ── KPI Stats ────────────────────────────── */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Operations Dashboard</h1>
         <p className="text-sm text-muted-foreground">Live overview of memos, sick line, and approvals.</p>
@@ -33,46 +157,81 @@ export default function Dashboard() {
         <StatCard label="Pending Approval" value={pendingApproval} icon={ClipboardCheck} tone="info" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent Memos</CardTitle>
-            <Button asChild size="sm" variant="outline"><Link to="/memos">View all</Link></Button>
-          </CardHeader>
-          <CardContent>
-            <div className="divide-y">
-              {memos.slice(0, 6).map((m) => (
-                <Link key={m.id} to={`/memos/${m.id}`} className="flex items-center justify-between py-3 hover:bg-muted/40 px-2 rounded">
-                  <div>
-                    <div className="font-mono text-sm font-semibold">#{m.memoNo}</div>
-                    <div className="text-xs text-muted-foreground">{m.rakeName} · {m.yard} · Line {m.lineNo}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{m.entries.length} wagons</Badge>
-                    <Badge variant="outline">{m.date}</Badge>
-                  </div>
-                </Link>
-              ))}
-              {memos.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No memos yet.</div>}
+      {/* ── Wagon Arrival Entry ───────────────────── */}
+      <div className="border-t pt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Wagon Arrival Entry</h2>
+            <p className="text-sm text-muted-foreground">Register incoming wagons, track their repair status, and manage sick line assignments.</p>
+          </div>
+          <ExportButton wagons={filteredByDateWagons} selectedWagons={selectedWagons} />
+        </div>
+
+        {/* Wagon Repair Stats */}
+        <StatsCards wagons={wagons} />
+
+        {/* Wagon Input */}
+        <div className="mt-4">
+          <WagonInput onWagonParsed={handleWagonParsed} />
+        </div>
+
+        {/* Wagon Table Section */}
+        <div className="space-y-4 mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <ListFilter className="h-5 w-5 text-muted-foreground" />
+              <Tabs value={tableFilter} onValueChange={(v) => setTableFilter(v as typeof tableFilter)}>
+                <TabsList>
+                  <TabsTrigger value="in-repair">Sick ({wagons.filter(w => w.status === "in-repair").length})</TabsTrigger>
+                  <TabsTrigger value="completed">Fit ({wagons.filter(w => w.status === "completed").length})</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Recent Activity</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm max-h-80 overflow-auto">
-              {audit.slice(0, 12).map((e) => (
-                <div key={e.id} className="flex justify-between gap-2 border-l-2 border-primary/40 pl-2">
-                  <div>
-                    <div className="font-medium">{e.action}</div>
-                    {e.details && <div className="text-xs text-muted-foreground truncate">{e.details}</div>}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(e.at).toLocaleString()}</div>
-                </div>
-              ))}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "dd MMM") : "From"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    {dateTo ? format(dateTo, "dd MMM") : "To"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <WagonTable
+            wagons={filteredByDateWagons}
+            onComplete={handleComplete}
+            onUndoComplete={handleUndoComplete}
+            onDelete={handleDelete}
+            onUpdateSickLine={handleUpdateSickLine}
+            onEdit={handleEditWagon}
+            onUpdateBTPGLNWorkflow={handleUpdateBTPGLNWorkflow}
+            onUpdateBTPNWorkflow={handleUpdateBTPNWorkflow}
+            onSelectionChange={setSelectedWagons}
+            filter={tableFilter}
+            isAdmin={isAdmin}
+          />
+        </div>
       </div>
     </div>
   );

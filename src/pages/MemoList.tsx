@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Printer, Trash2, Archive } from "lucide-react";
+import { Eye, Printer, Trash2, Archive, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function MemoList() {
   const { memos, archiveMemo, removeMemo } = useAppStore();
@@ -22,9 +22,20 @@ export default function MemoList() {
           <h1 className="text-2xl font-bold tracking-tight">Unit Memos</h1>
           <p className="text-sm text-muted-foreground">All digital UNIT MEMOs created in the yard.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Input placeholder="Search memo, rake, yard…" value={q} onChange={(e) => setQ(e.target.value)} className="w-64" />
-          <Button asChild><Link to="/memos/new">+ New Memo</Link></Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input placeholder="Search memo, rake, yard…" value={q} onChange={(e) => setQ(e.target.value)} className="w-52" />
+          <Button asChild variant="outline" className="gap-1.5 border-orange-400/60 text-orange-600 hover:bg-orange-50 hover:text-orange-700 dark:hover:bg-orange-950">
+            <Link to="/memos/new?type=sick">
+              <AlertTriangle className="h-4 w-4" />
+              Sick Memo
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-1.5 border-emerald-400/60 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950">
+            <Link to="/memos/new?type=fit">
+              <CheckCircle2 className="h-4 w-4" />
+              Fit Memo
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -33,6 +44,7 @@ export default function MemoList() {
           <TableHeader>
             <TableRow>
               <TableHead>Memo No</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Date / Time</TableHead>
               <TableHead>Rake</TableHead>
               <TableHead>Yard</TableHead>
@@ -48,6 +60,17 @@ export default function MemoList() {
               return (
                 <TableRow key={m.id} className={m.archived ? "opacity-60" : ""}>
                   <TableCell className="font-mono font-semibold">{m.memoNo}</TableCell>
+                  <TableCell>
+                    {m.memoType === "fit" ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-400/40 gap-1 text-[10px]">
+                        <CheckCircle2 className="h-3 w-3" /> Fit
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-orange-500/15 text-orange-700 border-orange-400/40 gap-1 text-[10px]">
+                        <AlertTriangle className="h-3 w-3" /> Sick
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{m.date} {m.time}</TableCell>
                   <TableCell><div>{m.rakeName}</div><div className="text-xs text-muted-foreground">{m.rakeId}</div></TableCell>
                   <TableCell>{m.yard}</TableCell>
@@ -63,7 +86,7 @@ export default function MemoList() {
                 </TableRow>
               );
             })}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">No memos.</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">No memos.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Card>

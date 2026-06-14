@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { nanoid } from "nanoid";
 import { useAppStore } from "@/store/useAppStore";
-import { APPROVAL_ROLES, BOOKED_TO, REASONS, UnitMemo, WagonMemoEntry, WAGON_TYPES } from "@/types";
+import { BOOKED_TO, REASONS, UnitMemo, WagonMemoEntry, WAGON_TYPES } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Printer, FileDown, FileSpreadsheet, FileText } from "lucide-react";
+import { Plus, Trash2, Printer, FileDown, FileSpreadsheet, FileText, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { generateMemoPdf } from "@/lib/pdf";
 import { exportCsv, exportExcel } from "@/lib/exporters";
@@ -18,19 +18,29 @@ import { toast } from "sonner";
 
 export default function MemoEditor() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const nav = useNavigate();
   const isNew = id === "new" || !id;
   const store = useAppStore();
   const existing = !isNew ? store.memos.find((m) => m.id === id) : undefined;
 
+  // Determine memo type from URL param (for new memos) or from existing memo
+  const urlType = searchParams.get("type") as "sick" | "fit" | null;
+  const resolvedType: "sick" | "fit" = existing?.memoType ?? urlType ?? "sick";
+
+  const isSick = resolvedType === "sick";
+  const defaultStatus = isSick ? "Cut Off" as const : "Fit For Loading" as const;
+  const defaultBookedTo = isSick ? "HAPA SL" : "Fit For Loading";
+
   const [memo, setMemo] = useState<UnitMemo>(
     existing ?? {
       id: "", memoNo: String(2000076400 + Math.floor(Math.random() * 1000)),
+      memoType: resolvedType,
       date: new Date().toISOString().slice(0, 10),
       time: new Date().toTimeString().slice(0, 5),
       rakeId: "", rakeName: "", yard: "", lineNo: "", createdBy: "", remarks: "",
       entries: [], createdAt: "",
-      approvals: APPROVAL_ROLES.map((r) => ({ role: r, name: "", designation: "", signature: "", status: "Pending" as const })),
+      approvals: [],
     },
   );
 
@@ -39,13 +49,12 @@ export default function MemoEditor() {
   const set = (patch: Partial<UnitMemo>) => setMemo((m) => ({ ...m, ...patch }));
 
   const addEntry = () => {
-    // Create a new wagon shell along with the entry
     const wagon = store.addWagon({
-      wagonNo: "", type: "BTPN", owner: "", builtYear: new Date().getFullYear(), status: "Cut Off",
+      wagonNo: "", type: "BTPN", owner: "", builtYear: new Date().getFullYear(), status: defaultStatus,
     });
     const entry: WagonMemoEntry = {
       id: nanoid(), sno: memo.entries.length + 1, position: "", wagonId: wagon.id,
-      reason: "Wheel Alert", bookedTo: "HAPA SL", defects: "", status: "Cut Off",
+      reason: "Wheel Alert", bookedTo: defaultBookedTo, defects: "", status: defaultStatus,
     };
     set({ entries: [...memo.entries, entry] });
   };
@@ -61,8 +70,8 @@ export default function MemoEditor() {
   const save = () => {
     if (!memo.memoNo) return toast.error("Memo No required");
     if (isNew) {
-      const created = store.addMemo({ ...memo });
-      toast.success("Memo created");
+      const created = store.addMemo({ ...memo, memoType: resolvedType });
+      toast.success(`${isSick ? "Sick" : "Fit"} Memo created`);
       nav(`/memos/${created.id}`);
     } else {
       store.updateMemo(memo.id, memo);
@@ -74,23 +83,48 @@ export default function MemoEditor() {
   const doExcel = () => { exportExcel([memo], wagonsById, `memo-${memo.memoNo}`); store.log({ actor: "user", action: "Excel export", memoId: memo.id }); };
   const doCsv = () => { exportCsv([memo], wagonsById, `memo-${memo.memoNo}`); store.log({ actor: "user", action: "CSV export", memoId: memo.id }); };
 
+  const TypeIcon = isSick ? AlertTriangle : CheckCircle2;
+  const typeLabel = isSick ? "Sick Memo" : "Fit Memo";
+  const typeBadgeClass = isSick
+    ? "bg-orange-500/15 text-orange-700 border-orange-400/40"
+    : "bg-emerald-500/15 text-emerald-700 border-emerald-400/40";
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{isNew ? "Create Unit Memo" : `Memo #${memo.memoNo}`}</h1>
-          <p className="text-sm text-muted-foreground">Fill in memo details, add wagons, capture approvals.</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {isNew ? `Create ${typeLabel}` : `Memo #${memo.memoNo}`}
+            </h1>
+            <Badge className={`gap-1 ${typeBadgeClass}`}>
+              <TypeIcon className="h-3.5 w-3.5" />
+              {typeLabel}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {isSick
+              ? "Record sick wagons booked for repair / sick line."
+              : "Record wagons declared fit for loading / return to service."}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {!isNew && <Button variant="outline" asChild><Link to={`/memos/${memo.id}/print`}><Printer className="h-4 w-4 mr-1" /> Print Memo</Link></Button>}
           <Button variant="outline" onClick={doPdf}><FileDown className="h-4 w-4 mr-1" /> Generate PDF</Button>
           <Button variant="outline" onClick={doExcel}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
           <Button variant="outline" onClick={doCsv}><FileText className="h-4 w-4 mr-1" /> CSV</Button>
-          <Button onClick={save}>{isNew ? "Create" : "Save"}</Button>
+          <Button
+            onClick={save}
+            className={isSick
+              ? "bg-orange-600 hover:bg-orange-700 text-white"
+              : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+          >
+            {isNew ? `Create ${typeLabel}` : "Save"}
+          </Button>
         </div>
       </div>
 
-      <Card>
+      <Card className={`border-l-4 ${isSick ? "border-l-orange-500" : "border-l-emerald-500"}`}>
         <CardHeader><CardTitle>Memo Details</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <div><Label>Memo No</Label><Input value={memo.memoNo} onChange={(e) => set({ memoNo: e.target.value })} /></div>
@@ -108,7 +142,13 @@ export default function MemoEditor() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Wagons in this Memo</CardTitle>
-          <Button size="sm" onClick={addEntry}><Plus className="h-4 w-4 mr-1" /> Add Wagon</Button>
+          <Button size="sm" onClick={addEntry}
+            className={isSick
+              ? "bg-orange-600 hover:bg-orange-700 text-white"
+              : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Add Wagon
+          </Button>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -164,29 +204,7 @@ export default function MemoEditor() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>Digital Signatures / Approvals</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          {memo.approvals.map((a, i) => (
-            <div key={a.role} className="border rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="font-semibold text-sm">{a.role}</div>
-                <Badge variant={a.status === "Approved" ? "default" : a.status === "Rejected" ? "destructive" : "outline"}>{a.status}</Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input placeholder="Name" value={a.name} onChange={(ev) => set({ approvals: memo.approvals.map((x, j) => j === i ? { ...x, name: ev.target.value } : x) })} />
-                <Input placeholder="Designation" value={a.designation} onChange={(ev) => set({ approvals: memo.approvals.map((x, j) => j === i ? { ...x, designation: ev.target.value } : x) })} />
-                <Input placeholder="Signature / Initials" value={a.signature} onChange={(ev) => set({ approvals: memo.approvals.map((x, j) => j === i ? { ...x, signature: ev.target.value } : x) })} />
-                <div className="text-xs text-muted-foreground flex items-center">{a.approvedAt ? new Date(a.approvedAt).toLocaleString() : "—"}</div>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => { set({ approvals: memo.approvals.map((x, j) => j === i ? { ...x, status: "Approved", approvedAt: new Date().toISOString() } : x) }); }}>Approve</Button>
-                <Button size="sm" variant="ghost" onClick={() => { set({ approvals: memo.approvals.map((x, j) => j === i ? { ...x, status: "Rejected", approvedAt: new Date().toISOString() } : x) }); }}>Reject</Button>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+
     </div>
   );
 }

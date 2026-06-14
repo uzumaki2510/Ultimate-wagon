@@ -165,7 +165,29 @@ export const useAppStore = create<AppState>()(
       updateEmployee: (id, patch) => set((s) => ({ employees: s.employees.map((e) => e.id === id ? { ...e, ...patch } : e) })),
       removeEmployee: (id) => set((s) => ({ employees: s.employees.filter((e) => e.id !== id) })),
 
-      log: (e) => set((s) => ({ audit: [{ ...e, id: nanoid(), at: new Date().toISOString() }, ...s.audit].slice(0, 500) })),
+      log: (e) => {
+        // Enrich with current user identity from localStorage
+        let userId: string | undefined;
+        let userEmail: string | undefined;
+        let userName: string | undefined;
+        let userRole: string | undefined;
+        try {
+          const raw = localStorage.getItem("wagon_app_current_user");
+          if (raw) {
+            const u = JSON.parse(raw);
+            userId = u.id;
+            userEmail = u.email;
+            userName = u.name;
+            userRole = u.role;
+          }
+        } catch { /* ignore */ }
+        set((s) => ({
+          audit: [
+            { ...e, id: nanoid(), at: new Date().toISOString(), userId, userEmail, userName, userRole },
+            ...s.audit,
+          ].slice(0, 1000),
+        }));
+      },
     }),
     {
       name: "wagon-whisperer-store",

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Train, LogIn, UserPlus, Eye, EyeOff, Shield, User as UserIcon } from "lucide-react";
+import { Train, LogIn, UserPlus, Eye, EyeOff, Shield, User as UserIcon, Clock } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -16,6 +16,8 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [portal, setPortal] = useState<"employee" | "admin">("employee");
+  const [pendingApproval, setPendingApproval] = useState(false);
+  const [pendingName, setPendingName] = useState("");
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -86,11 +88,8 @@ const Auth = () => {
     });
 
     if (result.success) {
-      toast({
-        title: "Account Created",
-        description: "Welcome to the Wagon Repair Management System!",
-      });
-      navigate("/");
+      setPendingName(signupName);
+      setPendingApproval(true);
     } else {
       toast({
         title: "Signup Failed",
@@ -116,7 +115,38 @@ const Auth = () => {
           <p className="text-muted-foreground">Wagon Repair Management System</p>
         </div>
 
-        {/* Portal Switch */}
+        {/* Pending Approval Screen */}
+        {pendingApproval ? (
+          <Card className="glass border-amber-400/30">
+            <CardContent className="pt-8 pb-8 flex flex-col items-center gap-4 text-center">
+              <div className="p-4 rounded-full bg-amber-500/15">
+                <Clock className="h-10 w-10 text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Awaiting Admin Approval</h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Hi <span className="font-semibold text-foreground">{pendingName}</span>, your account request has been submitted.
+                </p>
+              </div>
+              <div className="w-full rounded-lg bg-amber-500/10 border border-amber-400/30 p-4 text-sm text-amber-800 dark:text-amber-300 text-left space-y-1">
+                <p className="font-semibold">What happens next?</p>
+                <ul className="list-disc list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
+                  <li>The administrator reviews your request</li>
+                  <li>Once approved, you can log in with your credentials</li>
+                  <li>If rejected, contact your department head</li>
+                </ul>
+              </div>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => { setPendingApproval(false); setPortal("employee"); }}
+              >
+                Back to Login
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+        <>
         <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-secondary">
           <Button
             type="button"
@@ -340,6 +370,8 @@ const Auth = () => {
           </Tabs>
           )}
         </Card>
+        </>
+        )} {/* end pendingApproval else */}
 
         <p className="text-center text-xs text-muted-foreground">
           Data stored locally for offline access

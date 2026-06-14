@@ -1,6 +1,6 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, FileText, Train, Wrench, Users, Archive, BarChart3, ShieldCheck, User, LogOut, Trash2
+  LayoutDashboard, FileText, Wrench, Users, Archive, BarChart3, ShieldCheck, User, LogOut, Trash2
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -13,19 +13,19 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout, listPendingEmployees } = useAuth();
 
   const isActive = (u: string) => u === "/" ? pathname === "/" : pathname.startsWith(u);
 
+  const pendingCount = isAdmin ? listPendingEmployees().length : 0;
+
   const navItems = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
-    { title: "Wagon Register", url: "/register", icon: Wrench, role: "all" },
     { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
-    { title: "Rake Management", url: "/rakes", icon: Train, role: "all" },
     { title: "Sick Line Stages", url: "/sickline", icon: Wrench, role: "all" },
     { title: "Reports", url: "/reports", icon: BarChart3, role: "all" },
-    { title: "Deleted Register", url: "/deleted", icon: Trash2, role: "admin" },
-    { title: "Employees", url: "/employees", icon: Users, role: "admin" },
+    { title: "Deleted Register", url: "/deleted", icon: Trash2, role: "all" },
+    { title: "Employees", url: "/employees", icon: Users, role: "admin", badge: pendingCount },
     { title: "Archives", url: "/archives", icon: Archive, role: "admin" },
   ];
 
@@ -59,8 +59,18 @@ export function AppSidebar() {
                 <SidebarMenuItem key={n.url}>
                   <SidebarMenuButton asChild isActive={isActive(n.url)}>
                     <NavLink to={n.url} className="flex items-center gap-2">
-                      <n.icon className="h-4 w-4" />
-                      {!collapsed && <span>{n.title}</span>}
+                      <n.icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && (
+                        <span className="flex-1">{n.title}</span>
+                      )}
+                      {!collapsed && n.badge && n.badge > 0 && (
+                        <span className="ml-auto h-5 min-w-5 flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold px-1">
+                          {n.badge}
+                        </span>
+                      )}
+                      {collapsed && n.badge && n.badge > 0 && (
+                        <span className="absolute top-1 right-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-sidebar" />
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

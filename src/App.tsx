@@ -11,7 +11,7 @@ import WagonRegister from "@/pages/WagonRegister";
 import MemoList from "@/pages/MemoList";
 import MemoEditor from "@/pages/MemoEditor";
 import MemoPrint from "@/pages/MemoPrint";
-import RakeManagement from "@/pages/RakeManagement";
+
 import SickLine from "@/pages/SickLine";
 import Employees from "@/pages/Employees";
 import Archives from "@/pages/Archives";
@@ -19,6 +19,7 @@ import Reports from "@/pages/Reports";
 import Profile from "@/pages/Profile";
 import Deleted from "@/pages/Deleted";
 import Auth from "@/pages/Auth";
+import AdminLog from "@/pages/AdminLog";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,13 +41,15 @@ const App = () => (
               <Route path="/memos/new" element={<MemoEditor />} />
               <Route path="/memos/:id" element={<MemoEditor />} />
               <Route path="/memos/:id/print" element={<MemoPrint />} />
-              <Route path="/rakes" element={<RakeManagement />} />
               <Route path="/sickline" element={<SickLine />} />
               
               {/* Admin Guarded Routes */}
               <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
               <Route path="/archives" element={<AdminRoute><Archives /></AdminRoute>} />
-              <Route path="/deleted" element={<AdminRoute><Deleted /></AdminRoute>} />
+              <Route path="/admin-log" element={<AdminRoute><AdminLog /></AdminRoute>} />
+
+              {/* All authenticated users */}
+              <Route path="/deleted" element={<Deleted />} />
               
               {/* Profile Route */}
               <Route path="/profile" element={<Profile />} />

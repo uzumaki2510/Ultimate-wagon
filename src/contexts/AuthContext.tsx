@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { LoginRecord } from "@/types";
 
 export type UserRole = "admin" | "employee";
+export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export interface User {
   id: string;
@@ -10,6 +12,7 @@ export interface User {
   department: string;
   designation: string;
   role: UserRole;
+  approved: ApprovalStatus;
   createdAt: string;
 }
 
@@ -22,7 +25,10 @@ interface AuthContextType {
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
   listEmployees: () => User[];
+  listPendingEmployees: () => User[];
+  approveEmployee: (email: string, status: ApprovalStatus) => void;
   deleteEmployee: (email: string) => void;
+  getLoginRecords: () => LoginRecord[];
 }
 
 interface SignupData {
@@ -38,6 +44,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const USERS_KEY = "wagon_app_users";
 const CURRENT_USER_KEY = "wagon_app_current_user";
+const LOGIN_RECORDS_KEY = "wagon_app_login_records";
 
 const PRESET_ADMIN_EMAIL = "admin@railway.gov.in";
 const PRESET_ADMIN_PASSWORD = "admin123";
@@ -49,20 +56,37 @@ const PRESET_ADMIN: User = {
   department: "C&W Department",
   designation: "Administrator",
   role: "admin",
+  approved: "approved",
   createdAt: new Date(0).toISOString(),
 };
+
+/** Persist a login event for the given user */
+function recordLogin(user: User) {
+  const raw = localStorage.getItem(LOGIN_RECORDS_KEY);
+  const records: Record<string, LoginRecord> = raw ? JSON.parse(raw) : {};
+  const existing = records[user.id];
+  records[user.id] = {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    lastLogin: new Date().toISOString(),
+    loginCount: (existing?.loginCount ?? 0) + 1,
+  };
+  localStorage.setItem(LOGIN_RECORDS_KEY, JSON.stringify(records));
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
     const savedUser = localStorage.getItem(CURRENT_USER_KEY);
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
-      // Backfill role for legacy records
       if (!parsed.role) parsed.role = "employee";
+      // Backfill: legacy accounts without approved field are treated as approved
+      if (!parsed.approved) parsed.approved = "approved";
       setUser(parsed);
     }
     setIsLoading(false);
@@ -80,11 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     const emailLower = email.toLowerCase().trim();
 
-    // Preset admin check
     if (emailLower === PRESET_ADMIN_EMAIL) {
       if (password !== PRESET_ADMIN_PASSWORD) {
         return { success: false, error: "Invalid admin password" };
       }
+      recordLogin(PRESET_ADMIN);
       setUser(PRESET_ADMIN);
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(PRESET_ADMIN));
       return { success: true };
@@ -101,7 +125,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: "Invalid password" };
     }
 
-    const u = { ...userRecord.user, role: userRecord.user.role || ("employee" as UserRole) };
+    const u: User = {
+      ...userRecord.user,
+      role: userRecord.user.role || ("employee" as UserRole),
+      approved: userRecord.user.approved ?? "approved", // backfill legacy
+    };
+
+    if (u.approved === "pending") {
+      return { success: false, error: "Your account is awaiting admin approval. Please try again after approval." };
+    }
+
+    if (u.approved === "rejected") {
+      return { success: false, error: "Your account registration was rejected. Please contact the administrator." };
+    }
+
+    recordLogin(u);
     setUser(u);
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
     return { success: true };
@@ -127,14 +165,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       department: data.department,
       designation: data.designation,
       role: "employee",
+      approved: "pending", // ← must wait for admin approval
       createdAt: new Date().toISOString(),
     };
 
     users[emailLower] = { user: newUser, password: data.password };
     saveUsers(users);
 
-    setUser(newUser);
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+    // Do NOT log user in or set session — they must wait for approval
     return { success: true };
   };
 
@@ -150,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updatedUser);
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
 
-    if (user.id === PRESET_ADMIN.id) return; // preset admin not stored in users map
+    if (user.id === PRESET_ADMIN.id) return;
 
     const users = getUsers();
     if (users[user.email]) {
@@ -162,14 +200,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const listEmployees = (): User[] => {
     const users = getUsers();
     return Object.values(users)
-      .map((r) => ({ ...r.user, role: r.user.role || ("employee" as UserRole) }))
-      .filter((u) => u.role === "employee");
+      .map((r) => ({
+        ...r.user,
+        role: r.user.role || ("employee" as UserRole),
+        approved: r.user.approved ?? "approved",
+      }))
+      .filter((u) => u.approved === "approved");
+  };
+
+  const listPendingEmployees = (): User[] => {
+    const users = getUsers();
+    return Object.values(users)
+      .map((r) => ({
+        ...r.user,
+        role: r.user.role || ("employee" as UserRole),
+        approved: r.user.approved ?? "approved",
+      }))
+      .filter((u) => u.approved === "pending")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
+  const approveEmployee = (email: string, status: ApprovalStatus) => {
+    const users = getUsers();
+    const key = email.toLowerCase();
+    if (users[key]) {
+      users[key].user = { ...users[key].user, approved: status };
+      saveUsers(users);
+    }
   };
 
   const deleteEmployee = (email: string) => {
     const users = getUsers();
     delete users[email.toLowerCase()];
     saveUsers(users);
+  };
+
+  const getLoginRecords = (): LoginRecord[] => {
+    const raw = localStorage.getItem(LOGIN_RECORDS_KEY);
+    const records: Record<string, LoginRecord> = raw ? JSON.parse(raw) : {};
+    return Object.values(records).sort(
+      (a, b) => new Date(b.lastLogin).getTime() - new Date(a.lastLogin).getTime()
+    );
   };
 
   return (
@@ -183,7 +254,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         updateProfile,
         listEmployees,
+        listPendingEmployees,
+        approveEmployee,
         deleteEmployee,
+        getLoginRecords,
       }}
     >
       {children}

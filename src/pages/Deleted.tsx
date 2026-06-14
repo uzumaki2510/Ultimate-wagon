@@ -27,6 +27,7 @@ const Deleted = () => {
   const [deletedWagons, setDeletedWagons] = useState<WagonRepair[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     setDeletedWagons(loadDeletedWagons());
@@ -86,8 +87,18 @@ const Deleted = () => {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Deleted Register</h1>
-        <p className="text-sm text-muted-foreground">Restore or permanently delete wagons from the system.</p>
+        <p className="text-sm text-muted-foreground">
+          {isAdmin
+            ? "Restore or permanently delete wagons from the system."
+            : "View wagons that have been removed from the active register."}
+        </p>
       </div>
+
+      {!isAdmin && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+          <span className="font-semibold">View only</span> — Only administrators can restore or permanently delete wagons.
+        </div>
+      )}
 
       <Card className="border-destructive/20 bg-card">
         <CardHeader className="pb-4">
@@ -147,26 +158,30 @@ const Deleted = () => {
                       <TableCell className="text-xs">{getSickLineName(wagon.sickLine)}</TableCell>
                       <TableCell className="text-xs">{formatDateTime(wagon.arrivalDate)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-success hover:text-success hover:bg-success/10"
-                            onClick={() => handleRestore(wagon.id)}
-                            title="Restore Wagon"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handlePermanentDelete(wagon.id)}
-                            title="Delete Permanently"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {isAdmin ? (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-success hover:text-success hover:bg-success/10"
+                              onClick={() => handleRestore(wagon.id)}
+                              title="Restore Wagon"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handlePermanentDelete(wagon.id)}
+                              title="Delete Permanently"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

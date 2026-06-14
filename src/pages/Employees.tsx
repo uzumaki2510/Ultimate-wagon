@@ -7,39 +7,51 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Trash2, Plus, UserCheck } from "lucide-react";
+import { Users, Trash2, Plus, UserCheck, Clock, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Employees() {
-  const { listEmployees, deleteEmployee } = useAuth();
+  const { listEmployees, listPendingEmployees, approveEmployee, deleteEmployee } = useAuth();
   const { toast } = useToast();
+
   const [systemUsers, setSystemUsers] = useState<User[]>(listEmployees());
+  const [pending, setPending] = useState<User[]>(listPendingEmployees());
   const [toRemove, setToRemove] = useState<User | null>(null);
 
   const { employees: rosterEmployees, addEmployee, updateEmployee, removeEmployee } = useAppStore();
   const [form, setForm] = useState({ name: "", designation: "", role: "", empCode: "" });
 
+  const refresh = () => {
+    setSystemUsers(listEmployees());
+    setPending(listPendingEmployees());
+  };
+
+  const handleApprove = (emp: User) => {
+    approveEmployee(emp.email, "approved");
+    refresh();
+    toast({ title: "Account Approved", description: `${emp.name} can now log in.` });
+  };
+
+  const handleReject = (emp: User) => {
+    approveEmployee(emp.email, "rejected");
+    refresh();
+    toast({
+      title: "Account Rejected",
+      description: `${emp.name}'s registration was rejected.`,
+      variant: "destructive",
+    });
+  };
+
   const confirmDelete = () => {
     if (!toRemove) return;
     deleteEmployee(toRemove.email);
-    setSystemUsers(listEmployees());
+    refresh();
     toast({ title: "Employee removed", description: `${toRemove.name} has been removed.` });
     setToRemove(null);
   };
@@ -48,21 +60,150 @@ export default function Employees() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Staff & Employees</h1>
-        <p className="text-sm text-muted-foreground">Manage registered accounts and signature rosters.</p>
+        <p className="text-sm text-muted-foreground">Manage registrations, approve accounts, and maintain the roster.</p>
       </div>
 
-      <Tabs defaultValue="roster" className="w-full">
+      <Tabs defaultValue={pending.length > 0 ? "pending" : "users"} className="w-full">
         <TabsList className="mb-4">
-          <TabsTrigger value="roster" className="gap-2">
-            <UserCheck className="h-4 w-4" />
-            Approval Roster ({rosterEmployees.length})
+          <TabsTrigger value="pending" className="gap-2">
+            <Clock className="h-4 w-4" />
+            Pending Approval
+            {pending.length > 0 && (
+              <Badge className="ml-1 bg-amber-500 text-white text-[10px] h-4 px-1.5">
+                {pending.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
             Registered Accounts ({systemUsers.length})
           </TabsTrigger>
+          <TabsTrigger value="roster" className="gap-2">
+            <UserCheck className="h-4 w-4" />
+            Approval Roster ({rosterEmployees.length})
+          </TabsTrigger>
         </TabsList>
 
+        {/* ── Pending Approval Tab ── */}
+        <TabsContent value="pending" className="space-y-4">
+          <Card className="border-amber-400/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-amber-500" />
+                Pending Account Requests
+              </CardTitle>
+              <CardDescription>
+                Review new employee sign-up requests. Approved accounts can log in immediately.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pending.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-emerald-500/50" />
+                  <p>No pending requests — all caught up!</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Employee ID</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Designation</TableHead>
+                      <TableHead>Requested</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pending.map((emp) => (
+                      <TableRow key={emp.id} className="hover:bg-amber-50/30 dark:hover:bg-amber-950/20">
+                        <TableCell className="font-medium">{emp.name}</TableCell>
+                        <TableCell className="font-mono text-sm">{emp.employeeId}</TableCell>
+                        <TableCell className="text-sm">{emp.email}</TableCell>
+                        <TableCell className="text-sm">{emp.department}</TableCell>
+                        <TableCell className="text-sm">{emp.designation}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(emp.createdAt).toLocaleDateString("en-IN", {
+                            day: "2-digit", month: "short", year: "numeric",
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={() => handleApprove(emp)}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10"
+                              onClick={() => handleReject(emp)}
+                            >
+                              <XCircle className="h-3.5 w-3.5" /> Reject
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Registered Accounts Tab ── */}
+        <TabsContent value="users" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Registered App Accounts</CardTitle>
+              <CardDescription>Manage approved employee accounts. Deleted users will be blocked immediately.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {systemUsers.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No approved employee accounts yet.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Employee ID</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Designation</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {systemUsers.map((emp) => (
+                      <TableRow key={emp.id}>
+                        <TableCell className="font-medium">{emp.name}</TableCell>
+                        <TableCell className="font-mono text-sm">{emp.employeeId}</TableCell>
+                        <TableCell>{emp.email}</TableCell>
+                        <TableCell>{emp.designation}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => setToRemove(emp)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Approval Roster Tab ── */}
         <TabsContent value="roster" className="space-y-6">
           <Card>
             <CardHeader>
@@ -81,9 +222,7 @@ export default function Employees() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Approval Staff Roster</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Approval Staff Roster</CardTitle></CardHeader>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -125,52 +264,6 @@ export default function Employees() {
                 )}
               </TableBody>
             </Table>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Registered App Accounts</CardTitle>
-              <CardDescription>Manage user accounts registered with the app. Deleted users will be instantly logged out and blocked.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {systemUsers.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No employee accounts registered yet.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Employee ID</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Designation</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {systemUsers.map((emp) => (
-                      <TableRow key={emp.id}>
-                        <TableCell className="font-medium">{emp.name}</TableCell>
-                        <TableCell className="font-mono text-sm">{emp.employeeId}</TableCell>
-                        <TableCell>{emp.email}</TableCell>
-                        <TableCell>{emp.designation}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive hover:bg-destructive/10"
-                            onClick={() => setToRemove(emp)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

@@ -73,6 +73,7 @@ export interface Approval {
 export interface UnitMemo {
   id: string;
   memoNo: string;
+  memoType?: "sick" | "fit";
   date: string;
   time: string;
   rakeId: string;
@@ -124,8 +125,21 @@ export interface AuditEvent {
   id: string;
   at: string;
   actor: string;
+  userId?: string;
+  userEmail?: string;
+  userName?: string;
+  userRole?: string;
   wagonId?: string;
   memoId?: string;
   action: string;
   details?: string;
+}
+
+export interface LoginRecord {
+  userId: string;
+  email: string;
+  name: string;
+  role: string;
+  lastLogin: string;
+  loginCount: number;
 }
