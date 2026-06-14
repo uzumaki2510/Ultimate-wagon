@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 354 70% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 94%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 45 95% 55%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 70% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --info: 217 91% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 354 70% 38%;
+
+    --radius: 0.6rem;
+
+    /* Railway brand */
+    --rail-maroon: 354 70% 30%;
+    --rail-deep: 222 47% 14%;
+    --rail-yellow: 48 95% 65%;
+    --rail-yellow-paper: 46 80% 80%;
+    --rail-ink: 28 40% 18%;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 220 13% 88%;
+    --sidebar-primary: 354 70% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 35% 18%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 222 35% 18%;
+    --sidebar-ring: 354 70% 45%;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 354 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 35% 15%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 35% 15%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 45 95% 55%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 35% 18%;
+    --input: 222 35% 18%;
+    --ring: 354 70% 50%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; font-family: 'Inter', system-ui, sans-serif; }
+  h1,h2,h3,h4 { font-family: 'Inter', system-ui, sans-serif; }
+}
+
+/* Yellow memo paper styles (used on print preview) */
+.memo-paper {
+  background-color: hsl(var(--rail-yellow-paper));
+  color: hsl(var(--rail-ink));
+  font-family: 'Source Serif Pro', 'Georgia', serif;
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.25);
+  border: 1px solid hsl(28 30% 40% / 0.3);
+}
+.memo-paper h1, .memo-paper h2 { font-family: 'Source Serif Pro', 'Georgia', serif; }
+.memo-paper table { border-collapse: collapse; width: 100%; }
+.memo-paper th, .memo-paper td { border: 1px solid hsl(28 30% 30%); padding: 4px 6px; font-size: 11px; }
+.memo-paper th { background: hsl(46 70% 70%); text-transform: uppercase; letter-spacing: 0.02em; }
+
+@media print {
+  body { background: white; }
+  .no-print { display: none !important; }
+  .memo-paper { box-shadow: none; border: none; }
+  @page { size: A4 landscape; margin: 8mm; }
+}

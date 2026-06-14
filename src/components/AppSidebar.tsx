@@ -1,0 +1,99 @@
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard, FileText, Train, Wrench, Users, Archive, BarChart3, ShieldCheck, User, LogOut, Trash2
+} from "lucide-react";
+import {
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
+} from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
+
+export function AppSidebar() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, isAdmin, logout } = useAuth();
+
+  const isActive = (u: string) => u === "/" ? pathname === "/" : pathname.startsWith(u);
+
+  const navItems = [
+    { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
+    { title: "Wagon Register", url: "/register", icon: Wrench, role: "all" },
+    { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
+    { title: "Rake Management", url: "/rakes", icon: Train, role: "all" },
+    { title: "Sick Line Stages", url: "/sickline", icon: Wrench, role: "all" },
+    { title: "Reports", url: "/reports", icon: BarChart3, role: "all" },
+    { title: "Deleted Register", url: "/deleted", icon: Trash2, role: "admin" },
+    { title: "Employees", url: "/employees", icon: Users, role: "admin" },
+    { title: "Archives", url: "/archives", icon: Archive, role: "admin" },
+  ];
+
+  const filteredItems = navItems.filter(item => {
+    if (item.role === "admin") return isAdmin;
+    return true;
+  });
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="flex items-center gap-2 px-2 py-3">
+          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground">
+            <ShieldCheck className="h-4 w-4" />
+          </div>
+          {!collapsed && (
+            <div className="leading-tight">
+              <div className="text-sm font-bold text-sidebar-foreground">Ultimate Wagon</div>
+              <div className="text-[10px] text-sidebar-foreground/70 uppercase tracking-wider">Repair & Memo System</div>
+            </div>
+          )}
+        </div>
+      </SidebarHeader>
+      
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {filteredItems.map((n) => (
+                <SidebarMenuItem key={n.url}>
+                  <SidebarMenuButton asChild isActive={isActive(n.url)}>
+                    <NavLink to={n.url} className="flex items-center gap-2">
+                      <n.icon className="h-4 w-4" />
+                      {!collapsed && <span>{n.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive("/profile")}>
+              <NavLink to="/profile" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                {!collapsed && <span className="truncate">{user?.name || "Profile"}</span>}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={() => {
+                logout();
+                navigate("/auth");
+              }} 
+              className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+            >
+              <LogOut className="h-4 w-4" />
+              {!collapsed && <span>Logout</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}

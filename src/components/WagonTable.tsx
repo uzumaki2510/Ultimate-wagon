@@ -1,0 +1,428 @@
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
+import { BTPGLNWorkflow } from "@/components/BTPGLNWorkflow";
+import { BTPNWorkflow } from "@/components/BTPNWorkflow";
+import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Fuel, Train, Droplets } from "lucide-react";
+
+interface WagonTableProps {
+  wagons: WagonRepair[];
+  onComplete: (id: string) => void;
+  onUndoComplete: (id: string) => void;
+  onDelete: (id: string) => void;
+  onUpdateSickLine: (id: string, sickLine: SickLine) => void;
+  onEdit: (id: string, updates: Partial<WagonRepair>) => void;
+  onUpdateBTPGLNWorkflow?: (id: string, workflow: BTPGLNWorkflowData) => void;
+  onUpdateBTPNWorkflow?: (id: string, workflow: BTPNWorkflowData) => void;
+  onSelectionChange?: (selectedWagons: WagonRepair[]) => void;
+  filter: "in-repair" | "completed";
+  isAdmin?: boolean;
+}
+
+export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpdateSickLine, onEdit, onUpdateBTPGLNWorkflow, onUpdateBTPNWorkflow, onSelectionChange, filter, isAdmin = false }: WagonTableProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingWagon, setEditingWagon] = useState<WagonRepair | null>(null);
+  const [editComments, setEditComments] = useState("");
+  const [editRepairTypes, setEditRepairTypes] = useState<RepairType[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [btpglnWagon, setBtpglnWagon] = useState<WagonRepair | null>(null);
+  const [btpnWagon, setBtpnWagon] = useState<WagonRepair | null>(null);
+  const filteredWagons = useMemo(() => {
+    let result = wagons;
+    
+    // Filter by status
+    result = result.filter((w) => w.status === filter);
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((w) => 
+        w.wagonNumber.toLowerCase().includes(query) ||
+        w.details.typeName.toLowerCase().includes(query) ||
+        w.details.railwayName.toLowerCase().includes(query)
+      );
+    }
+    
+    return result;
+  }, [wagons, filter, searchQuery]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(filteredWagons.map((w) => w.id));
+      setSelectedIds(allIds);
+      onSelectionChange?.(filteredWagons);
+    } else {
+      setSelectedIds(new Set());
+      onSelectionChange?.([]);
+    }
+  };
+
+  const handleSelectOne = (wagon: WagonRepair, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(wagon.id);
+    } else {
+      newSelected.delete(wagon.id);
+    }
+    setSelectedIds(newSelected);
+    onSelectionChange?.(wagons.filter((w) => newSelected.has(w.id)));
+  };
+
+  const isAllSelected = filteredWagons.length > 0 && filteredWagons.every((w) => selectedIds.has(w.id));
+  const isSomeSelected = filteredWagons.some((w) => selectedIds.has(w.id));
+
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return {
+      date: date.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      time: date.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }),
+    };
+  };
+
+  const openEditDialog = (wagon: WagonRepair) => {
+    setEditingWagon(wagon);
+    setEditComments(wagon.comments || "");
+    setEditRepairTypes(wagon.repairTypes);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingWagon) {
+      onEdit(editingWagon.id, {
+        comments: editComments.trim() || undefined,
+        repairTypes: editRepairTypes,
+      });
+      setEditingWagon(null);
+    }
+  };
+
+  const toggleRepairType = (type: RepairType) => {
+    setEditRepairTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  };
+
+  return (
+    <>
+      <Card className="glass animate-fade-in">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <FileSpreadsheet className="h-5 w-5 text-info" />
+              Wagon Register
+              <Badge variant="secondary" className="ml-2">
+                {filteredWagons.length} wagon{filteredWagons.length !== 1 ? "s" : ""}
+              </Badge>
+              {selectedIds.size > 0 && (
+                <Badge variant="outline" className="ml-2">
+                  {selectedIds.size} selected
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search wagon no., type, railway..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredWagons.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>{searchQuery ? "No wagons match your search" : "No wagons found"}</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-secondary/50">
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all"
+                        className={isSomeSelected && !isAllSelected ? "opacity-50" : ""}
+                      />
+                    </TableHead>
+                    <TableHead className="font-semibold">Wagon No.</TableHead>
+                    <TableHead className="font-semibold">Type</TableHead>
+                    <TableHead className="font-semibold">Railway</TableHead>
+                    <TableHead className="font-semibold">Train No.</TableHead>
+                    <TableHead className="font-semibold">Sick Line</TableHead>
+                    <TableHead className="font-semibold">Arrival</TableHead>
+                    <TableHead className="font-semibold">Fit</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredWagons.map((wagon) => (
+                    <TableRow key={wagon.id} className="hover:bg-secondary/30 transition-colors">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(wagon.id)}
+                          onCheckedChange={(checked) => handleSelectOne(wagon, checked as boolean)}
+                          aria-label={`Select wagon ${wagon.wagonNumber}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono font-medium">
+                        {wagon.wagonNumber}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{wagon.details.typeName}</p>
+                          <p className="text-xs text-muted-foreground">{wagon.details.category}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[150px] truncate">
+                        {wagon.details.railwayName}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Train className="h-3 w-3 text-muted-foreground" />
+                          <span className="font-mono text-sm">{wagon.trainNumber || "—"}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={wagon.sickLine || ""}
+                          onValueChange={(value) => onUpdateSickLine(wagon.id, value as SickLine)}
+                        >
+                          <SelectTrigger className="w-28 h-8">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SICK_LINES.map((line) => (
+                              <SelectItem key={line.id} value={line.id}>
+                                {line.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p className="font-medium">{wagon.arrivalDate}</p>
+                          <p className="text-xs text-muted-foreground">{wagon.arrivalTime || "—"}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {wagon.completedDate ? (
+                          <div className="text-sm">
+                            <p className="font-medium">{formatDateTime(wagon.completedDate).date}</p>
+                            <p className="text-xs text-muted-foreground">{formatDateTime(wagon.completedDate).time}</p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {wagon.status === "in-repair" ? (
+                          <Badge className="bg-warning text-warning-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Sick
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-success text-success-foreground">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Fit
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {/* BTPGLN Workflow Button - Only show for BTPGLN wagons */}
+                          {wagon.details.typeName === "BTPGLN" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-orange-600 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                              onClick={() => setBtpglnWagon(wagon)}
+                              title="BTPGLN Workflow"
+                            >
+                              <Fuel className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {/* BTPN/BTPFLN Workflow Button */}
+                          {(wagon.details.typeCode === "40" || wagon.details.typeCode === "47" || wagon.details.typeCode === "41") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+                              onClick={() => setBtpnWagon(wagon)}
+                              title="BTPN/BTPFLN Workflow"
+                            >
+                              <Droplets className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-info hover:text-info hover:bg-info/10"
+                              onClick={() => openEditDialog(wagon)}
+                              title="Edit Wagon"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {wagon.status === "in-repair" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-success hover:text-success hover:bg-success/10"
+                              onClick={() => onComplete(wagon.id)}
+                              title="Mark as Fit"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-warning hover:text-warning hover:bg-warning/10"
+                              onClick={() => onUndoComplete(wagon.id)}
+                              title="Undo - Mark as Sick"
+                            >
+                              <Undo2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => onDelete(wagon.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingWagon} onOpenChange={(open) => !open && setEditingWagon(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Wagon - {editingWagon?.wagonNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Repair Types</Label>
+              <div className="flex flex-wrap gap-2">
+                {REPAIR_TYPES.map((type) => (
+                  <Badge
+                    key={type.id}
+                    variant={editRepairTypes.includes(type.id) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleRepairType(type.id)}
+                  >
+                    {type.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="comments">Comments</Label>
+              <Textarea
+                id="comments"
+                value={editComments}
+                onChange={(e) => setEditComments(e.target.value)}
+                placeholder="Add any additional comments..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingWagon(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* BTPGLN Workflow Dialog */}
+      <Dialog open={!!btpglnWagon} onOpenChange={(open) => !open && setBtpglnWagon(null)}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          {btpglnWagon && (
+            <BTPGLNWorkflow
+              wagon={btpglnWagon}
+              workflowData={btpglnWagon.btpglnWorkflow}
+              onUpdateWorkflow={(workflow) => {
+                onUpdateBTPGLNWorkflow?.(btpglnWagon.id, workflow);
+              }}
+              onClose={() => setBtpglnWagon(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* BTPN/BTPFLN Workflow Dialog */}
+      <Dialog open={!!btpnWagon} onOpenChange={(open) => !open && setBtpnWagon(null)}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          {btpnWagon && (
+            <BTPNWorkflow
+              wagon={btpnWagon}
+              workflowData={btpnWagon.btpnWorkflow}
+              onUpdateWorkflow={(workflow) => {
+                onUpdateBTPNWorkflow?.(btpnWagon.id, workflow);
+              }}
+              onClose={() => setBtpnWagon(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
