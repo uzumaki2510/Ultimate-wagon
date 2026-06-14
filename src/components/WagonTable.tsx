@@ -43,7 +43,7 @@ interface WagonTableProps {
   onUpdateBTPGLNWorkflow?: (id: string, workflow: BTPGLNWorkflowData) => void;
   onUpdateBTPNWorkflow?: (id: string, workflow: BTPNWorkflowData) => void;
   onSelectionChange?: (selectedWagons: WagonRepair[]) => void;
-  filter: "in-repair" | "completed";
+  filter: "all" | "in-repair" | "completed";
   isAdmin?: boolean;
 }
 
@@ -59,7 +59,9 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
     let result = wagons;
     
     // Filter by status
-    result = result.filter((w) => w.status === filter);
+    if (filter !== "all") {
+      result = result.filter((w) => w.status === filter);
+    }
     
     // Filter by search query
     if (searchQuery.trim()) {
@@ -187,11 +189,8 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                     <TableHead className="font-semibold">Wagon No.</TableHead>
                     <TableHead className="font-semibold">Type</TableHead>
                     <TableHead className="font-semibold">Railway</TableHead>
-                    <TableHead className="font-semibold">Train No.</TableHead>
-                    <TableHead className="font-semibold">Sick Line</TableHead>
-                    <TableHead className="font-semibold">Arrival</TableHead>
-                    <TableHead className="font-semibold">Fit</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Repairs</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -218,43 +217,39 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         {wagon.details.railwayName}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Train className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-mono text-sm">{wagon.trainNumber || "—"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={wagon.sickLine || ""}
-                          onValueChange={(value) => onUpdateSickLine(wagon.id, value as SickLine)}
-                        >
-                          <SelectTrigger className="w-28 h-8">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SICK_LINES.map((line) => (
-                              <SelectItem key={line.id} value={line.id}>
-                                {line.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <p className="font-medium">{wagon.arrivalDate}</p>
-                          <p className="text-xs text-muted-foreground">{wagon.arrivalTime || "—"}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {wagon.completedDate ? (
-                          <div className="text-sm">
-                            <p className="font-medium">{formatDateTime(wagon.completedDate).date}</p>
-                            <p className="text-xs text-muted-foreground">{formatDateTime(wagon.completedDate).time}</p>
-                          </div>
+                        {wagon.status === "in-repair" ? (
+                          <Badge className="bg-warning text-warning-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Sick
+                          </Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <Badge className="bg-success text-success-foreground">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Fit
+                          </Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1.5">
+                          {wagon.primaryRepair && (
+                            <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                              {wagon.primaryRepair}
+                            </span>
+                          )}
+                          {wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0 && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {wagon.secondaryRepairs.map((r, i) => (
+                                <div key={i} className="flex items-center gap-1">
+                                  <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
+                                  {r}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {!wagon.primaryRepair && (!wagon.secondaryRepairs || wagon.secondaryRepairs.length === 0) && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {wagon.status === "in-repair" ? (

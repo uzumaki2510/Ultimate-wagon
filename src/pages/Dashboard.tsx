@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useAppStore } from "@/store/useAppStore";
-import { StatCard } from "@/components/StatCard";
 import { FileText, AlertTriangle, Wrench, ClipboardCheck, Train, CheckCircle2, Hourglass, ListFilter, CalendarIcon, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,24 +31,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { memos, wagons: storeWagons, audit } = useAppStore();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
-
-  // ── Memo Stats ──────────────────────────────────────
-  const totalMemos = memos.length;
-  const cutOff = storeWagons.filter((w) => w.status === "Cut Off").length;
-  const sickLine = storeWagons.filter((w) => w.status === "Sick Line").length;
-  const underRepair = storeWagons.filter((w) => w.status === "Under Repair").length;
-  const awaiting = storeWagons.filter((w) => w.status === "Awaiting Inspection").length;
-  const fit = storeWagons.filter((w) => w.status === "Fit For Loading").length;
-  const pendingApproval = memos.reduce((n, m) => n + m.approvals.filter((a) => a.status === "Pending").length, 0);
 
   // ── Wagon Register State ─────────────────────────────
   const [wagons, setWagons] = useState<WagonRepair[]>([]);
   const [deletedWagons, setDeletedWagons] = useState<WagonRepair[]>([]);
   const [selectedWagons, setSelectedWagons] = useState<WagonRepair[]>([]);
-  const [tableFilter, setTableFilter] = useState<"in-repair" | "completed">("in-repair");
+  const [tableFilter, setTableFilter] = useState<"all" | "in-repair" | "completed">("in-repair");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
@@ -60,7 +52,57 @@ export default function Dashboard() {
         description: `${archiveResult.wagonCount} wagons from ${archiveResult.monthLabel} have been archived.`,
       });
     }
-    setWagons(loadWagons());
+    const loadedWagons = loadWagons();
+    if (loadedWagons.length === 0) {
+      // Seed exact data requested by user
+      const seedWagons: WagonRepair[] = [
+        {
+          id: generateId(), wagonNumber: "BA-CR-22-1234-5", status: "in-repair", arrivalDate: new Date().toISOString(),
+          repairTypes: ["body"], primaryRepair: "Main Frame Repair", secondaryRepairs: ["Buffer Gear", "Brake system check"],
+          details: { wagonNumber: "BA-CR-22-1234-5", typeCode: "10", typeName: "BCN", category: "Covered Wagon", railwayCode: "01", railwayName: "CR", yearOfManufacture: "2022", serialNumber: "1234", checkDigit: "5", isValidCheckDigit: true }
+        },
+        {
+          id: generateId(), wagonNumber: "SA-WR-23-4567-8", status: "in-repair", arrivalDate: new Date().toISOString(),
+          repairTypes: ["wheel"], primaryRepair: "Axle Replacement", secondaryRepairs: ["Wheel Profile Rectification"],
+          details: { wagonNumber: "SA-WR-23-4567-8", typeCode: "10", typeName: "BOXN", category: "Open Wagon", railwayCode: "08", railwayName: "WR", yearOfManufacture: "2023", serialNumber: "4567", checkDigit: "8", isValidCheckDigit: true }
+        },
+        {
+          id: generateId(), wagonNumber: "DA-NR-21-9876-2", status: "in-repair", arrivalDate: new Date().toISOString(),
+          repairTypes: ["brake"], primaryRepair: "Pneumatic System Overhaul", secondaryRepairs: ["Draw Gear", "Coupler check"],
+          details: { wagonNumber: "DA-NR-21-9876-2", typeCode: "33", typeName: "BCNHL", category: "Covered Wagon", railwayCode: "03", railwayName: "NR", yearOfManufacture: "2021", serialNumber: "9876", checkDigit: "2", isValidCheckDigit: true }
+        },
+        {
+          id: generateId(), wagonNumber: "EA-SR-24-3321-1", status: "in-repair", arrivalDate: new Date().toISOString(),
+          repairTypes: ["body"], primaryRepair: "Side Body Rectification", secondaryRepairs: ["Rivet replacement", "Floor sheet"],
+          details: { wagonNumber: "EA-SR-24-3321-1", typeCode: "12", typeName: "BOXNHS", category: "Open Wagon", railwayCode: "06", railwayName: "SR", yearOfManufacture: "2024", serialNumber: "3321", checkDigit: "1", isValidCheckDigit: true }
+        },
+        {
+          id: generateId(), wagonNumber: "FA-ER-23-7744-9", status: "in-repair", arrivalDate: new Date().toISOString(),
+          repairTypes: ["bogie"], primaryRepair: "Crankshaft Repair", secondaryRepairs: ["Piston replace"],
+          details: { wagonNumber: "FA-ER-23-7744-9", typeCode: "30", typeName: "BCN", category: "Covered Wagon", railwayCode: "02", railwayName: "ER", yearOfManufacture: "2023", serialNumber: "7744", checkDigit: "9", isValidCheckDigit: true }
+        }
+      ];
+      // Generate 13 more "in-repair" to make it 18 total
+      for (let i = 0; i < 13; i++) {
+        seedWagons.push({
+          id: generateId(), wagonNumber: `DUMMY-SICK-${i}`, status: "in-repair", arrivalDate: new Date().toISOString(),
+          repairTypes: ["body"], primaryRepair: "Minor Body Repair", secondaryRepairs: ["Paint touchup"],
+          details: { wagonNumber: `DUMMY-SICK-${i}`, typeCode: "10", typeName: "BOXN", category: "Open Wagon", railwayCode: "01", railwayName: "CR", yearOfManufacture: "2022", serialNumber: "1234", checkDigit: "5", isValidCheckDigit: true }
+        });
+      }
+      // Generate 17 "completed" to make it 35 total wagons
+      for (let i = 0; i < 17; i++) {
+        seedWagons.push({
+          id: generateId(), wagonNumber: `DUMMY-FIT-${i}`, status: "completed", arrivalDate: new Date().toISOString(), completedDate: new Date().toISOString(),
+          repairTypes: ["wheel"], primaryRepair: "Wheel Turn", secondaryRepairs: [],
+          details: { wagonNumber: `DUMMY-FIT-${i}`, typeCode: "10", typeName: "BOXN", category: "Open Wagon", railwayCode: "01", railwayName: "CR", yearOfManufacture: "2022", serialNumber: "1234", checkDigit: "5", isValidCheckDigit: true }
+        });
+      }
+      setWagons(seedWagons);
+    } else {
+      setWagons(loadedWagons);
+    }
+    
     setDeletedWagons(loadDeletedWagons());
   }, []);
 
@@ -142,20 +184,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
 
-      {/* ── KPI Stats ────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Operations Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Live overview of memos, sick line, and approvals.</p>
-      </div>
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
-        <StatCard label="Total Memos" value={totalMemos} icon={FileText} tone="info" />
-        <StatCard label="Wagons Cut Off" value={cutOff} icon={AlertTriangle} tone="danger" />
-        <StatCard label="In Sick Line" value={sickLine} icon={Train} tone="warning" />
-        <StatCard label="Under Repair" value={underRepair} icon={Wrench} tone="warning" />
-        <StatCard label="Awaiting Inspection" value={awaiting} icon={Hourglass} tone="default" />
-        <StatCard label="Fit For Loading" value={fit} icon={CheckCircle2} tone="success" />
-        <StatCard label="Pending Approval" value={pendingApproval} icon={ClipboardCheck} tone="info" />
-      </div>
+
 
       {/* ── Wagon Arrival Entry ───────────────────── */}
       <div className="border-t pt-6">
@@ -168,7 +197,11 @@ export default function Dashboard() {
         </div>
 
         {/* Wagon Repair Stats */}
-        <StatsCards wagons={wagons} />
+        <StatsCards 
+          wagons={wagons} 
+          filter={tableFilter} 
+          onFilterChange={(f) => navigate(`/wagon-directory?status=${f}`)} 
+        />
 
         {/* Wagon Input */}
         <div className="mt-4">
@@ -182,6 +215,7 @@ export default function Dashboard() {
               <ListFilter className="h-5 w-5 text-muted-foreground" />
               <Tabs value={tableFilter} onValueChange={(v) => setTableFilter(v as typeof tableFilter)}>
                 <TabsList>
+                  <TabsTrigger value="all">All ({wagons.length})</TabsTrigger>
                   <TabsTrigger value="in-repair">Sick ({wagons.filter(w => w.status === "in-repair").length})</TabsTrigger>
                   <TabsTrigger value="completed">Fit ({wagons.filter(w => w.status === "completed").length})</TabsTrigger>
                 </TabsList>

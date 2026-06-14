@@ -145,6 +145,8 @@ export interface WagonRepair {
   wagonNumber: string;
   details: WagonDetails;
   repairTypes: RepairType[];
+  primaryRepair?: string;
+  secondaryRepairs?: string[];
   arrivalDate: string;
   arrivalTime?: string;
   trainNumber?: string;
@@ -240,7 +242,7 @@ export function generateId(): string {
 }
 
 // Storage keys
-const STORAGE_KEY = "railway_cw_wagons";
+const STORAGE_KEY = "railway_cw_wagons_v2";
 const DELETED_STORAGE_KEY = "railway_cw_deleted_wagons";
 const ARCHIVES_STORAGE_KEY = "railway_cw_monthly_archives";
 const LAST_ARCHIVE_CHECK_KEY = "railway_cw_last_archive_check";

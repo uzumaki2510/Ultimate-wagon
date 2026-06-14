@@ -21,6 +21,7 @@ export function AppSidebar() {
 
   const navItems = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
+    { title: "Wagon Directory", url: "/wagon-directory", icon: FileText, role: "all" },
     { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
     { title: "Sick Line Stages", url: "/sickline", icon: Wrench, role: "all" },
     { title: "Reports", url: "/reports", icon: BarChart3, role: "all" },

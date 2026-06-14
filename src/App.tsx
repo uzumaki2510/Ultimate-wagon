@@ -11,6 +11,7 @@ import WagonRegister from "@/pages/WagonRegister";
 import MemoList from "@/pages/MemoList";
 import MemoEditor from "@/pages/MemoEditor";
 import MemoPrint from "@/pages/MemoPrint";
+import WagonDirectory from "@/pages/WagonDirectory";
 
 import SickLine from "@/pages/SickLine";
 import Employees from "@/pages/Employees";
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/memos/:id" element={<MemoEditor />} />
               <Route path="/memos/:id/print" element={<MemoPrint />} />
               <Route path="/sickline" element={<SickLine />} />
+              <Route path="/wagon-directory" element={<WagonDirectory />} />
               
               {/* Admin Guarded Routes */}
               <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
