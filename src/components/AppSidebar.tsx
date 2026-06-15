@@ -19,13 +19,19 @@ export function AppSidebar() {
 
   const navItems = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
-    { title: "Wagon Directory", url: "/wagon-directory", icon: FileText, role: "all" },
-    { title: "Quick Board", url: "/quick-board", icon: Zap, role: "all" },
-    { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
-    { title: "Sick Line Stages", url: "/sickline", icon: Wrench, role: "all" },
-    { title: "Deleted Register", url: "/deleted", icon: Trash2, role: "all" },
-    { title: "Employees", url: "/employees", icon: Users, role: "admin", badge: pendingCount },
-    { title: "Archives", url: "/archives", icon: Archive, role: "admin" },
+    { title: "Wagon Register", url: "/register", icon: FileText, role: "all" },
+    { title: "Wagon Master", url: "/wagon-directory", icon: FileText, role: "all" },
+    { title: "Sick Line", url: "/sickline", icon: Wrench, role: "all" },
+    { title: "Employees", url: "/employees", icon: Users, role: "all", badge: pendingCount },
+  ];
+
+  const adminItems = [
+    { title: "Quick Entry", url: "/quick-board", icon: Zap },
+    { title: "Unit Memos", url: "/memos", icon: FileText },
+    { title: "Reports", url: "/reports", icon: FileText },
+    { title: "Archives", url: "/archives", icon: Archive },
+    { title: "Deleted Register", url: "/deleted", icon: Trash2 },
+    { title: "Admin Log", url: "/admin-log", icon: ShieldCheck },
   ];
 
   const filteredItems = navItems.filter(item => {
@@ -54,7 +60,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredItems.map((n) => (
+              {navItems.map((n) => (
                 <SidebarMenuItem key={n.url}>
                   <SidebarMenuButton asChild isActive={isActive(n.url)}>
                     <NavLink to={n.url} className="flex items-center gap-2">
@@ -77,6 +83,26 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin / More</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((n) => (
+                  <SidebarMenuItem key={n.url}>
+                    <SidebarMenuButton asChild isActive={isActive(n.url)}>
+                      <NavLink to={n.url} className="flex items-center gap-2">
+                        <n.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span>{n.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-2">

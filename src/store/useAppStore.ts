@@ -2,8 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import {
-  AuditEvent, Employee, Rake, UnitMemo, Wagon, WorkflowItem, WORKFLOW_TEMPLATES,
+  AuditEvent, Employee, Rake, UnitMemo, Wagon, WorkflowItem, WorkflowStageRecord
 } from "@/types";
+import { getWorkflowTemplate } from "@/lib/workflowConfig";
 import { buildDemoData } from "@/lib/demoData";
 
 interface AppState {
@@ -22,8 +23,8 @@ interface AppState {
   resetAll: () => void;
 
   // wagons
-  addWagon: (w: Omit<Wagon, "id">) => Wagon;
-  updateWagon: (id: string, patch: Partial<Wagon>) => void;
+  addWagon: (wagon: Omit<Wagon, "id">) => Wagon;
+  updateWagon: (id: string, patch: Partial<Wagon>, actorName?: string) => void;
   removeWagon: (id: string) => void;
 
   // rakes
@@ -41,8 +42,11 @@ interface AppState {
   approveMemo: (id: string, role: string, name: string, designation: string, signature: string, status: "Approved" | "Rejected") => void;
 
   // workflows
-  upsertWorkflowForWagon: (wagonId: string, memoId: string) => void;
+  upsertWorkflowForWagon: (wagonId: string, memoId?: string) => void;
   advanceWorkflow: (id: string, toStage: string) => void;
+  startStage: (id: string, stageName: string, staffName?: string) => void;
+  markStageDone: (id: string, stageName: string, staffName: string, inspectorName: string, remarks: string) => void;
+  markWagonFit: (wagonId: string) => void;
 
   // employees
   addEmployee: (e: Omit<Employee, "id">) => Employee;
@@ -76,9 +80,10 @@ export const useAppStore = create<AppState>()(
         get().log({ actor: "user", action: "Wagon added", wagonId: wagon.id, details: wagon.wagonNo });
         return wagon;
       },
-      updateWagon: (id, patch) => {
+      updateWagon: (id, patch, actorName) => {
         set((s) => ({ wagons: s.wagons.map((w) => (w.id === id ? { ...w, ...patch } : w)) }));
-        get().log({ actor: "user", action: "Wagon updated", wagonId: id, details: JSON.stringify(patch) });
+        const actionDetails = patch.repairTypes ? `Repair types: ${patch.repairTypes.join(", ")}` : JSON.stringify(patch);
+        get().log({ actor: actorName || "user", action: patch.repairTypes ? "Repair Types Updated" : "Wagon updated", wagonId: id, details: actionDetails });
       },
       removeWagon: (id) => set((s) => ({ wagons: s.wagons.filter((w) => w.id !== id) })),
 
@@ -132,29 +137,102 @@ export const useAppStore = create<AppState>()(
         if (!wagon) return;
         const existing = get().workflows.find((wf) => wf.wagonId === wagonId);
         if (existing) return;
-        const tpl = WORKFLOW_TEMPLATES[wagon.type as string] ?? WORKFLOW_TEMPLATES.DEFAULT;
+        
+        const template = getWorkflowTemplate(wagon.type as string);
+        const stageRecords: WorkflowStageRecord[] = template.stages.map((st, i) => ({
+          stageName: st.name,
+          targetDurationHours: st.targetDurationHours,
+          status: i === 0 ? "Pending" : "Pending"
+        }));
+
         const item: WorkflowItem = {
           id: nanoid(), wagonId, memoId, wagonNo: wagon.wagonNo, wagonType: wagon.type as string,
-          currentStage: tpl[0], stages: tpl, completedStages: [], updatedAt: new Date().toISOString(),
+          currentStage: stageRecords[0].stageName, stages: stageRecords, updatedAt: new Date().toISOString(),
         };
+        
         set((s) => ({ workflows: [...s.workflows, item], wagons: s.wagons.map((w) => w.id === wagonId ? { ...w, status: "Sick Line" } : w) }));
       },
-      advanceWorkflow: (id, toStage) => {
+
+      startStage: (id, stageName, staffName = "User") => {
+        set((s) => {
+          const wf = s.workflows.find(w => w.id === id);
+          if (!wf) return s;
+          
+          const isFirstStage = wf.stages.length > 0 && wf.stages[0].stageName === stageName;
+          
+          const updatedWorkflows = s.workflows.map(w => {
+            if (w.id !== id) return w;
+            const updatedStages = w.stages.map(st => 
+              st.stageName === stageName ? { ...st, status: "In Progress" as const, startedAt: new Date().toISOString(), staffName } : st
+            );
+            return { ...w, stages: updatedStages, updatedAt: new Date().toISOString() };
+          });
+
+          const updatedWagons = s.wagons.map(wagon => {
+            if (wagon.id === wf.wagonId && !isFirstStage) {
+              return { ...wagon, status: "Under Repair" as const };
+            }
+            return wagon;
+          });
+
+          return { workflows: updatedWorkflows, wagons: updatedWagons };
+        });
+        
+        const wf = get().workflows.find((w) => w.id === id);
+        if (wf) get().log({ actor: staffName, action: "Stage Started", details: `Started ${stageName} for wagon ${wf.wagonNo}`, wagonId: wf.wagonId });
+      },
+
+      markStageDone: (id, stageName, staffName, inspectorName, remarks) => {
         set((s) => ({
-          workflows: s.workflows.map((wf) => {
+          workflows: s.workflows.map(wf => {
             if (wf.id !== id) return wf;
-            const idx = wf.stages.indexOf(toStage as any);
-            if (idx < 0) return wf;
-            const completed = wf.stages.slice(0, idx);
-            return { ...wf, currentStage: toStage as any, completedStages: completed, updatedAt: new Date().toISOString() };
-          }),
+            const updatedStages = wf.stages.map(st => {
+              if (st.stageName === stageName) {
+                const now = new Date();
+                const started = st.startedAt ? new Date(st.startedAt) : now;
+                const diffMs = now.getTime() - started.getTime();
+                const durationHours = diffMs / (1000 * 60 * 60);
+                return { ...st, status: "Done" as const, completedAt: now.toISOString(), durationHours, staffName, inspectorName, remarks };
+              }
+              return st;
+            });
+            return { ...wf, stages: updatedStages, updatedAt: new Date().toISOString() };
+          })
         }));
         const wf = get().workflows.find((w) => w.id === id);
-        if (wf) {
-          const isFit = toStage === "Fit For Loading" || toStage === "Fit For Use";
-          get().updateWagon(wf.wagonId, { status: isFit ? "Fit For Loading" : "Under Repair" });
-        }
-        get().log({ actor: "user", action: "Workflow stage updated", details: toStage });
+        if (wf) get().log({ actor: inspectorName, action: "Stage Marked Done", details: `Stage ${stageName} completed for wagon ${wf.wagonNo}. Remarks: ${remarks}`, wagonId: wf.wagonId });
+      },
+
+      advanceWorkflow: (id, toStage) => {
+        set((s) => {
+          const wf = s.workflows.find(w => w.id === id);
+          if (!wf) return s;
+
+          const updatedWorkflows = s.workflows.map((w) => {
+            if (w.id !== id) return w;
+            const updatedStages = w.stages.map(st => 
+              st.stageName === toStage ? { ...st, status: "In Progress" as const, startedAt: new Date().toISOString() } : st
+            );
+            return { ...w, currentStage: toStage, stages: updatedStages, updatedAt: new Date().toISOString() };
+          });
+
+          const updatedWagons = s.wagons.map(wagon => {
+            if (wagon.id === wf.wagonId) {
+              return { ...wagon, status: "Under Repair" as const };
+            }
+            return wagon;
+          });
+
+          return { workflows: updatedWorkflows, wagons: updatedWagons };
+        });
+        const wf = get().workflows.find((w) => w.id === id);
+        if (wf) get().log({ actor: "user", action: "Moved to Next Stage", details: `Advanced to ${toStage} for wagon ${wf.wagonNo}`, wagonId: wf.wagonId });
+      },
+
+      markWagonFit: (wagonId) => {
+        get().updateWagon(wagonId, { status: "Fit For Loading" });
+        const wf = get().workflows.find((w) => w.wagonId === wagonId);
+        if (wf) get().log({ actor: "user", action: "Wagon Marked Fit", details: `Wagon ${wf.wagonNo} marked Fit For Loading`, wagonId });
       },
 
       addEmployee: (e) => {

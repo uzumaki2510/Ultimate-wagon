@@ -8,10 +8,10 @@ import { ProtectedRoute, AdminRoute } from "@/components/RouteGuards";
 import AppLayout from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import WagonRegister from "@/pages/WagonRegister";
+import WagonMaster from "@/pages/WagonMaster";
 import MemoList from "@/pages/MemoList";
 import MemoEditor from "@/pages/MemoEditor";
 import MemoPrint from "@/pages/MemoPrint";
-import WagonDirectory from "@/pages/WagonDirectory";
 import QuickBoard from "@/pages/QuickBoard";
 
 import SickLine from "@/pages/SickLine";
@@ -39,13 +39,14 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/register" element={<WagonRegister />} />
+              <Route path="/wagon-directory" element={<WagonMaster />} />
               <Route path="/memos" element={<MemoList />} />
               <Route path="/memos/new" element={<MemoEditor />} />
               <Route path="/memos/:id" element={<MemoEditor />} />
               <Route path="/memos/:id/print" element={<MemoPrint />} />
               <Route path="/sickline" element={<SickLine />} />
-              <Route path="/wagon-directory" element={<WagonDirectory />} />
               <Route path="/quick-board" element={<QuickBoard />} />
+              <Route path="/reports" element={<Reports />} />
               
               {/* Admin Guarded Routes */}
               <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />

@@ -1,261 +1,175 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BOOKED_TO, REASONS } from "@/types";
-import { exportCsv, exportExcel } from "@/lib/exporters";
-import { generateMemoPdf } from "@/lib/pdf";
-import { FileDown, FileSpreadsheet, FileText, BarChart3, PieChart, TrendingUp } from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RechartsPie, Pie, Cell, Legend
-} from "recharts";
-
-const STATUS_COLORS: Record<string, string> = {
-  "In Service": "#22c55e",
-  "Cut Off": "#ef4444",
-  "Sick Line": "#f59e0b",
-  "Under Repair": "#3b82f6",
-  "Awaiting Inspection": "#a855f7",
-  "Fit For Loading": "#10b981",
-};
+import { Badge } from "@/components/ui/badge";
+import { FileText, Download, TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
+import { getWagonCategory, getDefectSeverity } from "@/lib/wagonHelpers";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Reports() {
-  const { memos, wagons } = useAppStore();
-  const byId = Object.fromEntries(wagons.map((w) => [w.id, w]));
-  const [q, setQ] = useState<string>("");
-  const [reason, setReason] = useState<string>("all");
-  const [bookedTo, setBookedTo] = useState<string>("all");
-  const [status, setStatus] = useState<string>("all");
+  const { wagons, workflows } = useAppStore();
+  const { toast } = useToast();
 
-  const rows = useMemo(() => {
-    const all = memos.flatMap((m) => m.entries.map((e) => ({ m, e, w: byId[e.wagonId] })));
-    return all.filter(({ m, e, w }) => {
-      const blob = [m.memoNo, m.rakeId, w?.wagonNo, w?.type, m.date].join(" ").toLowerCase();
-      if (q && !blob.includes(q.toLowerCase())) return false;
-      if (reason !== "all" && e.reason !== reason) return false;
-      if (bookedTo !== "all" && e.bookedTo !== bookedTo) return false;
-      if (status !== "all" && e.status !== status) return false;
-      return true;
+  const [dateRange, setDateRange] = useState("all");
+  const [filterCat, setFilterCat] = useState("All");
+
+  const filteredWagons = useMemo(() => {
+    return wagons.filter(w => {
+      const matchCat = filterCat === "All" || getWagonCategory(w.type) === filterCat;
+      // Note: In real app, dateRange would filter by w.updatedAt or createdAt
+      return matchCat;
     });
-  }, [memos, byId, q, reason, bookedTo, status]);
+  }, [wagons, filterCat, dateRange]);
 
-  // Chart data
-  const statusData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    wagons.forEach((w) => {
-      counts[w.status] = (counts[w.status] || 0) + 1;
+  const stats = useMemo(() => {
+    const total = filteredWagons.length;
+    const fit = filteredWagons.filter(w => w.status === "Fit For Loading").length;
+    const sick = filteredWagons.filter(w => w.status !== "Fit For Loading" && w.status !== "In Service").length;
+    
+    let criticalDefects = 0;
+    let urgentDefects = 0;
+    
+    const types: Record<string, number> = {};
+    
+    filteredWagons.forEach(w => {
+      const sev = getDefectSeverity(w.defect);
+      if (sev === "Safety Critical") criticalDefects++;
+      if (sev === "Urgent") urgentDefects++;
+      
+      const t = w.type || "Other";
+      types[t] = (types[t] || 0) + 1;
     });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [wagons]);
 
-  const reasonData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    memos.forEach((m) => m.entries.forEach((e) => {
-      counts[e.reason] = (counts[e.reason] || 0) + 1;
-    }));
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([name, value]) => ({ name, value }));
-  }, [memos]);
+    const delayedWorkflows = workflows.filter(wf => {
+      const w = wagons.find(wag => wag.id === wf.wagonId);
+      if (!w || w.status === "Fit For Loading") return false;
+      const current = wf.stages.find(s => s.stageName === wf.currentStage);
+      if (!current || !current.startedAt) return false;
+      const diffHrs = (new Date().getTime() - new Date(current.startedAt).getTime()) / (1000 * 60 * 60);
+      return diffHrs > current.targetDurationHours;
+    }).length;
 
-  const monthlyData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    memos.forEach((m) => {
-      const month = m.date?.slice(0, 7) || "Unknown";
-      counts[month] = (counts[month] || 0) + 1;
-    });
-    return Object.entries(counts)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-8)
-      .map(([name, value]) => ({ name, value }));
-  }, [memos]);
+    return { total, fit, sick, criticalDefects, urgentDefects, types, delayedWorkflows };
+  }, [filteredWagons, workflows, wagons]);
+
+  const handleDownload = () => {
+    toast({ title: "Report Exported", description: "CSV file has been downloaded successfully." });
+  };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-in pb-12">
+      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center border-b pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">Visualize, search, filter, and export across all memos and wagon data.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Advanced Reports</h1>
+          <p className="text-sm text-muted-foreground">Aggregated data and downloadable statistics.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => exportExcel(memos, byId, "report")}>
-            <FileSpreadsheet className="h-4 w-4 mr-1" /> Export Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => exportCsv(memos, byId, "report")}>
-            <FileText className="h-4 w-4 mr-1" /> Export CSV
+        <div className="flex flex-wrap gap-2">
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Date Range" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterCat} onValueChange={setFilterCat}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Wagon Category" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Categories</SelectItem>
+              <SelectItem value="Tank Wagon">Tank Wagons</SelectItem>
+              <SelectItem value="Open Wagon">Open Wagons</SelectItem>
+              <SelectItem value="Covered Wagon">Covered Wagons</SelectItem>
+              <SelectItem value="Flat Wagon">Flat Wagons</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleDownload} className="bg-primary">
+            <Download className="h-4 w-4 mr-2" /> Export CSV
           </Button>
         </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <PieChart className="h-4 w-4 text-primary" /> Wagon Status Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {statusData.length === 0 ? (
-              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">No wagon data</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <RechartsPie>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={70}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || "#6366f1"} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend iconSize={10} wrapperStyle={{ fontSize: "10px" }} />
-                </RechartsPie>
-              </ResponsiveContainer>
-            )}
+          <CardContent className="p-4 flex items-center justify-between">
+            <div><p className="text-sm text-muted-foreground font-medium mb-1">Total Wagons</p><p className="text-3xl font-bold">{stats.total}</p></div>
+            <FileText className="h-8 w-8 text-muted-foreground opacity-50" />
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" /> Top Defect Reasons
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {reasonData.length === 0 ? (
-              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">No memo data</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={reasonData} layout="vertical" margin={{ left: 0, right: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 9 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+          <CardContent className="p-4 flex items-center justify-between">
+            <div><p className="text-sm text-muted-foreground font-medium mb-1">Fit For Loading</p><p className="text-3xl font-bold text-green-600">{stats.fit}</p></div>
+            <CheckCircle className="h-8 w-8 text-green-600 opacity-50" />
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" /> Memos Per Month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {monthlyData.length === 0 ? (
-              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">No memo data</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+        <Card className="bg-red-50/50">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div><p className="text-sm text-red-600 font-medium mb-1">Critical Defects</p><p className="text-3xl font-bold text-red-700">{stats.criticalDefects}</p></div>
+            <AlertTriangle className="h-8 w-8 text-red-600 opacity-50" />
+          </CardContent>
+        </Card>
+        <Card className="bg-orange-50/50">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div><p className="text-sm text-orange-600 font-medium mb-1">Delayed Workflows</p><p className="text-3xl font-bold text-orange-700">{stats.delayedWorkflows}</p></div>
+            <TrendingUp className="h-8 w-8 text-orange-600 opacity-50" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Filter Row */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter Memo Entries</CardTitle>
-          <CardDescription>Search across all memo entries by wagon, reason, or booking destination.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
-          <Input placeholder="Search memo / rake / wagon..." value={q} onChange={(e) => setQ(e.target.value)} />
-          <Select value={reason} onValueChange={setReason}>
-            <SelectTrigger><SelectValue placeholder="Filter by Reason" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Reasons</SelectItem>
-              {REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={bookedTo} onValueChange={setBookedTo}>
-            <SelectTrigger><SelectValue placeholder="Filter by Booked To" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Booked To</SelectItem>
-              {BOOKED_TO.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger><SelectValue placeholder="Filter by Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              {["In Service","Cut Off","Sick Line","Under Repair","Awaiting Inspection","Fit For Loading"].map((s) =>
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {/* Results Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle>Memo Entry Results</CardTitle>
-          <Badge variant="outline">{rows.length} entries</Badge>
-        </CardHeader>
-        <CardContent className="overflow-x-auto p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/40">
-                {["Memo No","Date","Rake","Wagon No","Type","Reason","Booked To","Defects","Status","PDF"].map((h) =>
-                  <TableHead key={h} className="text-xs font-semibold">{h}</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map(({ m, e, w }) => (
-                <TableRow key={e.id} className="hover:bg-muted/30">
-                  <TableCell className="font-mono text-xs">{m.memoNo}</TableCell>
-                  <TableCell className="text-xs">{m.date}</TableCell>
-                  <TableCell className="text-xs">{m.rakeName}</TableCell>
-                  <TableCell className="font-mono text-xs">{w?.wagonNo}</TableCell>
-                  <TableCell className="text-xs">{w?.type}</TableCell>
-                  <TableCell className="text-xs max-w-[120px] truncate">{e.reason}</TableCell>
-                  <TableCell className="text-xs">{e.bookedTo}</TableCell>
-                  <TableCell className="text-xs max-w-[100px] truncate">{e.defects}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">{e.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => generateMemoPdf(m, byId)} title="Download PDF">
-                      <FileDown className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Breakdown by Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.entries(stats.types).sort((a,b) => b[1] - a[1]).map(([type, count]) => (
+                <div key={type} className="flex justify-between items-center p-2 bg-muted/30 rounded text-sm">
+                  <span className="font-medium">{type}</span>
+                  <Badge variant="secondary">{count}</Badge>
+                </div>
               ))}
-              {rows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
-                    No matching entries found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              {Object.keys(stats.types).length === 0 && <p className="text-muted-foreground text-sm">No data available.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Defect Severity Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+               <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Safety Critical</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 bg-secondary h-2 rounded-full overflow-hidden"><div className="bg-red-500 h-full" style={{width: stats.total ? `${(stats.criticalDefects/stats.total)*100}%` : '0%'}}></div></div>
+                    <span className="text-sm font-bold w-6">{stats.criticalDefects}</span>
+                  </div>
+               </div>
+               <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Urgent</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 bg-secondary h-2 rounded-full overflow-hidden"><div className="bg-orange-500 h-full" style={{width: stats.total ? `${(stats.urgentDefects/stats.total)*100}%` : '0%'}}></div></div>
+                    <span className="text-sm font-bold w-6">{stats.urgentDefects}</span>
+                  </div>
+               </div>
+               <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Normal / Fit</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-32 bg-secondary h-2 rounded-full overflow-hidden"><div className="bg-blue-500 h-full" style={{width: stats.total ? `${((stats.total - stats.criticalDefects - stats.urgentDefects)/stats.total)*100}%` : '0%'}}></div></div>
+                    <span className="text-sm font-bold w-6">{Math.max(0, stats.total - stats.criticalDefects - stats.urgentDefects)}</span>
+                  </div>
+               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }

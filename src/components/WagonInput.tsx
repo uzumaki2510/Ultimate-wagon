@@ -1,39 +1,91 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { parseWagonNumber, WagonDetails, SICK_LINES, REPAIR_TYPES, RepairType } from "@/lib/wagonData";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Search, CheckCircle, XCircle, Train, Calendar, Clock, Wrench, MessageSquare } from "lucide-react";
+import { parseWagonNumber, WagonDetails, SICK_LINES } from "@/lib/wagonData";
+import { PriorityLevel, RepairTask } from "@/types/index";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, CheckCircle, XCircle, Train, Calendar, Clock, Wrench, MessageSquare, Camera, ArrowRight, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 
 interface WagonInputProps {
-  onWagonParsed: (details: WagonDetails, trainNumber: string, arrivalDate: string, arrivalTime: string, sickLine: string, repairTypes: RepairType[], comments: string, isDegassed?: boolean, isSteamed?: boolean) => void;
+  onWagonParsed: (
+    details: WagonDetails, 
+    trainNumber: string, 
+    arrivalDate: string, 
+    arrivalTime: string, 
+    sickLine: string, 
+    repairTasks: RepairTask[], 
+    comments: string, 
+    priority: PriorityLevel,
+    isDegassed?: boolean, 
+    isSteamed?: boolean
+  ) => void;
 }
+
+const REPAIR_CATEGORIES = [
+  { id: "Wheel & Axle", icon: "🔧", desc: "Wheel, bearing, axle box and flange issues" },
+  { id: "Brake System", icon: "🛑", desc: "Brake binding, air leakage and brake cylinder issues" },
+  { id: "Coupler / CBC", icon: "🔗", desc: "Coupler, knuckle, draft gear and buffer issues" },
+  { id: "Body & Structure", icon: "🛠️", desc: "Body, side wall, roof, door and barrel defects" },
+  { id: "Tank Wagon Work", icon: "🛢️", desc: "Valve, steaming, purging and hydro test work" },
+  { id: "Scheduled Maintenance", icon: "📅", desc: "ROH, POH, periodic and yard examinations" },
+  { id: "Painting / Finishing", icon: "🎨", desc: "Painting, marking and minor finishing works" },
+  { id: "Inspection / Fit", icon: "✅", desc: "Awaiting inspection and fit for loading/use checks" },
+];
+
+const SUB_REPAIRS: Record<string, string[]> = {
+  "Wheel & Axle": ["Wheel Repair", "Wheel Flat", "Wheel Crack", "Thin Flange", "Bearing Alert", "Hot Axle", "Axle Box Issue", "Wheel Profile Required"],
+  "Brake System": ["Brake Binding", "Brake Pipe Leakage", "Brake Cylinder Defect", "Distributor Valve Defect", "Air Pressure Issue", "Brake Failure"],
+  "Coupler / CBC": ["Coupler / Draft Gear", "CBC Defect", "Knuckle Defect", "Draft Gear Damage", "Buffer Issue"],
+  "Body & Structure": ["Body Repair", "Side Wall Damage", "Floor Damage", "Roof Damage", "Ladder Defect", "Door / Hatch Defect", "Barrel Defect"],
+  "Tank Wagon Work": ["Valve Defect", "Master Valve Defect", "Delivery Pipe Defect", "Air Leakage", "Steam Cleaning Required", "Hydro Testing Required", "Purging Required", "De-Gassing Required"],
+  "Scheduled Maintenance": ["ROH Due", "POH Due", "Yard Examination", "Periodic Inspection"],
+  "Painting / Finishing": ["Painting", "Marking", "Cleaning", "Minor Finishing"],
+  "Inspection / Fit": ["Awaiting Inspection", "Fit For Loading", "Fit For Use", "Final Check"],
+};
+
+const QUICK_REMARKS = [
+  "Wheel alert received", "Sent to sick line", "Awaiting inspection", 
+  "Repair started", "Repair completed", "Fit certificate pending", "Staff informed"
+];
+
+const getSeverity = (subRepair: string): PriorityLevel => {
+  const critical = ["Wheel Crack", "Hot Axle", "Brake Failure", "Air Leakage", "CBC Defect"];
+  const urgent = ["Brake Binding", "Bearing Alert", "Valve Defect", "Master Valve Defect"];
+  
+  if (critical.includes(subRepair)) return "Safety Critical";
+  if (urgent.includes(subRepair)) return "Urgent";
+  return "Normal";
+};
+
+const PriorityColors: Record<PriorityLevel, string> = {
+  "Normal": "text-blue-600 bg-blue-50 border-blue-200",
+  "Urgent": "text-orange-600 bg-orange-50 border-orange-200",
+  "Safety Critical": "text-red-600 bg-red-50 border-red-200"
+};
 
 export function WagonInput({ onWagonParsed }: WagonInputProps) {
   const [wagonNumber, setWagonNumber] = useState("");
   const [parsedDetails, setParsedDetails] = useState<WagonDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
   const [trainNumber, setTrainNumber] = useState("");
   const [arrivalDate, setArrivalDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [arrivalTime, setArrivalTime] = useState(format(new Date(), "HH:mm"));
   const [sickLine, setSickLine] = useState("");
-  const [selectedRepairTypes, setSelectedRepairTypes] = useState<RepairType[]>([]);
+  const [priority, setPriority] = useState<PriorityLevel>("Normal");
+  
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedRepairs, setSelectedRepairs] = useState<RepairTask[]>([]);
+  
   const [comments, setComments] = useState("");
   const [isDegassed, setIsDegassed] = useState<boolean>(false);
   const [isSteamed, setIsSteamed] = useState<boolean>(false);
 
-  // Auto-update time every minute
   useEffect(() => {
     const interval = setInterval(() => {
       if (!parsedDetails) {
@@ -46,277 +98,268 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
   const handleParse = () => {
     setError(null);
     const details = parseWagonNumber(wagonNumber);
-    
     if (!details) {
       setError("Invalid wagon number. Please enter an 11-digit number.");
       setParsedDetails(null);
       return;
     }
-    
     setParsedDetails(details);
-    // Set current time when parsing
     setArrivalTime(format(new Date(), "HH:mm"));
+  };
+
+  const handleToggleRepair = (cat: string, sub: string) => {
+    setSelectedRepairs(prev => {
+      const exists = prev.find(r => r.category === cat && r.subRepair === sub);
+      if (exists) return prev.filter(r => r !== exists);
+      return [...prev, { category: cat, subRepair: sub, severity: getSeverity(sub) }];
+    });
+  };
+
+  const handleRemoveRepair = (task: RepairTask) => {
+    setSelectedRepairs(prev => prev.filter(r => r !== task));
   };
 
   const handleAddToRepair = () => {
     if (parsedDetails && trainNumber && sickLine) {
       onWagonParsed(
-        parsedDetails,
-        trainNumber,
-        arrivalDate,
-        arrivalTime,
-        sickLine,
-        selectedRepairTypes,
-        comments,
+        parsedDetails, trainNumber, arrivalDate, arrivalTime, sickLine, selectedRepairs, comments, priority,
         parsedDetails.typeName === "BTPGLN" ? isDegassed : undefined,
-        parsedDetails.typeName === "BTPN" ? isSteamed : undefined
+        ["BTPN", "BTPFLN", "BTPNHS"].includes(parsedDetails.typeName) ? isSteamed : undefined
       );
-      setWagonNumber("");
-      setParsedDetails(null);
-      setTrainNumber("");
-      setSickLine("");
-      setArrivalDate(format(new Date(), "yyyy-MM-dd"));
-      setArrivalTime(format(new Date(), "HH:mm"));
-      setSelectedRepairTypes([]);
-      setComments("");
-      setIsDegassed(false);
-      setIsSteamed(false);
+      // Reset form
+      setWagonNumber(""); setParsedDetails(null); setTrainNumber(""); setPriority("Normal");
+      setSelectedRepairs([]); setComments(""); setIsDegassed(false); setIsSteamed(false);
     }
   };
 
-  const toggleRepairType = (type: RepairType) => {
-    setSelectedRepairTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
+  const appendRemark = (remark: string) => {
+    setComments(prev => prev ? `${prev}\n${remark}` : remark);
   };
 
-  const formatWagonNumber = (value: string) => {
-    return value.replace(/\D/g, "").slice(0, 11);
-  };
-
-  // Check if wagon is a tank wagon (BTPN, BTFLN, etc.)
   const isTankWagon = parsedDetails?.category === "Tank Wagon";
-  const isBTPNorBTFLN =
-    parsedDetails?.typeCode === "40" || // BTPN
-    parsedDetails?.typeCode === "47" || // BTFLN
-    parsedDetails?.typeCode === "41"; // BTPNHS
-
-  // Get available sick lines - now same for all wagon types
-  const getAvailableSickLines = () => {
-    return SICK_LINES;
-  };
-
+  const needsSteaming = parsedDetails && ["BTPN", "BTPFLN", "BTPGLN", "BTPNHS"].includes(parsedDetails.typeName);
   const canAdd = parsedDetails && trainNumber && sickLine;
 
+  const getWorkflowPreview = () => {
+    if (!parsedDetails) return [];
+    if (parsedDetails.typeName === "BTPGLN") return ["Sick Reason", "RRT De-Gassing", "HAPA Examination", "Purging", "Yard Examination", "Fit For Loading"];
+    if (["BTPN", "BTPFLN", "BTPNHS"].includes(parsedDetails.typeName)) return ["Issue Marked", "Steaming", "Steam Point", "Rectification", "Hydro Testing", "Fit For Use"];
+    return ["Issue Marked", "Rectification", "Inspection", "Fit"];
+  };
+
   return (
-    <Card className="glass animate-fade-in">
-      <CardHeader className="pb-3 sm:pb-4">
-        <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
-          <Train className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-          Wagon Arrival Entry
+    <Card className="glass animate-fade-in shadow-lg border-primary/10">
+      <CardHeader className="pb-3 sm:pb-4 bg-primary/5 rounded-t-xl border-b border-primary/10">
+        <CardTitle className="flex items-center justify-between gap-2 text-base sm:text-lg md:text-xl">
+          <div className="flex items-center gap-2">
+            <Train className="h-5 w-5 text-primary" />
+            Wagon Arrival & Repair Work Entry
+          </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 sm:space-y-4">
-        <div className="flex gap-2">
+      
+      <CardContent className="space-y-6 pt-6 p-4 md:p-6">
+        {/* Wagon Search */}
+        <div className="flex gap-2 max-w-xl">
           <div className="flex-1">
             <Input
-              placeholder="Enter 11-digit wagon"
-              value={formatWagonNumber(wagonNumber)}
-              onChange={(e) => setWagonNumber(e.target.value.replace(/\D/g, ""))}
-              className="font-mono text-sm sm:text-base md:text-lg tracking-wider h-10 sm:h-12"
-              maxLength={15}
+              placeholder="Enter 11-digit wagon number"
+              value={wagonNumber.replace(/\D/g, "").slice(0, 11)}
+              onChange={(e) => setWagonNumber(e.target.value.replace(/\D/g, "").slice(0, 11))}
+              className="font-mono text-lg tracking-wider h-12"
             />
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
-              Format: TT-RR-YY-SSSS-C (Type-Railway-Year-Serial-Check)
-            </p>
           </div>
-          <Button onClick={handleParse} size="icon" className="h-10 w-10 sm:h-12 sm:w-12">
-            <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Button onClick={handleParse} size="lg" className="h-12 w-12 px-0">
+            <Search className="h-5 w-5" />
           </Button>
         </div>
 
-        {error && (
-          <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm animate-fade-in">
-            {error}
-          </div>
-        )}
+        {error && <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm animate-fade-in">{error}</div>}
 
         {parsedDetails && (
-          <div className="space-y-4 animate-fade-in">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <DetailItem label="Wagon Type" value={parsedDetails.typeName} />
+          <div className="space-y-8 animate-fade-in">
+            {/* Wagon Details Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-muted/30 p-4 rounded-xl border">
+              <DetailItem label="Type" value={parsedDetails.typeName} />
               <DetailItem label="Category" value={parsedDetails.category} />
-              <DetailItem label="Owning Railway" value={parsedDetails.railwayName} />
-              <DetailItem label="Year of Manufacture" value={parsedDetails.yearOfManufacture} />
-              <DetailItem label="Serial Number" value={parsedDetails.serialNumber} />
-              <div className="p-3 rounded-lg bg-secondary">
-                <p className="text-xs text-muted-foreground mb-1">Check Digit</p>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-semibold">{parsedDetails.checkDigit}</span>
-                  {parsedDetails.isValidCheckDigit ? (
-                    <Badge variant="default" className="bg-success text-success-foreground">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Valid
-                    </Badge>
-                  ) : (
-                    <Badge variant="destructive">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Invalid
-                    </Badge>
-                  )}
-                </div>
-              </div>
+              <DetailItem label="Owner" value={parsedDetails.railwayName} />
+              <DetailItem label="Built Year" value={parsedDetails.yearOfManufacture} />
             </div>
 
-            {/* Arrival Form */}
-            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-4">
-              <h3 className="font-semibold text-primary flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Arrival Details
+            {/* Auto Workflow Preview */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide text-sm">
+              <span className="font-semibold text-muted-foreground whitespace-nowrap">Auto Workflow:</span>
+              {getWorkflowPreview().map((step, idx, arr) => (
+                <div key={idx} className="flex items-center gap-2 text-primary font-medium whitespace-nowrap">
+                  <span>{step}</span>
+                  {idx < arr.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+                </div>
+              ))}
+            </div>
+
+            {/* Arrival Details Form */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-primary flex items-center gap-2 border-b pb-2">
+                <Calendar className="h-4 w-4" /> Arrival Details
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Train Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="trainNumber">Train Number *</Label>
-                  <Input
-                    id="trainNumber"
-                    placeholder="Enter train no."
-                    value={trainNumber}
-                    onChange={(e) => setTrainNumber(e.target.value.toUpperCase())}
-                    className="font-mono"
-                  />
-                </div>
-
-                {/* Arrival Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="arrivalDate">Arrival Date *</Label>
-                  <Input
-                    id="arrivalDate"
-                    type="date"
-                    value={arrivalDate}
-                    onChange={(e) => setArrivalDate(e.target.value)}
-                  />
-                </div>
-
-                {/* Arrival Time (Auto) */}
-                <div className="space-y-2">
-                  <Label htmlFor="arrivalTime" className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Arrival Time (Auto)
-                  </Label>
-                  <Input
-                    id="arrivalTime"
-                    type="time"
-                    value={arrivalTime}
-                    readOnly
-                    className="bg-muted"
-                  />
-                </div>
-
-                {/* Sick Line */}
-                <div className="space-y-2">
-                  <Label htmlFor="sickLine">
-                    {isBTPNorBTFLN ? "Location *" : "Sick Line *"}
-                  </Label>
-                  <Select value={sickLine} onValueChange={setSickLine}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={isBTPNorBTFLN ? "Select location" : "Select sick line"} />
+                  <Label>Priority *</Label>
+                  <Select value={priority} onValueChange={(v) => setPriority(v as PriorityLevel)}>
+                    <SelectTrigger className={`border-2 ${PriorityColors[priority]}`}>
+                      <SelectValue placeholder="Select priority" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getAvailableSickLines().map((line) => (
-                        <SelectItem key={line.id} value={line.id}>
-                          {line.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="Normal" className="text-blue-600 font-medium">Normal</SelectItem>
+                      <SelectItem value="Urgent" className="text-orange-600 font-medium">Urgent</SelectItem>
+                      <SelectItem value="Safety Critical" className="text-red-600 font-bold">Safety Critical</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                {/* Degassing Status (BTPGLN Only) */}
-                {parsedDetails.typeName === "BTPGLN" && (
+                <div className="space-y-2">
+                  <Label>Train Number *</Label>
+                  <Input value={trainNumber} onChange={(e) => setTrainNumber(e.target.value.toUpperCase())} className="font-mono" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Location / Sick Line *</Label>
+                  <Select value={sickLine} onValueChange={setSickLine}>
+                    <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
+                    <SelectContent>
+                      {SICK_LINES.map(line => <SelectItem key={line.id} value={line.id}>{line.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {needsSteaming && (
                   <div className="space-y-2 animate-fade-in">
-                    <Label htmlFor="degassedStatus">Degassing Status *</Label>
-                    <Select value={isDegassed ? "DG" : "NON-DG"} onValueChange={(v) => setIsDegassed(v === "DG")}>
-                      <SelectTrigger id="degassedStatus">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DG">DG (Degassed)</SelectItem>
-                        <SelectItem value="NON-DG">NON-DG (Non-Degassed)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Steaming Status (BTPN Only) */}
-                {parsedDetails.typeName === "BTPN" && (
-                  <div className="space-y-2 animate-fade-in">
-                    <Label htmlFor="steamedStatus">Steaming Status *</Label>
+                    <Label>Steaming Status *</Label>
                     <Select value={isSteamed ? "Steam" : "without Steam"} onValueChange={(v) => setIsSteamed(v === "Steam")}>
-                      <SelectTrigger id="steamedStatus">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Steam">Steam</SelectItem>
                         <SelectItem value="without Steam">without Steam</SelectItem>
+                        <SelectItem value="Steam">Steam</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 )}
+                <div className="space-y-2">
+                  <Label>Arrival Date</Label>
+                  <Input type="date" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Arrival Time</Label>
+                  <Input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Repair Selection */}
+            <div className="space-y-4 bg-muted/20 p-4 rounded-xl border">
+              <h3 className="font-semibold text-primary flex items-center gap-2 border-b pb-2">
+                <Wrench className="h-4 w-4" /> Repair Work Selection
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {REPAIR_CATEGORIES.map(cat => (
+                  <Card 
+                    key={cat.id} 
+                    className={`cursor-pointer transition-all hover:border-primary/50 ${selectedCategory === cat.id ? 'ring-2 ring-primary ring-offset-2 border-primary bg-primary/5' : ''}`}
+                    onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                  >
+                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                      <span className="text-3xl">{cat.icon}</span>
+                      <span className="font-semibold text-sm leading-tight">{cat.id}</span>
+                      <span className="text-[10px] text-muted-foreground hidden sm:block">{cat.desc}</span>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
-              {isBTPNorBTFLN && (
-                <p className="text-xs text-muted-foreground">
-                  Note: BTPN/BTFLN wagons are assigned to Steam Point or MV Shed only.
-                </p>
+              {selectedCategory && (
+                <div className="p-4 bg-card rounded-lg border shadow-sm animate-in slide-in-from-top-2">
+                  <h4 className="text-sm font-semibold mb-3">{selectedCategory} Options</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {SUB_REPAIRS[selectedCategory].map(sub => {
+                      const isSelected = selectedRepairs.some(r => r.subRepair === sub);
+                      const severity = getSeverity(sub);
+                      return (
+                        <Button 
+                          key={sub} 
+                          variant={isSelected ? "default" : "outline"} 
+                          size="sm"
+                          onClick={() => handleToggleRepair(selectedCategory, sub)}
+                          className={isSelected ? PriorityColors[severity] : ""}
+                        >
+                          {sub}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Repair Types Section */}
-            <div className="p-4 rounded-lg bg-accent/5 border border-accent/20 space-y-4">
-              <h3 className="font-semibold text-accent flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                Select Repair Work
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {REPAIR_TYPES.map((repair) => {
-                  const isSelected = selectedRepairTypes.includes(repair.id);
-                  return (
-                    <Button
-                      key={repair.id}
-                      type="button"
-                      variant={isSelected ? "default" : "outline"}
-                      className={`h-auto py-3 px-3 flex flex-col items-center gap-1 transition-all ${
-                        isSelected ? "ring-2 ring-primary ring-offset-2" : ""
-                      }`}
-                      onClick={() => toggleRepairType(repair.id)}
-                    >
-                      <span className="text-xl">{repair.icon}</span>
-                      <span className="text-xs font-medium text-center">{repair.name}</span>
-                    </Button>
-                  );
-                })}
+            {/* Selected Repair Summary */}
+            {selectedRepairs.length > 0 && (
+              <div className="p-4 rounded-lg bg-card border border-primary/20 shadow-sm">
+                <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                  Selected Repair Works <Badge variant="secondary">{selectedRepairs.length}</Badge>
+                </h4>
+                <div className="flex flex-col gap-2">
+                  {selectedRepairs.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/50 border text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{r.category}</span>
+                        <span className="text-muted-foreground">-</span>
+                        <span>{r.subRepair}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={`text-[10px] uppercase border-transparent ${PriorityColors[r.severity]}`}>
+                          {r.severity}
+                        </Badge>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleRemoveRepair(r)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Comments & Photos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" /> Remarks / Comments
+                </Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_REMARKS.map(rmk => (
+                    <Badge key={rmk} variant="secondary" className="cursor-pointer hover:bg-primary hover:text-primary-foreground font-normal" onClick={() => appendRemark(rmk)}>
+                      + {rmk}
+                    </Badge>
+                  ))}
+                </div>
+                <Textarea value={comments} onChange={(e) => setComments(e.target.value)} className="min-h-[100px]" placeholder="Add detailed remarks..." />
+              </div>
+
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <Camera className="h-4 w-4" /> Optional Photos
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {["Before", "During", "After"].map(type => (
+                    <div key={type} className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/50 cursor-pointer transition-colors h-32">
+                      <Camera className="h-6 w-6 opacity-50" />
+                      <span className="text-xs font-medium text-center">{type} Repair</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Comments Section */}
-            <div className="space-y-2">
-              <Label htmlFor="comments" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Comments
-              </Label>
-              <Textarea
-                id="comments"
-                placeholder="Add any additional notes or comments..."
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                className="min-h-[80px]"
-              />
-            </div>
-
-            <Button onClick={handleAddToRepair} className="w-full" size="lg" disabled={!canAdd}>
-              Add to Arrival Register
+            <Button onClick={handleAddToRepair} className="w-full text-lg h-14 shadow-lg" disabled={!canAdd}>
+              Save Arrival & Work Entry
             </Button>
           </div>
         )}
@@ -327,9 +370,9 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
 
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3 rounded-lg bg-secondary">
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <p className="font-medium truncate">{value}</p>
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">{label}</p>
+      <p className="font-bold text-sm truncate">{value}</p>
     </div>
   );
 }

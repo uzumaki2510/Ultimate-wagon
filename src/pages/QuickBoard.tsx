@@ -1,300 +1,291 @@
-import { useState, useMemo } from "react";
-import { loadWagons, WagonRepair, SICK_LINES, REPAIR_TYPES } from "@/lib/wagonData";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppStore } from "@/store/useAppStore";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Clock, Search, Train, Zap, MapPin } from "lucide-react";
-
-const getSickLineName = (id?: string) => {
-  if (!id) return "—";
-  return SICK_LINES.find((l) => l.id === id)?.name ?? id;
-};
-
-const getDefect = (wagon: WagonRepair): string => {
-  const parts: string[] = [];
-
-  // Repair types
-  if (wagon.repairTypes && wagon.repairTypes.length > 0) {
-    const names = wagon.repairTypes.map(
-      (rt) => REPAIR_TYPES.find((r) => r.id === rt)?.name ?? rt
-    );
-    parts.push(...names);
-  }
-
-  // Primary/secondary repairs (legacy)
-  if (wagon.primaryRepair) parts.push(wagon.primaryRepair);
-  if (wagon.secondaryRepairs) parts.push(...wagon.secondaryRepairs);
-
-  if (parts.length === 0 && wagon.comments) return wagon.comments;
-  return parts.length > 0 ? parts.join(", ") : "—";
-};
-
-const formatArrival = (dateStr: string, timeStr?: string) => {
-  const date = new Date(dateStr);
-  const dateFormatted = date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
-  // If time is separately stored
-  if (timeStr) return { date: dateFormatted, time: timeStr };
-
-  // Otherwise parse time from the date string itself
-  const timeFormatted = date.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-  return { date: dateFormatted, time: timeFormatted };
-};
-
-const LINE_COLORS: Record<string, string> = {
-  line1: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:border-blue-900",
-  line2: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-900",
-  line3: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900",
-  line4: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-900",
-  mv_shed: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-900",
-  steam_point: "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:border-sky-900",
-  yard: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-200 dark:border-rose-900",
-};
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { REASONS, BOOKED_TO, WAGON_TYPES, WagonMemoEntry, UnitMemo } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { nanoid } from "nanoid";
+import { Zap, ChevronRight, ChevronLeft, Save, FileText, Send, PlusCircle, Trash2 } from "lucide-react";
 
 export default function QuickBoard() {
-  const wagons = useMemo(() => loadWagons(), []);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"in-repair" | "completed" | "all">("in-repair");
+  const navigate = useNavigate();
+  const { addMemo, addWagon, upsertWorkflowForWagon } = useAppStore();
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const filtered = useMemo(() => {
-    let result = wagons;
+  const [step, setStep] = useState(1);
 
-    if (statusFilter !== "all") {
-      result = result.filter((w) => w.status === statusFilter);
+  // Step 1: Memo Info
+  const [memoNo, setMemoNo] = useState(`SICK-${Math.floor(Math.random() * 10000)}`);
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [time, setTime] = useState(new Date().toTimeString().substring(0, 5));
+  const [rakeId, setRakeId] = useState("");
+  const [rakeName, setRakeName] = useState("");
+  const [yard, setYard] = useState("CYM HAPA");
+  const [lineNo, setLineNo] = useState("");
+  const [createdBy, setCreatedBy] = useState(user?.name || "");
+
+  // Step 2: Wagons
+  const [wagons, setWagons] = useState<Partial<WagonMemoEntry & { type: string, wagonNo: string }>[]>([]);
+
+  const handleAddWagon = () => {
+    setWagons([...wagons, { 
+      id: nanoid(), 
+      wagonId: nanoid(),
+      sno: wagons.length + 1, 
+      position: String(wagons.length + 1), 
+      wagonNo: "", 
+      type: "BOXN",
+      reason: "Wheel Alert", 
+      bookedTo: "HAPA SL", 
+      defects: "",
+      status: "Cut Off"
+    } as any]);
+  };
+
+  const updateWagon = (index: number, field: string, value: string) => {
+    const updated = [...wagons];
+    updated[index] = { ...updated[index], [field]: value };
+    setWagons(updated);
+  };
+
+  const removeWagon = (index: number) => {
+    setWagons(wagons.filter((_, i) => i !== index));
+  };
+
+  // Submit
+  const handleSubmit = () => {
+    if (wagons.length === 0) {
+      toast({ title: "Error", description: "Please add at least one wagon.", variant: "destructive" });
+      return;
     }
+    
+    // Create actual wagons in store
+    const createdWagons = wagons.map(w => {
+      const nw = addWagon({
+        wagonNo: w.wagonNo || "UNKNOWN",
+        type: w.type || "Other",
+        status: "Cut Off",
+        defect: w.defects,
+        bookedTo: w.bookedTo,
+        owner: "Unknown",
+        builtYear: new Date().getFullYear(),
+        rakeId,
+        updatedAt: new Date().toISOString()
+      });
+      return { ...w, wagonId: nw.id };
+    });
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (w) =>
-          w.wagonNumber.includes(q) ||
-          getSickLineName(w.sickLine).toLowerCase().includes(q) ||
-          getDefect(w).toLowerCase().includes(q)
-      );
-    }
+    // Create Memo
+    const newMemo: Omit<UnitMemo, "id" | "createdAt"> = {
+      memoNo,
+      memoType: "sick",
+      date,
+      time,
+      rakeId,
+      rakeName,
+      yard,
+      lineNo,
+      createdBy,
+      remarks: "Created via Quick Entry",
+      entries: createdWagons as WagonMemoEntry[],
+      approvals: []
+    };
 
-    // Sort: newest first
-    return [...result].sort(
-      (a, b) => new Date(b.arrivalDate).getTime() - new Date(a.arrivalDate).getTime()
-    );
-  }, [wagons, statusFilter, search]);
+    const addedMemo = addMemo(newMemo);
+
+    // Auto-create workflows
+    createdWagons.forEach(w => {
+      upsertWorkflowForWagon(w.wagonId, addedMemo.id);
+    });
+
+    toast({ title: "Success", description: "Sick Memo and Workflows created successfully." });
+    navigate(`/memos/${addedMemo.id}/print`);
+  };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Zap className="h-6 w-6 text-primary" />
-            Quick Board
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            At-a-glance view of wagons — number, defect, line &amp; arrival.
-          </p>
-        </div>
-
-        <Tabs
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
-        >
-          <TabsList>
-            <TabsTrigger value="in-repair">
-              Sick ({wagons.filter((w) => w.status === "in-repair").length})
-            </TabsTrigger>
-            <TabsTrigger value="completed">
-              Fit ({wagons.filter((w) => w.status === "completed").length})
-            </TabsTrigger>
-            <TabsTrigger value="all">
-              All ({wagons.length})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
+      <div className="flex items-center gap-2">
+        <Zap className="h-6 w-6 text-primary" />
+        <h1 className="text-2xl font-bold tracking-tight">Quick Entry Wizard</h1>
       </div>
 
-      <Card className="glass animate-fade-in">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Train className="h-4 w-4 text-primary" />
-              Wagon Board
-              <Badge variant="secondary" className="ml-1">
-                {filtered.length} wagon{filtered.length !== 1 ? "s" : ""}
-              </Badge>
-            </CardTitle>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search wagon, defect, line…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+      <div className="flex items-center justify-between mb-8 px-4 relative">
+        <div className="absolute top-1/2 left-0 w-full h-1 bg-muted -z-10 -translate-y-1/2"></div>
+        <div className={`absolute top-1/2 left-0 h-1 bg-primary -z-10 -translate-y-1/2 transition-all duration-300 ${step === 1 ? 'w-0' : step === 2 ? 'w-1/2' : 'w-full'}`}></div>
+        
+        {[1, 2, 3].map((s) => (
+          <div key={s} className={`h-10 w-10 rounded-full flex items-center justify-center font-bold border-2 transition-colors ${step >= s ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-muted-foreground'}`}>
+            {s}
           </div>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {step === 1 && "Step 1: Memo & Rake Details"}
+            {step === 2 && "Step 2: Add Sick Wagons"}
+            {step === 3 && "Step 3: Preview & Submit"}
+          </CardTitle>
         </CardHeader>
-
         <CardContent>
-          {filtered.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Train className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No wagons found</p>
-              <p className="text-sm mt-1">Try adjusting your search or status filter.</p>
+          {step === 1 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Memo No</Label>
+                <Input value={memoNo} onChange={(e) => setMemoNo(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Created By</Label>
+                <Input value={createdBy} onChange={(e) => setCreatedBy(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Rake Name / Type</Label>
+                <Input value={rakeName} onChange={(e) => setRakeName(e.target.value)} placeholder="e.g. BCN EMP" />
+              </div>
+              <div className="space-y-2">
+                <Label>Yard / Station</Label>
+                <Input value={yard} onChange={(e) => setYard(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Line No</Label>
+                <Input value={lineNo} onChange={(e) => setLineNo(e.target.value)} placeholder="e.g. Line 3" />
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-secondary/50">
-                    <TableHead className="font-semibold w-12">#</TableHead>
-                    <TableHead className="font-semibold">Wagon No.</TableHead>
-                    <TableHead className="font-semibold">Defect / Repair</TableHead>
-                    <TableHead className="font-semibold">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" />
-                        Line / Location
-                      </span>
-                    </TableHead>
-                    <TableHead className="font-semibold">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        Arrival
-                      </span>
-                    </TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((wagon, idx) => {
-                    const defect = getDefect(wagon);
-                    const { date, time } = formatArrival(wagon.arrivalDate, wagon.arrivalTime);
-                    const lineColor = LINE_COLORS[wagon.sickLine ?? ""] ?? "bg-secondary text-secondary-foreground border-border";
+          )}
 
-                    return (
-                      <TableRow
-                        key={wagon.id}
-                        className="hover:bg-secondary/30 transition-colors group"
-                      >
-                        <TableCell className="text-muted-foreground text-sm">
-                          {idx + 1}
-                        </TableCell>
+          {step === 2 && (
+            <div className="space-y-4">
+              <Button onClick={handleAddWagon} variant="outline" className="w-full border-dashed">
+                <PlusCircle className="h-4 w-4 mr-2" /> Add Wagon
+              </Button>
 
-                        {/* Wagon Number */}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[60px]">Pos</TableHead>
+                      <TableHead>Wagon No</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Booked To</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {wagons.map((w, i) => (
+                      <TableRow key={i}>
                         <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-mono font-semibold tracking-wider text-sm">
-                              {wagon.wagonNumber}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground">
-                              {wagon.details.typeName}
-                              {wagon.details.typeName === "BTPGLN" && (
-                                <span className="ml-1 text-orange-600 font-medium">
-                                  {wagon.isDegassed ? "• DG" : "• NON-DG"}
-                                </span>
-                              )}
-                              {wagon.details.typeName === "BTPN" && (
-                                <span className="ml-1 text-blue-600 font-medium">
-                                  {wagon.isSteamed ? "• Steam" : "• without Steam"}
-                                </span>
-                              )}
-                            </span>
-                            {wagon.trainNumber && (
-                              <span className="text-[10px] text-muted-foreground/70">
-                                Train: {wagon.trainNumber}
-                              </span>
-                            )}
-                          </div>
+                          <Input value={w.position} onChange={e => updateWagon(i, "position", e.target.value)} className="w-16 h-8" />
                         </TableCell>
-
-                        {/* Defect */}
-                        <TableCell className="max-w-[260px]">
-                          {defect === "—" ? (
-                            <span className="text-muted-foreground text-sm italic">No defect recorded</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {wagon.repairTypes && wagon.repairTypes.length > 0 ? (
-                                wagon.repairTypes.map((rt) => {
-                                  const rep = REPAIR_TYPES.find((r) => r.id === rt);
-                                  return (
-                                    <Badge
-                                      key={rt}
-                                      variant="outline"
-                                      className="text-[10px] py-0 px-1.5 bg-primary/5 border-primary/20"
-                                    >
-                                      {rep?.icon} {rep?.name ?? rt}
-                                    </Badge>
-                                  );
-                                })
-                              ) : (
-                                <span className="text-sm">{defect}</span>
-                              )}
-                              {wagon.comments && (
-                                <span className="text-xs text-muted-foreground w-full mt-0.5 truncate">
-                                  {wagon.comments}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
-
-                        {/* Line / Location */}
                         <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs font-semibold ${lineColor}`}
-                          >
-                            <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                            {getSickLineName(wagon.sickLine)}
-                          </Badge>
+                          <Input value={w.wagonNo} onChange={e => updateWagon(i, "wagonNo", e.target.value)} className="h-8" placeholder="No." />
                         </TableCell>
-
-                        {/* Arrival */}
                         <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-medium">{date}</span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {time}
-                            </span>
-                          </div>
+                          <Select value={w.type} onValueChange={v => updateWagon(i, "type", v)}>
+                            <SelectTrigger className="h-8 w-[100px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {WAGON_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
-
-                        {/* Status */}
                         <TableCell>
-                          {wagon.status === "in-repair" ? (
-                            <Badge className="bg-warning text-warning-foreground text-xs">
-                              Sick
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-success text-success-foreground text-xs">
-                              Fit
-                            </Badge>
-                          )}
+                          <Select value={w.reason} onValueChange={v => updateWagon(i, "reason", v)}>
+                            <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select value={w.bookedTo} onValueChange={v => updateWagon(i, "bookedTo", v)}>
+                            <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {BOOKED_TO.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeWagon(i)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    ))}
+                    {wagons.length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No wagons added. Click "Add Wagon" above.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="bg-yellow-50/80 p-6 rounded-lg border border-yellow-200">
+              <div className="text-center mb-6">
+                <h3 className="font-bold text-lg">WESTERN RAILWAY - SICK MEMO</h3>
+                <p className="text-sm">Memo No: {memoNo} | Date: {date} | Time: {time}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+                <div><strong>Yard:</strong> {yard}</div>
+                <div><strong>Line:</strong> {lineNo || "-"}</div>
+                <div><strong>Created By:</strong> {createdBy}</div>
+                <div><strong>Wagon Count:</strong> {wagons.length}</div>
+              </div>
+              <div className="border border-yellow-300 rounded overflow-hidden">
+                <Table className="bg-white/50 text-sm">
+                  <TableHeader className="bg-yellow-100">
+                    <TableRow>
+                      <TableHead className="font-semibold text-black">Wagon No</TableHead>
+                      <TableHead className="font-semibold text-black">Type</TableHead>
+                      <TableHead className="font-semibold text-black">Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {wagons.map((w, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{w.wagonNo || "—"}</TableCell>
+                        <TableCell>{w.type}</TableCell>
+                        <TableCell>{w.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
+        <CardFooter className="flex justify-between border-t pt-6 bg-muted/20">
+          <Button variant="outline" onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}>
+            <ChevronLeft className="h-4 w-4 mr-2" /> Back
+          </Button>
+          
+          {step < 3 ? (
+            <Button onClick={() => setStep(s => Math.min(3, s + 1))}>
+              Next <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700">
+              <Save className="h-4 w-4 mr-2" /> Send to Sick Line
+            </Button>
+          )}
+        </CardFooter>
       </Card>
     </div>
   );

@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
-import { Employee, Rake, UnitMemo, Wagon, WorkflowItem, WORKFLOW_TEMPLATES } from "@/types";
+import { Employee, Rake, UnitMemo, Wagon, WorkflowItem, WorkflowStageRecord } from "@/types";
+import { getWorkflowTemplate } from "./workflowConfig";
 
 export function buildDemoData() {
   const w1: Wagon = {
@@ -43,14 +44,27 @@ export function buildDemoData() {
     createdAt: new Date().toISOString(),
   };
 
+  const wf1Template = getWorkflowTemplate(w1.type as string);
+  const wf1Stages: WorkflowStageRecord[] = wf1Template.stages.map((st, i) => ({
+    stageName: st.name,
+    targetDurationHours: st.targetDurationHours,
+    status: i === 0 ? "Pending" : "Pending"
+  }));
   const wf1: WorkflowItem = {
     id: nanoid(), wagonId: w1.id, memoId: memo.id, wagonNo: w1.wagonNo, wagonType: w1.type as string,
-    currentStage: "Issue Marked", stages: WORKFLOW_TEMPLATES.BTPN, completedStages: [],
+    currentStage: wf1Stages[0].stageName, stages: wf1Stages,
     updatedAt: new Date().toISOString(),
   };
+
+  const wf2Template = getWorkflowTemplate(w2.type as string);
+  const wf2Stages: WorkflowStageRecord[] = wf2Template.stages.map((st, i) => ({
+    stageName: st.name,
+    targetDurationHours: st.targetDurationHours,
+    status: i === 0 ? "Pending" : "Pending"
+  }));
   const wf2: WorkflowItem = {
     id: nanoid(), wagonId: w2.id, memoId: memo.id, wagonNo: w2.wagonNo, wagonType: w2.type as string,
-    currentStage: "Sick Reason", stages: WORKFLOW_TEMPLATES.DEFAULT, completedStages: [],
+    currentStage: wf2Stages[0].stageName, stages: wf2Stages,
     updatedAt: new Date().toISOString(),
   };
 

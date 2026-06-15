@@ -23,6 +23,14 @@ export type WagonStatus =
   | "Awaiting Inspection"
   | "Fit For Loading";
 
+export type PriorityLevel = "Normal" | "Urgent" | "Safety Critical";
+
+export interface RepairTask {
+  category: string;
+  subRepair: string;
+  severity: PriorityLevel;
+}
+
 export interface Wagon {
   id: string;
   wagonNo: string;
@@ -34,8 +42,15 @@ export interface Wagon {
   rohStation?: string;
   rohDate?: string;
   returnDate?: string;
+  comments?: string;
   status: WagonStatus;
   rakeId?: string;
+  defect?: string;
+  bookedTo?: string;
+  updatedAt?: string;
+  priority?: PriorityLevel;
+  repairTasks?: RepairTask[];
+  repairTypes?: string[];
 }
 
 export interface Rake {
@@ -96,28 +111,28 @@ export interface Employee {
   empCode?: string;
 }
 
-export type WorkflowStage =
-  // BTPGLN
-  | "Sick Reason" | "RRT De-Gassing" | "HAPA Examination" | "Purging" | "Yard Examination" | "Fit For Loading"
-  // BTPN / BTPFLN
-  | "Issue Marked" | "Steaming" | "Steam Point 24h" | "Rectification" | "Placement Decision" | "Hydro Testing" | "Fit For Use";
+export type WorkflowStageStatus = "Pending" | "In Progress" | "Done" | "Delayed" | "Skipped";
 
-export const WORKFLOW_TEMPLATES: Record<string, WorkflowStage[]> = {
-  BTPGLN: ["Sick Reason", "RRT De-Gassing", "HAPA Examination", "Purging", "Yard Examination", "Fit For Loading"],
-  BTPN: ["Issue Marked", "Steaming", "Steam Point 24h", "Rectification", "Placement Decision", "Hydro Testing", "Fit For Use"],
-  BTPFLN: ["Issue Marked", "Steaming", "Steam Point 24h", "Rectification", "Placement Decision", "Hydro Testing", "Fit For Use"],
-  DEFAULT: ["Sick Reason", "Yard Examination", "Rectification", "Fit For Loading"],
-};
+export interface WorkflowStageRecord {
+  stageName: string;
+  status: WorkflowStageStatus;
+  startedAt?: string;
+  completedAt?: string;
+  durationHours?: number;
+  targetDurationHours: number;
+  staffName?: string;
+  inspectorName?: string;
+  remarks?: string;
+}
 
 export interface WorkflowItem {
   id: string;
   wagonId: string;
-  memoId: string;
+  memoId?: string;
   wagonNo: string;
   wagonType: string;
-  currentStage: WorkflowStage;
-  stages: WorkflowStage[];
-  completedStages: WorkflowStage[];
+  currentStage: string;
+  stages: WorkflowStageRecord[];
   updatedAt: string;
 }
 

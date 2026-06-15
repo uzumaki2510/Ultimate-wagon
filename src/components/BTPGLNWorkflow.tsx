@@ -69,7 +69,6 @@ export const RECTIFICATION_TYPES = [
 ] as const;
 
 // Import the type from wagonData
-import { BTPGLNWorkflowData } from "@/lib/wagonData";
 
 interface BTPGLNWorkflowProps {
   wagon: WagonRepair;

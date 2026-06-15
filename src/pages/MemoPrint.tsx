@@ -21,7 +21,11 @@ export default function MemoPrint() {
         </div>
       </div>
 
-      <div className="memo-paper mx-auto p-6 max-w-[1100px]">
+      <style>
+        {`@media print { @page { size: landscape; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}
+      </style>
+
+      <div className="memo-paper mx-auto p-6 max-w-[1100px] bg-[#fffdf0] border border-[#f0e68c] shadow-sm print:shadow-none">
         <div className="text-center border-b-2 border-rail-ink pb-3 mb-3">
           <div className="text-[11px] tracking-widest">भारत सरकार · GOVERNMENT OF INDIA</div>
           <h1 className="text-2xl font-bold">INDIAN RAILWAYS · भारतीय रेल</h1>

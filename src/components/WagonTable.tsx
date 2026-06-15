@@ -26,12 +26,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
-import { BTPGLNWorkflow } from "@/components/BTPGLNWorkflow";
-import { BTPNWorkflow } from "@/components/BTPNWorkflow";
-import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Fuel, Train, Droplets, FileText } from "lucide-react";
+import { EditWagonModal } from "@/components/EditWagonModal";
+import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -69,13 +66,8 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   }, [memos, zustandWagons]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingWagon, setEditingWagon] = useState<WagonRepair | null>(null);
-  const [editComments, setEditComments] = useState("");
-  const [editRepairTypes, setEditRepairTypes] = useState<RepairType[]>([]);
-  const [editIsDegassed, setEditIsDegassed] = useState<boolean>(false);
-  const [editIsSteamed, setEditIsSteamed] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [btpglnWagon, setBtpglnWagon] = useState<WagonRepair | null>(null);
-  const [btpnWagon, setBtpnWagon] = useState<WagonRepair | null>(null);
+
   const filteredWagons = useMemo(() => {
     let result = wagons;
     
@@ -119,6 +111,15 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
     onSelectionChange?.(wagons.filter((w) => newSelected.has(w.id)));
   };
 
+  const handleSaveEdit = () => {
+    // This is now handled entirely inside EditWagonModal
+    setEditingWagon(null);
+  };
+
+  const openEditDialog = (wagon: WagonRepair) => {
+    setEditingWagon(wagon);
+  };
+
   const isAllSelected = filteredWagons.length > 0 && filteredWagons.every((w) => selectedIds.has(w.id));
   const isSomeSelected = filteredWagons.some((w) => selectedIds.has(w.id));
 
@@ -136,32 +137,6 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
         hour12: true,
       }),
     };
-  };
-
-  const openEditDialog = (wagon: WagonRepair) => {
-    setEditingWagon(wagon);
-    setEditComments(wagon.comments || "");
-    setEditRepairTypes(wagon.repairTypes);
-    setEditIsDegassed(wagon.isDegassed || false);
-    setEditIsSteamed(wagon.isSteamed || false);
-  };
-
-  const handleSaveEdit = () => {
-    if (editingWagon) {
-      onEdit(editingWagon.id, {
-        comments: editComments.trim() || undefined,
-        repairTypes: editRepairTypes,
-        isDegassed: editingWagon.details.typeName === "BTPGLN" ? editIsDegassed : undefined,
-        isSteamed: editingWagon.details.typeName === "BTPN" ? editIsSteamed : undefined,
-      });
-      setEditingWagon(null);
-    }
-  };
-
-  const toggleRepairType = (type: RepairType) => {
-    setEditRepairTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
   };
 
   return (
@@ -215,7 +190,9 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                     <TableHead className="font-semibold">Type</TableHead>
                     <TableHead className="font-semibold">Railway</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Main Defect</TableHead>
                     <TableHead className="font-semibold">Repairs</TableHead>
+                    <TableHead className="font-semibold">Workflow Status</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -267,6 +244,17 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         )}
                       </TableCell>
                       <TableCell>
+                        {wagon.comments ? (
+                          <Badge variant="outline" className={`font-medium ${wagon.comments.includes('Fit') || wagon.comments.includes('completed') ? 'bg-green-100 text-green-800 border-green-300' : 
+                            (wagon.comments.toLowerCase().includes('crack') || wagon.comments.toLowerCase().includes('leak') || wagon.comments.toLowerCase().includes('fail') ? 'bg-red-100 text-red-800 border-red-300 font-bold' : 
+                            (wagon.comments.toLowerCase().includes('alert') || wagon.comments.toLowerCase().includes('bind') ? 'bg-orange-100 text-orange-800 border-orange-300 font-semibold' : 'bg-blue-100 text-blue-800 border-blue-300'))}`}>
+                            {wagon.comments}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <div className="flex flex-col gap-1.5">
                           {wagon.primaryRepair && (
                             <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-bold bg-primary/10 text-primary border border-primary/20">
@@ -289,42 +277,33 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         </div>
                       </TableCell>
                       <TableCell>
-                        {wagon.status === "in-repair" ? (
-                          <Badge className="bg-warning text-warning-foreground">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Sick
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-success text-success-foreground">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Fit
-                          </Badge>
-                        )}
+                        {(() => {
+                          const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
+                          if (!wf || wagon.status !== "in-repair") return <span className="text-muted-foreground text-xs">-</span>;
+                          return (
+                            <div className="flex gap-1 items-center overflow-x-auto max-w-[200px] no-scrollbar">
+                              {wf.stages.map((st, i) => {
+                                let bg = "bg-gray-200 dark:bg-gray-700";
+                                if (st.status === "Done") bg = "bg-green-500";
+                                else if (st.status === "In Progress") bg = "bg-blue-500";
+                                else if (st.status === "Delayed") bg = "bg-red-500";
+                                return <div key={i} className={`w-3 h-3 rounded-full flex-shrink-0 ${bg}`} title={st.stageName + " - " + st.status} />;
+                              })}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {/* BTPGLN Workflow Button - Only show for BTPGLN wagons */}
-                          {wagon.details.typeName === "BTPGLN" && (
+                          {wagon.status === "in-repair" && (
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-orange-600 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
-                              onClick={() => setBtpglnWagon(wagon)}
-                              title="BTPGLN Workflow"
+                              className="text-primary hover:text-primary hover:bg-primary/10"
+                              onClick={() => setEditingWagon(wagon)}
+                              title="Open Workflow Timeline"
                             >
-                              <Fuel className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {/* BTPN/BTPFLN Workflow Button */}
-                          {(wagon.details.typeCode === "40" || wagon.details.typeCode === "47" || wagon.details.typeCode === "41") && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-blue-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
-                              onClick={() => setBtpnWagon(wagon)}
-                              title="BTPN/BTPFLN Workflow"
-                            >
-                              <Droplets className="h-4 w-4" />
+                              <ArrowRightCircle className="h-4 w-4" />
                             </Button>
                           )}
                           {isAdmin && (
@@ -397,115 +376,14 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingWagon} onOpenChange={(open) => !open && setEditingWagon(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Wagon - {editingWagon?.wagonNumber}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Repair Types</Label>
-              <div className="flex flex-wrap gap-2">
-                {REPAIR_TYPES.map((type) => (
-                  <Badge
-                    key={type.id}
-                    variant={editRepairTypes.includes(type.id) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleRepairType(type.id)}
-                  >
-                    {type.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="comments">Comments</Label>
-              <Textarea
-                id="comments"
-                value={editComments}
-                onChange={(e) => setEditComments(e.target.value)}
-                placeholder="Add any additional comments..."
-                rows={3}
-              />
-            </div>
-            {editingWagon?.details.typeName === "BTPGLN" && (
-              <div className="space-y-2">
-                <Label htmlFor="editDegassedStatus">Degassing Status *</Label>
-                <Select value={editIsDegassed ? "DG" : "NON-DG"} onValueChange={(v) => setEditIsDegassed(v === "DG")}>
-                  <SelectTrigger id="editDegassedStatus">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DG">DG (Degassed)</SelectItem>
-                    <SelectItem value="NON-DG">NON-DG (Non-Degassed)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {editingWagon?.details.typeName === "BTPN" && (
-              <div className="space-y-2">
-                <Label htmlFor="editSteamedStatus">Steaming Status *</Label>
-                <Select value={editIsSteamed ? "Steam" : "without Steam"} onValueChange={(v) => setEditIsSteamed(v === "Steam")}>
-                  <SelectTrigger id="editSteamedStatus">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Steam">Steam</SelectItem>
-                    <SelectItem value="without Steam">without Steam</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingWagon(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit}>
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* BTPGLN Workflow Dialog */}
-      <Dialog open={!!btpglnWagon} onOpenChange={(open) => !open && setBtpglnWagon(null)}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          {btpglnWagon && (
-            <BTPGLNWorkflow
-              wagon={btpglnWagon}
-              workflowData={btpglnWagon.btpglnWorkflow}
-              onUpdateWorkflow={(workflow) => {
-                onUpdateBTPGLNWorkflow?.(btpglnWagon.id, workflow);
-              }}
-              onSickLineChange={(sickLine) => {
-                onUpdateSickLine(btpglnWagon.id, sickLine);
-              }}
-              onClose={() => setBtpglnWagon(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* BTPN/BTPFLN Workflow Dialog */}
-      <Dialog open={!!btpnWagon} onOpenChange={(open) => !open && setBtpnWagon(null)}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          {btpnWagon && (
-            <BTPNWorkflow
-              wagon={btpnWagon}
-              workflowData={btpnWagon.btpnWorkflow}
-              onUpdateWorkflow={(workflow) => {
-                onUpdateBTPNWorkflow?.(btpnWagon.id, workflow);
-              }}
-              onSickLineChange={(sickLine) => {
-                onUpdateSickLine(btpnWagon.id, sickLine);
-              }}
-              onClose={() => setBtpnWagon(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Unified Edit Modal for Workflow & Details */}
+      {editingWagon && (
+        <EditWagonModal 
+          wagonId={editingWagon.id} 
+          open={!!editingWagon} 
+          onOpenChange={(open) => !open && setEditingWagon(null)} 
+        />
+      )}
     </>
   );
 }
