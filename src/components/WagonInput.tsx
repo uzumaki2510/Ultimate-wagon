@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 
 interface WagonInputProps {
-  onWagonParsed: (details: WagonDetails, trainNumber: string, arrivalDate: string, arrivalTime: string, sickLine: string, repairTypes: RepairType[], comments: string) => void;
+  onWagonParsed: (details: WagonDetails, trainNumber: string, arrivalDate: string, arrivalTime: string, sickLine: string, repairTypes: RepairType[], comments: string, isDegassed?: boolean, isSteamed?: boolean) => void;
 }
 
 export function WagonInput({ onWagonParsed }: WagonInputProps) {
@@ -30,6 +30,8 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
   const [sickLine, setSickLine] = useState("");
   const [selectedRepairTypes, setSelectedRepairTypes] = useState<RepairType[]>([]);
   const [comments, setComments] = useState("");
+  const [isDegassed, setIsDegassed] = useState<boolean>(false);
+  const [isSteamed, setIsSteamed] = useState<boolean>(false);
 
   // Auto-update time every minute
   useEffect(() => {
@@ -58,7 +60,17 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
 
   const handleAddToRepair = () => {
     if (parsedDetails && trainNumber && sickLine) {
-      onWagonParsed(parsedDetails, trainNumber, arrivalDate, arrivalTime, sickLine, selectedRepairTypes, comments);
+      onWagonParsed(
+        parsedDetails,
+        trainNumber,
+        arrivalDate,
+        arrivalTime,
+        sickLine,
+        selectedRepairTypes,
+        comments,
+        parsedDetails.typeName === "BTPGLN" ? isDegassed : undefined,
+        parsedDetails.typeName === "BTPN" ? isSteamed : undefined
+      );
       setWagonNumber("");
       setParsedDetails(null);
       setTrainNumber("");
@@ -67,6 +79,8 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
       setArrivalTime(format(new Date(), "HH:mm"));
       setSelectedRepairTypes([]);
       setComments("");
+      setIsDegassed(false);
+      setIsSteamed(false);
     }
   };
 
@@ -218,6 +232,38 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Degassing Status (BTPGLN Only) */}
+                {parsedDetails.typeName === "BTPGLN" && (
+                  <div className="space-y-2 animate-fade-in">
+                    <Label htmlFor="degassedStatus">Degassing Status *</Label>
+                    <Select value={isDegassed ? "DG" : "NON-DG"} onValueChange={(v) => setIsDegassed(v === "DG")}>
+                      <SelectTrigger id="degassedStatus">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DG">DG (Degassed)</SelectItem>
+                        <SelectItem value="NON-DG">NON-DG (Non-Degassed)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Steaming Status (BTPN Only) */}
+                {parsedDetails.typeName === "BTPN" && (
+                  <div className="space-y-2 animate-fade-in">
+                    <Label htmlFor="steamedStatus">Steaming Status *</Label>
+                    <Select value={isSteamed ? "Steam" : "without Steam"} onValueChange={(v) => setIsSteamed(v === "Steam")}>
+                      <SelectTrigger id="steamedStatus">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Steam">Steam</SelectItem>
+                        <SelectItem value="without Steam">without Steam</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {isBTPNorBTFLN && (

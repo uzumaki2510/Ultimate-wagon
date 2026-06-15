@@ -40,7 +40,11 @@ export function ExportButton({ wagons, selectedWagons = [] }: ExportButtonProps)
     const exportData = dataToExport.map((wagon, index) => ({
       "Sr. No.": index + 1,
       "Wagon Number": wagon.wagonNumber,
-      "Type": wagon.details.typeName,
+      "Type": wagon.details.typeName === "BTPGLN" 
+        ? `BTPGLN (${wagon.isDegassed ? "DG" : "NON-DG"})` 
+        : wagon.details.typeName === "BTPN"
+          ? `BTPN (${wagon.isSteamed ? "Steam" : "without Steam"})`
+          : wagon.details.typeName,
       "Category": wagon.details.category,
       "Railway": wagon.details.railwayName,
       "Year of Manufacture": wagon.details.yearOfManufacture,

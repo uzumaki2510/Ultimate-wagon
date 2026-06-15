@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 export default function WagonDirectory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [wagons, setWagons] = useState<WagonRepair[]>(() => loadWagons());
-  
+
   const initialStatus = (searchParams.get("status") as "all" | "in-repair" | "completed") || "all";
   const [statusFilter, setStatusFilter] = useState<"all" | "in-repair" | "completed">(initialStatus);
 
@@ -23,6 +23,20 @@ export default function WagonDirectory() {
   }, [statusFilter, setSearchParams]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [degassedFilter, setDegassedFilter] = useState<"all" | "dg" | "non-dg">("all");
+  const [steamedFilter, setSteamedFilter] = useState<"all" | "steam" | "without-steam">("all");
+
+  useEffect(() => {
+    if (selectedType !== "BTPGLN") {
+      setDegassedFilter("all");
+    }
+  }, [selectedType]);
+
+  useEffect(() => {
+    if (selectedType !== "BTPN") {
+      setSteamedFilter("all");
+    }
+  }, [selectedType]);
 
   // Derive unique categories from the predefined types
   const categories = useMemo(() => {
@@ -44,23 +58,37 @@ export default function WagonDirectory() {
     if (selectedCategory) {
       result = result.filter((w) => w.details.category === selectedCategory);
     }
-    
+
     if (selectedType) {
       result = result.filter((w) => w.details.typeName === selectedType);
     }
 
-    return result;
-  }, [wagonsByStatus, selectedCategory, selectedType]);
+    if (selectedType === "BTPGLN" && degassedFilter !== "all") {
+      result = result.filter((w) => {
+        const isDg = !!w.isDegassed;
+        return degassedFilter === "dg" ? isDg : !isDg;
+      });
+    }
 
-  // Get types for the selected category
+    if (selectedType === "BTPN" && steamedFilter !== "all") {
+      result = result.filter((w) => {
+        const isSteam = !!w.isSteamed;
+        return steamedFilter === "steam" ? isSteam : !isSteam;
+      });
+    }
+
+    return result;
+  }, [wagonsByStatus, selectedCategory, selectedType, degassedFilter, steamedFilter]);
+
+  // Get types for the selected category — derived from actual wagon data
   const typesInCategory = useMemo(() => {
     if (!selectedCategory) return [];
     const types = new Set<string>();
-    Object.values(WAGON_TYPE_CODES).forEach((val) => {
-      if (val.category === selectedCategory) types.add(val.name);
+    wagonsByStatus.forEach((w) => {
+      if (w.details.category === selectedCategory) types.add(w.details.typeName);
     });
     return Array.from(types).sort();
-  }, [selectedCategory]);
+  }, [selectedCategory, wagonsByStatus]);
 
   const handleCategoryClick = (category: string) => {
     if (selectedCategory === category) {
@@ -82,6 +110,8 @@ export default function WagonDirectory() {
 
   const getCategoryCount = (cat: string) => wagonsByStatus.filter(w => w.details.category === cat).length;
   const getTypeCount = (type: string) => wagonsByStatus.filter(w => w.details.typeName === type).length;
+  const getBTPGLNDegassedCount = (isDg: boolean) => wagonsByStatus.filter(w => w.details.typeName === "BTPGLN" && (isDg ? w.isDegassed : !w.isDegassed)).length;
+  const getBTPNSteamedCount = (isSteam: boolean) => wagonsByStatus.filter(w => w.details.typeName === "BTPN" && (isSteam ? w.isSteamed : !w.isSteamed)).length;
 
   const activeCategories = useMemo(() => categories.filter(c => getCategoryCount(c) > 0), [categories, wagonsByStatus]);
   const activeTypes = useMemo(() => typesInCategory.filter(t => getTypeCount(t) > 0), [typesInCategory, wagonsByStatus]);
@@ -117,7 +147,12 @@ export default function WagonDirectory() {
 
       <Card className="glass">
         <CardHeader>
-          <CardTitle className="text-lg">Categories</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            Categories
+            <Badge variant="secondary" className="ml-1 font-semibold">
+              {wagonsByStatus.length} total
+            </Badge>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -125,21 +160,21 @@ export default function WagonDirectory() {
               <p className="text-sm text-muted-foreground italic">No wagons found in any category for this filter.</p>
             ) : (
               activeCategories.map((cat) => {
-              const isActive = selectedCategory === cat;
-              return (
-                <Badge
-                  key={cat}
-                  variant={isActive ? "default" : "outline"}
-                  className={cn(
-                    "cursor-pointer text-sm py-1.5 px-3 transition-all",
-                    isActive ? "shadow-md scale-105" : "hover:bg-primary/10"
-                  )}
-                  onClick={() => handleCategoryClick(cat)}
-                >
-                  {cat} ({getCategoryCount(cat)})
-                </Badge>
-              );
-            }))}
+                const isActive = selectedCategory === cat;
+                return (
+                  <Badge
+                    key={cat}
+                    variant={isActive ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer text-sm py-1.5 px-3 transition-all",
+                      isActive ? "shadow-md scale-105" : "hover:bg-primary/10"
+                    )}
+                    onClick={() => handleCategoryClick(cat)}
+                  >
+                    {cat} ({getCategoryCount(cat)})
+                  </Badge>
+                );
+              }))}
           </div>
 
           {selectedCategory && (
@@ -150,22 +185,48 @@ export default function WagonDirectory() {
                   <p className="text-sm text-muted-foreground italic">No specific types found.</p>
                 ) : (
                   activeTypes.map((type) => {
-                  const isActive = selectedType === type;
-                  return (
-                    <Badge
-                      key={type}
-                      variant={isActive ? "secondary" : "outline"}
-                      className={cn(
-                        "cursor-pointer transition-colors",
-                        isActive ? "bg-primary/20 text-primary border-primary/50" : "hover:bg-secondary"
-                      )}
-                      onClick={() => handleTypeClick(type)}
-                    >
-                      {type} ({getTypeCount(type)})
-                    </Badge>
-                  );
-                }))}
+                    const isActive = selectedType === type;
+                    return (
+                      <Badge
+                        key={type}
+                        variant={isActive ? "secondary" : "outline"}
+                        className={cn(
+                          "cursor-pointer transition-colors",
+                          isActive ? "bg-primary/20 text-primary border-primary/50" : "hover:bg-secondary"
+                        )}
+                        onClick={() => handleTypeClick(type)}
+                      >
+                        {type} ({getTypeCount(type)})
+                      </Badge>
+                    );
+                  }))}
               </div>
+            </div>
+          )}
+
+          {selectedType === "BTPGLN" && (
+            <div className="mt-6 pt-6 border-t animate-fade-in space-y-3">
+              <p className="text-sm font-semibold">Degassing Status (BTPGLN Only)</p>
+              <Tabs value={degassedFilter} onValueChange={(v) => setDegassedFilter(v as any)} className="w-fit">
+                <TabsList>
+                  <TabsTrigger value="all">All BTPGLN ({getTypeCount("BTPGLN")})</TabsTrigger>
+                  <TabsTrigger value="dg">DG (Degassed) ({getBTPGLNDegassedCount(true)})</TabsTrigger>
+                  <TabsTrigger value="non-dg">NON-DG (Non-Degassed) ({getBTPGLNDegassedCount(false)})</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          )}
+
+          {selectedType === "BTPN" && (
+            <div className="mt-6 pt-6 border-t animate-fade-in space-y-3">
+              <p className="text-sm font-semibold">Steaming Status (BTPN Only)</p>
+              <Tabs value={steamedFilter} onValueChange={(v) => setSteamedFilter(v as any)} className="w-fit">
+                <TabsList>
+                  <TabsTrigger value="all">All BTPN ({getTypeCount("BTPN")})</TabsTrigger>
+                  <TabsTrigger value="steam">Steam ({getBTPNSteamedCount(true)})</TabsTrigger>
+                  <TabsTrigger value="without-steam">without Steam ({getBTPNSteamedCount(false)})</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
           )}
         </CardContent>
@@ -175,11 +236,11 @@ export default function WagonDirectory() {
         <WagonTable
           wagons={filteredWagons}
           filter="all" // Pass "all" because we pre-filter status ourselves above if needed, but wait! WagonTable also does its own status filtering based on the 'filter' prop.
-          onComplete={() => {}}
-          onUndoComplete={() => {}}
-          onDelete={() => {}}
-          onUpdateSickLine={() => {}}
-          onEdit={() => {}}
+          onComplete={() => { }}
+          onUndoComplete={() => { }}
+          onDelete={() => { }}
+          onUpdateSickLine={() => { }}
+          onEdit={() => { }}
         />
       </div>
     </div>

@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { WagonRepair, BTPNWorkflowData } from "@/lib/wagonData";
+import { WagonRepair, BTPNWorkflowData, SickLine } from "@/lib/wagonData";
 import {
   ChevronRight,
   CheckCircle2,
@@ -36,6 +36,17 @@ export const BTPN_STAGES = [
 
 export type BTPNStage = typeof BTPN_STAGES[number]["id"];
 
+// Stage -> Sick Line auto-mapping
+export const BTPN_STAGE_TO_LINE: Record<BTPNStage, SickLine> = {
+  yard_issue:         "yard",
+  steaming:           "steam_point",
+  steam_cleaning:     "steam_point",
+  rectification:      "mv_shed",
+  placement_decision: "mv_shed",
+  hydro_testing:      "mv_shed",
+  fit_for_use:        "yard",
+};
+
 // MV Shed work types as per flowchart
 export const MV_SHED_WORK_TYPES = [
   { id: "upper_gear", name: "Upper Gear" },
@@ -51,10 +62,11 @@ interface BTPNWorkflowProps {
   wagon: WagonRepair;
   workflowData?: BTPNWorkflowData;
   onUpdateWorkflow: (data: BTPNWorkflowData) => void;
+  onSickLineChange?: (sickLine: SickLine) => void;
   onClose: () => void;
 }
 
-export function BTPNWorkflow({ wagon, workflowData, onUpdateWorkflow, onClose }: BTPNWorkflowProps) {
+export function BTPNWorkflow({ wagon, workflowData, onUpdateWorkflow, onSickLineChange, onClose }: BTPNWorkflowProps) {
   const initialData: BTPNWorkflowData = workflowData || {
     currentStage: "yard_issue",
     stageHistory: [],
@@ -150,6 +162,8 @@ export function BTPNWorkflow({ wagon, workflowData, onUpdateWorkflow, onClose }:
     setData(newData);
     setCurrentNotes(newData.notes[nextStage] || "");
     onUpdateWorkflow(newData);
+    // Auto-update sick line based on new stage
+    onSickLineChange?.(BTPN_STAGE_TO_LINE[nextStage]);
   };
 
   const toggleMvShedWorkType = (typeId: string) => {

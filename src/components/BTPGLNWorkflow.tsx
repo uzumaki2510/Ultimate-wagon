@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { WagonRepair } from "@/lib/wagonData";
+import { WagonRepair, BTPGLNWorkflowData, SickLine } from "@/lib/wagonData";
 import {
   ChevronRight,
   ChevronLeft,
@@ -41,6 +41,16 @@ export const BTPGLN_STAGES = [
 
 export type BTPGLNStage = typeof BTPGLN_STAGES[number]["id"];
 
+// Stage -> Sick Line auto-mapping
+export const BTPGLN_STAGE_TO_LINE: Record<BTPGLNStage, SickLine> = {
+  sick_reason:      "yard",
+  rrt_degassing:    "yard",
+  hapa_examination: "mv_shed",
+  rrt_purging:      "yard",
+  yard_examination: "yard",
+  fit_for_loading:  "yard",
+};
+
 // Sick reasons as per flowchart
 export const SICK_REASONS = [
   { id: "under_gear", name: "Under Gear Defect", requiresWorkshop: false, requiresADLW: false },
@@ -65,10 +75,11 @@ interface BTPGLNWorkflowProps {
   wagon: WagonRepair;
   workflowData?: BTPGLNWorkflowData;
   onUpdateWorkflow: (data: BTPGLNWorkflowData) => void;
+  onSickLineChange?: (sickLine: SickLine) => void;
   onClose: () => void;
 }
 
-export function BTPGLNWorkflow({ wagon, workflowData, onUpdateWorkflow, onClose }: BTPGLNWorkflowProps) {
+export function BTPGLNWorkflow({ wagon, workflowData, onUpdateWorkflow, onSickLineChange, onClose }: BTPGLNWorkflowProps) {
   const initialData: BTPGLNWorkflowData = workflowData || {
     currentStage: "sick_reason",
     stageHistory: [],
@@ -176,6 +187,8 @@ export function BTPGLNWorkflow({ wagon, workflowData, onUpdateWorkflow, onClose 
     setCurrentNotes(newData.notes[nextStage] || "");
     setMarkedSickDuringPurging(false);
     onUpdateWorkflow(newData);
+    // Auto-update sick line based on new stage
+    onSickLineChange?.(BTPGLN_STAGE_TO_LINE[nextStage]);
   };
 
   const getSickReasonInfo = () => {

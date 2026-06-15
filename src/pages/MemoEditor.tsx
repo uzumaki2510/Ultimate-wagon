@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { generateMemoPdf } from "@/lib/pdf";
 import { exportCsv, exportExcel } from "@/lib/exporters";
 import { toast } from "sonner";
+import { loadWagons, saveWagons, SICK_LINES } from "@/lib/wagonData";
 
 export default function MemoEditor() {
   const { id } = useParams();
@@ -69,13 +70,56 @@ export default function MemoEditor() {
 
   const save = () => {
     if (!memo.memoNo) return toast.error("Memo No required");
+
+    // --- Sync Wagon Register (localStorage) from memo entries ---
+    const registerWagons = loadWagons();
+    let changed = false;
+
+    memo.entries.forEach((entry) => {
+      const zustandWagon = store.wagons.find((w) => w.id === entry.wagonId);
+      if (!zustandWagon?.wagonNo) return;
+      const wagonNo = zustandWagon.wagonNo.trim();
+
+      // Find matching wagon in register by number
+      const regIdx = registerWagons.findIndex(
+        (rw) => rw.wagonNumber.trim() === wagonNo && rw.status === "in-repair"
+      );
+      if (regIdx === -1) return;
+
+      const rw = registerWagons[regIdx];
+
+      if (isSick) {
+        // Map lineNo from memo to the closest sick line id
+        const lineNo = memo.lineNo.toLowerCase().trim();
+        const matchedLine = SICK_LINES.find(
+          (l) => l.name.toLowerCase() === lineNo || l.id === lineNo
+        );
+        registerWagons[regIdx] = {
+          ...rw,
+          sickLine: matchedLine ? matchedLine.id : rw.sickLine,
+          status: "in-repair",
+        };
+      } else {
+        // Fit memo → mark wagon as completed
+        registerWagons[regIdx] = {
+          ...rw,
+          status: "completed",
+          completedDate: new Date().toISOString(),
+        };
+      }
+      changed = true;
+    });
+
+    if (changed) saveWagons(registerWagons);
+    // --- End sync ---
+
     if (isNew) {
       const created = store.addMemo({ ...memo, memoType: resolvedType });
-      toast.success(`${isSick ? "Sick" : "Fit"} Memo created`);
+      toast.success(`${isSick ? "Sick" : "Fit"} Memo created${changed ? " & Wagon Register updated" : ""}`);
       nav(`/memos/${created.id}`);
     } else {
       store.updateMemo(memo.id, memo);
-      toast.success("Memo saved");
+      toast.success(`Memo saved${changed ? " & Wagon Register updated" : ""}`);
     }
   };
 

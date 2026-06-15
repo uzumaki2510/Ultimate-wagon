@@ -1,7 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard, FileText, Wrench, Users, Archive, BarChart3, ShieldCheck, User, LogOut, Trash2
-} from "lucide-react";
+import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User, LogOut, Trash2, Zap } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
@@ -22,9 +20,9 @@ export function AppSidebar() {
   const navItems = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
     { title: "Wagon Directory", url: "/wagon-directory", icon: FileText, role: "all" },
+    { title: "Quick Board", url: "/quick-board", icon: Zap, role: "all" },
     { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
     { title: "Sick Line Stages", url: "/sickline", icon: Wrench, role: "all" },
-    { title: "Reports", url: "/reports", icon: BarChart3, role: "all" },
     { title: "Deleted Register", url: "/deleted", icon: Trash2, role: "all" },
     { title: "Employees", url: "/employees", icon: Users, role: "admin", badge: pendingCount },
     { title: "Archives", url: "/archives", icon: Archive, role: "admin" },

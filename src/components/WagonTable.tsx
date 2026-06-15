@@ -31,7 +31,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
 import { BTPGLNWorkflow } from "@/components/BTPGLNWorkflow";
 import { BTPNWorkflow } from "@/components/BTPNWorkflow";
-import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Fuel, Train, Droplets } from "lucide-react";
+import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Fuel, Train, Droplets, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAppStore } from "@/store/useAppStore";
 
 interface WagonTableProps {
   wagons: WagonRepair[];
@@ -48,10 +50,29 @@ interface WagonTableProps {
 }
 
 export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpdateSickLine, onEdit, onUpdateBTPGLNWorkflow, onUpdateBTPNWorkflow, onSelectionChange, filter, isAdmin = false }: WagonTableProps) {
+  const nav = useNavigate();
+  const memos = useAppStore((s) => s.memos);
+  const zustandWagons = useAppStore((s) => s.wagons);
+
+  // Build a map: wagonNumber -> linked memo count
+  const linkedMemoCount = useMemo(() => {
+    const map: Record<string, number> = {};
+    memos.forEach((memo) => {
+      memo.entries.forEach((entry) => {
+        const zw = zustandWagons.find((w) => w.id === entry.wagonId);
+        if (!zw?.wagonNo) return;
+        const key = zw.wagonNo.trim();
+        map[key] = (map[key] ?? 0) + 1;
+      });
+    });
+    return map;
+  }, [memos, zustandWagons]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingWagon, setEditingWagon] = useState<WagonRepair | null>(null);
   const [editComments, setEditComments] = useState("");
   const [editRepairTypes, setEditRepairTypes] = useState<RepairType[]>([]);
+  const [editIsDegassed, setEditIsDegassed] = useState<boolean>(false);
+  const [editIsSteamed, setEditIsSteamed] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [btpglnWagon, setBtpglnWagon] = useState<WagonRepair | null>(null);
   const [btpnWagon, setBtpnWagon] = useState<WagonRepair | null>(null);
@@ -121,6 +142,8 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
     setEditingWagon(wagon);
     setEditComments(wagon.comments || "");
     setEditRepairTypes(wagon.repairTypes);
+    setEditIsDegassed(wagon.isDegassed || false);
+    setEditIsSteamed(wagon.isSteamed || false);
   };
 
   const handleSaveEdit = () => {
@@ -128,6 +151,8 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
       onEdit(editingWagon.id, {
         comments: editComments.trim() || undefined,
         repairTypes: editRepairTypes,
+        isDegassed: editingWagon.details.typeName === "BTPGLN" ? editIsDegassed : undefined,
+        isSteamed: editingWagon.details.typeName === "BTPN" ? editIsSteamed : undefined,
       });
       setEditingWagon(null);
     }
@@ -209,7 +234,19 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{wagon.details.typeName}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{wagon.details.typeName}</span>
+                            {wagon.details.typeName === "BTPGLN" && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900 font-semibold">
+                                {wagon.isDegassed ? "DG" : "NON-DG"}
+                              </Badge>
+                            )}
+                            {wagon.details.typeName === "BTPN" && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900 font-semibold">
+                                {wagon.isSteamed ? "Steam" : "without Steam"}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">{wagon.details.category}</p>
                         </div>
                       </TableCell>
@@ -332,6 +369,23 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
+                          {/* Linked Memos badge */}
+                          {(() => {
+                            const count = linkedMemoCount[wagon.wagonNumber.trim()] ?? 0;
+                            if (count === 0) return null;
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-violet-600 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950 gap-1"
+                                onClick={() => nav(`/memos?wagon=${encodeURIComponent(wagon.wagonNumber)}`)}
+                                title={`${count} linked memo${count > 1 ? "s" : ""}`}
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                <span className="text-[11px] font-bold">{count}</span>
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -375,6 +429,34 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                 rows={3}
               />
             </div>
+            {editingWagon?.details.typeName === "BTPGLN" && (
+              <div className="space-y-2">
+                <Label htmlFor="editDegassedStatus">Degassing Status *</Label>
+                <Select value={editIsDegassed ? "DG" : "NON-DG"} onValueChange={(v) => setEditIsDegassed(v === "DG")}>
+                  <SelectTrigger id="editDegassedStatus">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DG">DG (Degassed)</SelectItem>
+                    <SelectItem value="NON-DG">NON-DG (Non-Degassed)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {editingWagon?.details.typeName === "BTPN" && (
+              <div className="space-y-2">
+                <Label htmlFor="editSteamedStatus">Steaming Status *</Label>
+                <Select value={editIsSteamed ? "Steam" : "without Steam"} onValueChange={(v) => setEditIsSteamed(v === "Steam")}>
+                  <SelectTrigger id="editSteamedStatus">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Steam">Steam</SelectItem>
+                    <SelectItem value="without Steam">without Steam</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingWagon(null)}>
@@ -397,6 +479,9 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
               onUpdateWorkflow={(workflow) => {
                 onUpdateBTPGLNWorkflow?.(btpglnWagon.id, workflow);
               }}
+              onSickLineChange={(sickLine) => {
+                onUpdateSickLine(btpglnWagon.id, sickLine);
+              }}
               onClose={() => setBtpglnWagon(null)}
             />
           )}
@@ -412,6 +497,9 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
               workflowData={btpnWagon.btpnWorkflow}
               onUpdateWorkflow={(workflow) => {
                 onUpdateBTPNWorkflow?.(btpnWagon.id, workflow);
+              }}
+              onSickLineChange={(sickLine) => {
+                onUpdateSickLine(btpnWagon.id, sickLine);
               }}
               onClose={() => setBtpnWagon(null)}
             />

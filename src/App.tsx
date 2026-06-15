@@ -12,6 +12,7 @@ import MemoList from "@/pages/MemoList";
 import MemoEditor from "@/pages/MemoEditor";
 import MemoPrint from "@/pages/MemoPrint";
 import WagonDirectory from "@/pages/WagonDirectory";
+import QuickBoard from "@/pages/QuickBoard";
 
 import SickLine from "@/pages/SickLine";
 import Employees from "@/pages/Employees";
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/memos/:id/print" element={<MemoPrint />} />
               <Route path="/sickline" element={<SickLine />} />
               <Route path="/wagon-directory" element={<WagonDirectory />} />
+              <Route path="/quick-board" element={<QuickBoard />} />
               
               {/* Admin Guarded Routes */}
               <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />

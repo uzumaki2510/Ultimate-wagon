@@ -157,6 +157,8 @@ export interface WagonRepair {
   sickLine?: SickLine;
   btpglnWorkflow?: BTPGLNWorkflowData;
   btpnWorkflow?: BTPNWorkflowData;
+  isDegassed?: boolean;
+  isSteamed?: boolean;
 }
 
 export interface MonthlyArchive {

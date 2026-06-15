@@ -25,6 +25,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ListFilter, CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { BTPGLN_STAGE_TO_LINE } from "@/components/BTPGLNWorkflow";
+import { BTPN_STAGE_TO_LINE } from "@/components/BTPNWorkflow";
 
 const WagonRegister = () => {
   const { isAdmin } = useAuth();
@@ -75,7 +77,17 @@ const WagonRegister = () => {
     return result;
   }, [wagons, dateFrom, dateTo]);
 
-  const handleWagonParsed = (details: WagonDetails, trainNumber: string, arrivalDate: string, arrivalTime: string, sickLine: string, repairTypes: RepairType[], comments: string) => {
+  const handleWagonParsed = (
+    details: WagonDetails,
+    trainNumber: string,
+    arrivalDate: string,
+    arrivalTime: string,
+    sickLine: string,
+    repairTypes: RepairType[],
+    comments: string,
+    isDegassed?: boolean,
+    isSteamed?: boolean
+  ) => {
     // Check if wagon already exists
     const exists = wagons.some((w) => w.wagonNumber === details.wagonNumber);
     if (exists) {
@@ -99,6 +111,8 @@ const WagonRegister = () => {
       sickLine: sickLine as SickLine,
       status: "in-repair",
       comments: comments || undefined,
+      isDegassed: details.typeName === "BTPGLN" ? isDegassed : undefined,
+      isSteamed: details.typeName === "BTPN" ? isSteamed : undefined,
     };
 
     setWagons((prev) => [newWagon, ...prev]);
@@ -171,17 +185,23 @@ const WagonRegister = () => {
 
   const handleUpdateBTPGLNWorkflow = (id: string, workflow: BTPGLNWorkflowData) => {
     setWagons((prev) =>
-      prev.map((w) =>
-        w.id === id ? { ...w, btpglnWorkflow: workflow } : w
-      )
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        // Auto-update sick line based on the new workflow stage
+        const mappedLine = BTPGLN_STAGE_TO_LINE[workflow.currentStage];
+        return { ...w, btpglnWorkflow: workflow, sickLine: mappedLine ?? w.sickLine };
+      })
     );
   };
 
   const handleUpdateBTPNWorkflow = (id: string, workflow: BTPNWorkflowData) => {
     setWagons((prev) =>
-      prev.map((w) =>
-        w.id === id ? { ...w, btpnWorkflow: workflow } : w
-      )
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        // Auto-update sick line based on the new workflow stage
+        const mappedLine = BTPN_STAGE_TO_LINE[workflow.currentStage];
+        return { ...w, btpnWorkflow: workflow, sickLine: mappedLine ?? w.sickLine };
+      })
     );
   };
 
