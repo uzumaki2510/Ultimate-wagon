@@ -57,12 +57,13 @@ export default function SickLine() {
   };
 
   const submitConfirmation = () => {
-    if (!inspectorName.trim() || !remarks.trim()) {
-      toast({ title: "Validation Error", description: "Inspector Name and Remarks are required.", variant: "destructive" });
+    if (!inspectorName.trim()) {
+      toast({ title: "Validation Error", description: "SSC/JE Name is required.", variant: "destructive" });
       return;
     }
     if (activeWfId && activeStage) {
-      markStageDone(activeWfId, activeStage, staffName, inspectorName, remarks);
+      const finalRemarks = remarks.trim() || `Stage ${activeStage} completed successfully by ${inspectorName}.`;
+      markStageDone(activeWfId, activeStage, staffName, inspectorName, finalRemarks);
       toast({ title: "Stage Marked Done", description: `${activeStage} has been confirmed done.` });
     }
     setConfirmModalOpen(false);
@@ -137,6 +138,7 @@ export default function SickLine() {
                 <div className="mb-4">
                   <div className="flex items-center justify-between text-xs font-semibold mb-1">
                     <span className="text-primary truncate">{wf.currentStage}</span>
+                    {currentStageObj?.inspectorName && <span className="text-xs text-muted-foreground mt-1">SSE/JE: {currentStageObj.inspectorName}</span>}
                     <span className={isCurrentDelayed ? 'text-red-600' : 'text-muted-foreground'}>{getTimeSpent(currentStageObj!)}</span>
                   </div>
                   <div className="w-full bg-secondary h-2 rounded-full overflow-hidden flex">
@@ -227,11 +229,11 @@ export default function SickLine() {
         </TabsContent>
       </Tabs>
 
-      {/* Inspector Confirmation Dialog */}
+      {/* SSE/JE Confirmation Dialog */}
       <Dialog open={confirmModalOpen} onOpenChange={setConfirmModalOpen}>
-        <DialogContent>
+        <DialogContent className="z-[60]">
           <DialogHeader>
-            <DialogTitle>Inspector Confirmation</DialogTitle>
+            <DialogTitle>SSE/JE Confirmation</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -240,15 +242,15 @@ export default function SickLine() {
             </div>
             <div className="space-y-2">
               <Label>Staff Name</Label>
-              <Input value={staffName} onChange={e => setStaffName(e.target.value)} />
+              <Input value={staffName} disabled className="bg-muted" />
             </div>
             <div className="space-y-2">
-              <Label>Inspector Name <span className="text-red-500">*</span></Label>
+              <Label>SSE/JE Name <span className="text-red-500">*</span></Label>
               <Input value={inspectorName} onChange={e => setInspectorName(e.target.value)} placeholder="Required" />
             </div>
             <div className="space-y-2">
-              <Label>Remarks <span className="text-red-500">*</span></Label>
-              <Input value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Required" />
+              <Label>Remarks (Optional)</Label>
+              <Input value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Auto-generated if empty" />
             </div>
           </div>
           <DialogFooter>

@@ -21,11 +21,11 @@ export function AppSidebar() {
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
     { title: "Wagon Register", url: "/register", icon: FileText, role: "all" },
     { title: "Wagon Master", url: "/wagon-directory", icon: FileText, role: "all" },
-    { title: "Sick Line", url: "/sickline", icon: Wrench, role: "all" },
     { title: "Employees", url: "/employees", icon: Users, role: "all", badge: pendingCount },
   ];
 
   const adminItems = [
+    { title: "Sick Line", url: "/sickline", icon: Wrench },
     { title: "Quick Entry", url: "/quick-board", icon: Zap },
     { title: "Unit Memos", url: "/memos", icon: FileText },
     { title: "Reports", url: "/reports", icon: FileText },

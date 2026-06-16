@@ -19,9 +19,14 @@ export type WagonStatus =
   | "In Service"
   | "Cut Off"
   | "Sick Line"
+  | "Issue Marked"
+  | "Under Inspection"
   | "Under Repair"
   | "Awaiting Inspection"
-  | "Fit For Loading";
+  | "Awaiting Testing"
+  | "Awaiting Final Inspection"
+  | "Fit For Loading"
+  | "Fit";
 
 export type PriorityLevel = "Normal" | "Urgent" | "Safety Critical";
 
@@ -29,6 +34,107 @@ export interface RepairTask {
   category: string;
   subRepair: string;
   severity: PriorityLevel;
+}
+
+export interface ChecklistItem {
+  checked: boolean;
+  checkedBy?: string;
+  checkedAt?: string;
+  remarks?: string;
+}
+
+export interface InspectionChecklist {
+  // Wheel & Axle Check
+  wheelCondition?: ChecklistItem;
+  bearingCondition?: ChecklistItem;
+  axleBox?: ChecklistItem;
+  wheelProfile?: ChecklistItem;
+  
+  // Brake Check
+  brakePipe?: ChecklistItem;
+  brakeCylinder?: ChecklistItem;
+  distributorValve?: ChecklistItem;
+  brakeBinding?: ChecklistItem;
+  airPressure?: ChecklistItem;
+
+  // Coupler / CBC Check
+  cbc?: ChecklistItem;
+  knuckle?: ChecklistItem;
+  draftGear?: ChecklistItem;
+  buffer?: ChecklistItem;
+
+  // Body / Structure Check
+  bodyCondition?: ChecklistItem;
+  doorHatch?: ChecklistItem;
+  ladder?: ChecklistItem;
+  floorRoofSideWall?: ChecklistItem;
+  corrosion?: ChecklistItem;
+
+  // Underframe Check
+  headStockChecked?: ChecklistItem;
+  soleBarChecked?: ChecklistItem;
+  crossBarChecked?: ChecklistItem;
+  floorPlateChecked?: ChecklistItem;
+  derustingChecked?: ChecklistItem;
+
+  // Bogie & Suspension Check
+  springChecked?: ChecklistItem;
+  snubberSpringChecked?: ChecklistItem;
+  sideBearerChecked?: ChecklistItem;
+  centrePivotChecked?: ChecklistItem;
+  elastomericPadChecked?: ChecklistItem;
+  suspensionChecked?: ChecklistItem;
+
+  // Painting / Finishing Check
+  surfacePrepared?: ChecklistItem;
+  paintingCompleted?: ChecklistItem;
+  markingCompleted?: ChecklistItem;
+  finalFinishingChecked?: ChecklistItem;
+
+  // Scheduled Maintenance Check
+  rohPohStatusChecked?: ChecklistItem;
+  yardExamCompleted?: ChecklistItem;
+  periodicInspectionCompleted?: ChecklistItem;
+  maintenanceFinalInspectionCompleted?: ChecklistItem;
+
+  // Tank Wagon Safety Check
+  masterValve?: ChecklistItem;
+  bottomDischargeValve?: ChecklistItem;
+  deliveryPipe?: ChecklistItem;
+  tankBarrel?: ChecklistItem;
+  leakage?: ChecklistItem;
+  safetyFittings?: ChecklistItem;
+  steamPurgeDegassing?: ChecklistItem;
+
+  // Final Check
+  defectRectified?: ChecklistItem;
+  finalInspectionDone?: ChecklistItem;
+  readyForFitMarking?: ChecklistItem;
+}
+
+export interface FitConfirmation {
+  allStagesCompleted: boolean;
+  defectRectified: boolean;
+  repairChecklistCompleted?: boolean;
+  finalInspectionCompleted: boolean;
+  noSafetyCriticalDefectOpen: boolean;
+  inspectorVerified: boolean;
+  
+  // Tank Wagon
+  noLeakageFound?: boolean;
+  masterValveChecked?: boolean;
+  bottomDischargeValveChecked?: boolean;
+  deliveryPipeChecked?: boolean;
+  blankFlangeChecked?: boolean;
+  tankBarrelChecked?: boolean;
+  safetyFittingsChecked?: boolean;
+  steamingPurgingDegassingCompleted?: boolean;
+  hydroTestingCompleted?: boolean;
+
+  inspectorName: string;
+  remarks: string;
+  confirmedAt: string;
+  confirmedBy: string;
 }
 
 export interface Wagon {
@@ -51,6 +157,8 @@ export interface Wagon {
   priority?: PriorityLevel;
   repairTasks?: RepairTask[];
   repairTypes?: string[];
+  inspectionChecklist?: InspectionChecklist;
+  fitConfirmation?: FitConfirmation;
 }
 
 export interface Rake {
@@ -122,7 +230,19 @@ export interface WorkflowStageRecord {
   targetDurationHours: number;
   staffName?: string;
   inspectorName?: string;
+  sscJeName?: string;
+  steamPointOperationName?: string;
+  fitterName?: string;
   remarks?: string;
+}
+
+export interface WorkflowActionHistory {
+  action: "START_STAGE" | "MARK_STAGE_DONE" | "ADVANCE_WORKFLOW" | "MARK_FIT";
+  stageName: string;
+  previousWorkflowSnapshot: string; // JSON stringified snapshot of the full WorkflowItem before action
+  createdAt: string;
+  userName: string;
+  reason?: string;
 }
 
 export interface WorkflowItem {
@@ -134,6 +254,9 @@ export interface WorkflowItem {
   currentStage: string;
   stages: WorkflowStageRecord[];
   updatedAt: string;
+  sscJeName?: string;
+  fitterName?: string;
+  actionHistory?: WorkflowActionHistory[];
 }
 
 export interface AuditEvent {

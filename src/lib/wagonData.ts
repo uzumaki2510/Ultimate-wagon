@@ -85,7 +85,7 @@ export const SICK_LINES = [
 
 export type SickLine = typeof SICK_LINES[number]["id"];
 
-// Repair work types
+// Repair work types (Legacy)
 export const REPAIR_TYPES = [
   { id: "wheel", name: "Wheel Repair", icon: "🔧" },
   { id: "brake", name: "Brake System", icon: "🛑" },
@@ -98,6 +98,133 @@ export const REPAIR_TYPES = [
 ] as const;
 
 export type RepairType = typeof REPAIR_TYPES[number]["id"];
+
+export type DefectSeverity = "Safety Critical" | "Urgent" | "Normal";
+
+export interface DefectOption {
+  name: string;
+  severity: DefectSeverity;
+}
+
+export interface DefectGroup {
+  groupName: string;
+  defects: DefectOption[];
+}
+
+export const DEFECT_LIBRARY: DefectGroup[] = [
+  {
+    groupName: "Wheel & Axle",
+    defects: [
+      { name: "Wheel Repair", severity: "Normal" },
+      { name: "Wheel Flat", severity: "Urgent" },
+      { name: "Wheel Crack", severity: "Safety Critical" },
+      { name: "Thin Flange", severity: "Normal" },
+      { name: "Bearing Alert", severity: "Urgent" },
+      { name: "Hot Axle", severity: "Safety Critical" },
+      { name: "Axle Box Issue", severity: "Normal" },
+      { name: "Wheel Profile Required", severity: "Normal" },
+    ]
+  },
+  {
+    groupName: "Brake System",
+    defects: [
+      { name: "Brake Binding", severity: "Urgent" },
+      { name: "Brake Pipe Leakage", severity: "Urgent" },
+      { name: "Brake Cylinder Defect", severity: "Normal" },
+      { name: "Distributor Valve Defect", severity: "Urgent" },
+      { name: "Air Pressure Issue", severity: "Normal" },
+      { name: "Brake Failure", severity: "Safety Critical" },
+      { name: "Single Wagon Test Required", severity: "Normal" },
+    ]
+  },
+  {
+    groupName: "Coupler / CBC / Draft Gear",
+    defects: [
+      { name: "Coupler / Draft Gear", severity: "Urgent" },
+      { name: "CBC Defect", severity: "Safety Critical" },
+      { name: "Knuckle Defect", severity: "Normal" },
+      { name: "Draft Gear Damage", severity: "Urgent" },
+      { name: "Buffer Issue", severity: "Normal" },
+      { name: "Train Parting Risk", severity: "Safety Critical" },
+    ]
+  },
+  {
+    groupName: "Body & Structure",
+    defects: [
+      { name: "Body Repair", severity: "Normal" },
+      { name: "Side Wall Damage", severity: "Normal" },
+      { name: "Floor Damage", severity: "Normal" },
+      { name: "Roof Damage", severity: "Normal" },
+      { name: "Ladder Defect", severity: "Normal" },
+      { name: "Door / Hatch Defect", severity: "Normal" },
+      { name: "Barrel Defect", severity: "Normal" },
+      { name: "Panel Damage", severity: "Normal" },
+      { name: "Corrosion", severity: "Normal" },
+      { name: "Crack / Bulging", severity: "Normal" },
+    ]
+  },
+  {
+    groupName: "Underframe",
+    defects: [
+      { name: "Underframe Defect", severity: "Normal" },
+      { name: "Head Stock Defect", severity: "Normal" },
+      { name: "Sole Bar Defect", severity: "Normal" },
+      { name: "Cross Bar Defect", severity: "Normal" },
+      { name: "Floor Plate Defect", severity: "Normal" },
+      { name: "De-rusting Required", severity: "Normal" },
+    ]
+  },
+  {
+    groupName: "Bogie & Suspension",
+    defects: [
+      { name: "Bogie Overhaul", severity: "Normal" },
+      { name: "Suspension", severity: "Normal" },
+      { name: "Spring Defect", severity: "Normal" },
+      { name: "Snubber Spring Issue", severity: "Normal" },
+      { name: "Centre Pivot Issue", severity: "Normal" },
+      { name: "Elastomeric Pad Issue", severity: "Normal" },
+      { name: "Side Bearer Issue", severity: "Normal" },
+    ]
+  },
+  {
+    groupName: "Tank Wagon Work",
+    defects: [
+      { name: "Valve Defect", severity: "Urgent" },
+      { name: "Master Valve Defect", severity: "Urgent" },
+      { name: "Bottom Discharge Valve Defect", severity: "Urgent" },
+      { name: "Delivery Pipe Defect", severity: "Normal" },
+      { name: "Air Leakage", severity: "Safety Critical" },
+      { name: "Tank Barrel Leakage", severity: "Safety Critical" },
+      { name: "Tank Barrel Crack", severity: "Safety Critical" },
+      { name: "Manhole Cover Defect", severity: "Normal" },
+      { name: "Safety Valve Defect", severity: "Normal" },
+      { name: "Steam Cleaning Required", severity: "Normal" },
+      { name: "Hydro Testing Required", severity: "Normal" },
+      { name: "Purging Required", severity: "Normal" },
+      { name: "De-Gassing Required", severity: "Normal" },
+    ]
+  },
+  {
+    groupName: "Painting / Finishing",
+    defects: [
+      { name: "Painting", severity: "Normal" },
+      { name: "Marking", severity: "Normal" },
+      { name: "Cleaning", severity: "Normal" },
+      { name: "Surface Preparation", severity: "Normal" },
+      { name: "Minor Finishing", severity: "Normal" },
+    ]
+  },
+  {
+    groupName: "Scheduled Maintenance",
+    defects: [
+      { name: "ROH Due", severity: "Normal" },
+      { name: "POH Due", severity: "Normal" },
+      { name: "Yard Examination", severity: "Normal" },
+      { name: "Periodic Inspection", severity: "Normal" },
+      { name: "Fit Inspection", severity: "Normal" },
+    ]
+  }
+];
 
 export interface WagonDetails {
   wagonNumber: string;
@@ -151,7 +278,7 @@ export interface WagonRepair {
   arrivalTime?: string;
   trainNumber?: string;
   completedDate?: string;
-  status: "in-repair" | "completed";
+  status: "in-repair" | "completed" | "sick" | "delayed";
   notes?: string;
   comments?: string;
   sickLine?: SickLine;
@@ -159,6 +286,7 @@ export interface WagonRepair {
   btpnWorkflow?: BTPNWorkflowData;
   isDegassed?: boolean;
   isSteamed?: boolean;
+  hasStatusConflict?: boolean;
 }
 
 export interface MonthlyArchive {

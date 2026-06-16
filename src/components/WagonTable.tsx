@@ -26,9 +26,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
+import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, DEFECT_LIBRARY, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
 import { EditWagonModal } from "@/components/EditWagonModal";
-import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle } from "lucide-react";
+import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -231,15 +231,20 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         {wagon.details.railwayName}
                       </TableCell>
                       <TableCell>
-                        {wagon.status === "in-repair" ? (
-                          <Badge className="bg-warning text-warning-foreground">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Sick
-                          </Badge>
-                        ) : (
+                        {wagon.status === "completed" ? (
                           <Badge className="bg-success text-success-foreground">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Fit
+                          </Badge>
+                        ) : wagon.hasStatusConflict ? (
+                          <Badge className="bg-destructive text-destructive-foreground">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Status Conflict
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-warning text-warning-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {wagon.status === "in-repair" ? "In Repair" : "Sick"}
                           </Badge>
                         )}
                       </TableCell>
@@ -256,24 +261,41 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1.5">
-                          {wagon.primaryRepair && (
-                            <span className="inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-                              {wagon.primaryRepair}
-                            </span>
-                          )}
-                          {wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0 && (
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {wagon.secondaryRepairs.map((r, i) => (
-                                <div key={i} className="flex items-center gap-1">
-                                  <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-                                  {r}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {!wagon.primaryRepair && (!wagon.secondaryRepairs || wagon.secondaryRepairs.length === 0) && (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
+                          {(() => {
+                            const getSeverityColor = (defectName: string) => {
+                              for (const group of DEFECT_LIBRARY) {
+                                const def = group.defects.find(d => d.name === defectName);
+                                if (def) {
+                                  if (def.severity === "Safety Critical") return "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400";
+                                  if (def.severity === "Urgent") return "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400";
+                                  return "bg-primary/10 text-primary border-primary/20";
+                                }
+                              }
+                              return "bg-primary/10 text-primary border-primary/20";
+                            };
+
+                            return (
+                              <>
+                                {wagon.primaryRepair && (
+                                  <span className={`inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-bold border ${getSeverityColor(wagon.primaryRepair)}`}>
+                                    {wagon.primaryRepair}
+                                  </span>
+                                )}
+                                {wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0 && (
+                                  <div className="text-xs text-muted-foreground mt-0.5 flex flex-col gap-1">
+                                    {wagon.secondaryRepairs.map((r, i) => (
+                                      <span key={i} className={`inline-flex w-fit items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getSeverityColor(r)}`}>
+                                        {r}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {!wagon.primaryRepair && (!wagon.secondaryRepairs || wagon.secondaryRepairs.length === 0) && (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell>

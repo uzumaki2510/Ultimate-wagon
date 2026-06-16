@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { parseWagonNumber, WagonDetails, SICK_LINES } from "@/lib/wagonData";
+import { parseWagonNumber, WagonDetails, SICK_LINES, DEFECT_LIBRARY } from "@/lib/wagonData";
 import { PriorityLevel, RepairTask } from "@/types/index";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, CheckCircle, XCircle, Train, Calendar, Clock, Wrench, MessageSquare, Camera, ArrowRight, X } from "lucide-react";
@@ -26,39 +26,16 @@ interface WagonInputProps {
   ) => void;
 }
 
-const REPAIR_CATEGORIES = [
-  { id: "Wheel & Axle", icon: "🔧", desc: "Wheel, bearing, axle box and flange issues" },
-  { id: "Brake System", icon: "🛑", desc: "Brake binding, air leakage and brake cylinder issues" },
-  { id: "Coupler / CBC", icon: "🔗", desc: "Coupler, knuckle, draft gear and buffer issues" },
-  { id: "Body & Structure", icon: "🛠️", desc: "Body, side wall, roof, door and barrel defects" },
-  { id: "Tank Wagon Work", icon: "🛢️", desc: "Valve, steaming, purging and hydro test work" },
-  { id: "Scheduled Maintenance", icon: "📅", desc: "ROH, POH, periodic and yard examinations" },
-  { id: "Painting / Finishing", icon: "🎨", desc: "Painting, marking and minor finishing works" },
-  { id: "Inspection / Fit", icon: "✅", desc: "Awaiting inspection and fit for loading/use checks" },
-];
-
-const SUB_REPAIRS: Record<string, string[]> = {
-  "Wheel & Axle": ["Wheel Repair", "Wheel Flat", "Wheel Crack", "Thin Flange", "Bearing Alert", "Hot Axle", "Axle Box Issue", "Wheel Profile Required"],
-  "Brake System": ["Brake Binding", "Brake Pipe Leakage", "Brake Cylinder Defect", "Distributor Valve Defect", "Air Pressure Issue", "Brake Failure"],
-  "Coupler / CBC": ["Coupler / Draft Gear", "CBC Defect", "Knuckle Defect", "Draft Gear Damage", "Buffer Issue"],
-  "Body & Structure": ["Body Repair", "Side Wall Damage", "Floor Damage", "Roof Damage", "Ladder Defect", "Door / Hatch Defect", "Barrel Defect"],
-  "Tank Wagon Work": ["Valve Defect", "Master Valve Defect", "Delivery Pipe Defect", "Air Leakage", "Steam Cleaning Required", "Hydro Testing Required", "Purging Required", "De-Gassing Required"],
-  "Scheduled Maintenance": ["ROH Due", "POH Due", "Yard Examination", "Periodic Inspection"],
-  "Painting / Finishing": ["Painting", "Marking", "Cleaning", "Minor Finishing"],
-  "Inspection / Fit": ["Awaiting Inspection", "Fit For Loading", "Fit For Use", "Final Check"],
-};
-
 const QUICK_REMARKS = [
   "Wheel alert received", "Sent to sick line", "Awaiting inspection", 
   "Repair started", "Repair completed", "Fit certificate pending", "Staff informed"
 ];
 
 const getSeverity = (subRepair: string): PriorityLevel => {
-  const critical = ["Wheel Crack", "Hot Axle", "Brake Failure", "Air Leakage", "CBC Defect"];
-  const urgent = ["Brake Binding", "Bearing Alert", "Valve Defect", "Master Valve Defect"];
-  
-  if (critical.includes(subRepair)) return "Safety Critical";
-  if (urgent.includes(subRepair)) return "Urgent";
+  for (const group of DEFECT_LIBRARY) {
+    const def = group.defects.find(d => d.name === subRepair);
+    if (def) return def.severity;
+  }
   return "Normal";
 };
 
@@ -260,16 +237,15 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                {REPAIR_CATEGORIES.map(cat => (
+                {DEFECT_LIBRARY.map(group => (
                   <Card 
-                    key={cat.id} 
-                    className={`cursor-pointer transition-all hover:border-primary/50 ${selectedCategory === cat.id ? 'ring-2 ring-primary ring-offset-2 border-primary bg-primary/5' : ''}`}
-                    onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                    key={group.groupName} 
+                    className={`cursor-pointer transition-all hover:border-primary/50 ${selectedCategory === group.groupName ? 'ring-2 ring-primary ring-offset-2 border-primary bg-primary/5' : ''}`}
+                    onClick={() => setSelectedCategory(selectedCategory === group.groupName ? null : group.groupName)}
                   >
-                    <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                      <span className="text-3xl">{cat.icon}</span>
-                      <span className="font-semibold text-sm leading-tight">{cat.id}</span>
-                      <span className="text-[10px] text-muted-foreground hidden sm:block">{cat.desc}</span>
+                    <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full gap-2 min-h-[80px]">
+                      <span className="font-semibold text-sm leading-tight">{group.groupName}</span>
+                      <span className="text-[10px] text-muted-foreground hidden sm:block">{group.defects.length} items</span>
                     </CardContent>
                   </Card>
                 ))}
@@ -279,18 +255,18 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
                 <div className="p-4 bg-card rounded-lg border shadow-sm animate-in slide-in-from-top-2">
                   <h4 className="text-sm font-semibold mb-3">{selectedCategory} Options</h4>
                   <div className="flex flex-wrap gap-2">
-                    {SUB_REPAIRS[selectedCategory].map(sub => {
-                      const isSelected = selectedRepairs.some(r => r.subRepair === sub);
-                      const severity = getSeverity(sub);
+                    {DEFECT_LIBRARY.find(g => g.groupName === selectedCategory)?.defects.map(def => {
+                      const isSelected = selectedRepairs.some(r => r.subRepair === def.name);
+                      const severity = def.severity;
                       return (
                         <Button 
-                          key={sub} 
+                          key={def.name} 
                           variant={isSelected ? "default" : "outline"} 
                           size="sm"
-                          onClick={() => handleToggleRepair(selectedCategory, sub)}
+                          onClick={() => handleToggleRepair(selectedCategory, def.name)}
                           className={isSelected ? PriorityColors[severity] : ""}
                         >
-                          {sub}
+                          {def.name}
                         </Button>
                       );
                     })}

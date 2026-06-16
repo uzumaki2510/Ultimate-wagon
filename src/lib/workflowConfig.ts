@@ -29,22 +29,24 @@ export const WORKFLOW_CONFIGS: Record<string, WorkflowTemplate> = {
       { name: "Fit For Use", targetDurationHours: 0 },
     ]
   },
-  DEFAULT: {
+  GENERAL: {
     stages: [
       { name: "Issue Marked", targetDurationHours: 0 },
-      { name: "Rectification", targetDurationHours: 4 },
-      { name: "Inspection", targetDurationHours: 1 },
+      { name: "Initial Inspection", targetDurationHours: 1 },
+      { name: "Repair / Rectification", targetDurationHours: 4 },
+      { name: "Checklist / Testing", targetDurationHours: 2 },
+      { name: "Final Inspection", targetDurationHours: 1 },
       { name: "Fit For Loading", targetDurationHours: 0 },
     ]
   }
 };
 
 export function getWorkflowTemplate(wagonType: string | undefined): WorkflowTemplate {
-  if (!wagonType) return WORKFLOW_CONFIGS.DEFAULT;
+  if (!wagonType) return WORKFLOW_CONFIGS.GENERAL;
   const t = wagonType.toUpperCase();
   
   if (t === "BTPGLN") return WORKFLOW_CONFIGS.BTPGLN;
   if (t === "BTPN" || t === "BTPFLN" || t === "BTPNHS") return WORKFLOW_CONFIGS.BTPN;
   
-  return WORKFLOW_CONFIGS.DEFAULT;
+  return WORKFLOW_CONFIGS.GENERAL;
 }

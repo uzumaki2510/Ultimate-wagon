@@ -39,9 +39,9 @@ export default function Dashboard() {
 
     if (wf && wf.stages.length > 0) {
       const isFirstStage = wf.currentStage === wf.stages[0].stageName;
-      const isFirstStagePending = isFirstStage && wf.stages[0].status === "Pending";
+      const isFirstStageDone = isFirstStage && wf.stages[0].status === "Done";
       
-      if (isFirstStagePending) {
+      if (isFirstStage && !isFirstStageDone) {
         isSick = true;
         isRepair = false;
       } else {

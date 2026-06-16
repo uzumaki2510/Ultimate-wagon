@@ -32,31 +32,53 @@ export default function WagonRegister() {
     return zustandWagons.map(w => {
       const wf = workflows.find(wfItem => wfItem.wagonId === w.id);
       
-      let isFit = w.status === "Fit For Loading" || (w.status as string) === "Completed";
+      const isTankWagon = ["BTPN", "BTPFLN", "BTPNHS", "BTPGLN"].includes((w.type || "").toUpperCase());
+      let hasStatusConflict = false;
+      let allDone = false;
+      
       if (wf && wf.stages.length > 0) {
-        const finalStage = wf.stages[wf.stages.length - 1];
-        if (finalStage.status === "Done") isFit = true;
+        allDone = wf.stages.every(st => st.status === "Done");
+        if (isTankWagon && w.status === "Fit For Loading" && !allDone) {
+          hasStatusConflict = true;
+        }
       }
+
+      let isFit = w.status === "Fit For Loading" || (w.status as string) === "Completed";
+      if (allDone) isFit = true;
+      if (hasStatusConflict) isFit = false; // Don't show as fit if there's a conflict
 
       let isSick = w.status === "Cut Off" || w.status === "Sick Line" || (w.status as string) === "Sick";
       let isRepair = w.status === "Under Repair";
 
       if (wf && wf.stages.length > 0) {
-        const isFirstStage = wf.currentStage === wf.stages[0].stageName;
-        const isFirstStagePending = isFirstStage && wf.stages[0].status === "Pending";
+        const currentStageName = wf.currentStage;
+        const currentStageRecord = wf.stages.find(st => st.stageName === currentStageName);
         
-        if (isFirstStagePending) {
+        // Use the store status to dictate visual badge if possible
+        if (w.status === "Cut Off" || w.status === "Sick Line" || w.status === "Issue Marked" || (w.status as string) === "Sick") {
           isSick = true;
           isRepair = false;
-        } else {
+        } else if (w.status === "Under Repair" || w.status === "Under Inspection" || w.status === "Awaiting Testing" || w.status === "Awaiting Final Inspection") {
           isSick = false;
           isRepair = true;
+        } else {
+           // Fallback to workflow stage if store status doesn't match
+           const isFirstStage = currentStageName === wf.stages[0].stageName;
+           const isFirstStageDone = isFirstStage && currentStageRecord?.status === "Done";
+           
+           if (isFirstStage && !isFirstStageDone) {
+             isSick = true;
+             isRepair = false;
+           } else {
+             isSick = false;
+             isRepair = true;
+           }
         }
       }
 
       let mappedStatus = "all";
       if (isFit) mappedStatus = "fit";
-      else if (isRepair) mappedStatus = "in-repair";
+      else if (isRepair || hasStatusConflict) mappedStatus = "in-repair";
       else if (isSick) mappedStatus = "sick";
       
       const isToday = w.updatedAt?.startsWith(todayStr);
@@ -68,8 +90,10 @@ export default function WagonRegister() {
           wagonNumber: w.wagonNo,
           typeCode: "00",
           typeName: w.type || "Other",
-          category: ["BOXN", "BOXNHS"].includes(w.type || "") ? "Open Wagon" : 
-                   ["BCN", "BCNHL"].includes(w.type || "") ? "Covered Wagon" : 
+          category: ["BOXN", "BOXNHL", "BOXNHS", "BOXNHA", "BOST"].includes(w.type || "") ? "Open Wagon" : 
+                   ["BCN", "BCNA", "BCNMI", "BCNHL"].includes(w.type || "") ? "Covered Wagon" : 
+                   ["BLC", "BLL", "BRNA", "BRNAHS"].includes(w.type || "") ? "Flat Wagon" :
+                   ["BOBYN", "BOBYNHS", "BOBRN", "BOBRNHS", "BOBRAL"].includes(w.type || "") ? "Hopper Wagon" :
                    w.type?.includes("BTP") ? "Tank Wagon" : "Other",
           railwayCode: "00",
           railwayName: w.owner || "Unknown",
@@ -87,6 +111,7 @@ export default function WagonRegister() {
         sickLine: (w as any).sickLine || "line1",
         status: mappedStatus as any, // Type coercion to avoid TS errors on new statuses
         isToday,
+        hasStatusConflict,
         comments: w.comments || w.defect, // prefer comments, fallback to defect
       } as unknown as WagonRepair & { isToday: boolean };
     });
@@ -127,7 +152,7 @@ export default function WagonRegister() {
 
   const stats = useMemo(() => {
     const total = mappedWagons.length;
-    const sick = mappedWagons.filter(w => w.status === "in-repair").length;
+    const sick = mappedWagons.filter(w => w.status === "in-repair" || w.status === "sick").length;
     const fit = mappedWagons.filter(w => w.status === "completed").length;
     
     const categories = mappedWagons.reduce((acc, w) => {
