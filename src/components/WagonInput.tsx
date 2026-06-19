@@ -62,6 +62,7 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
   const [comments, setComments] = useState("");
   const [isDegassed, setIsDegassed] = useState<boolean>(false);
   const [isSteamed, setIsSteamed] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -97,15 +98,21 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
   };
 
   const handleAddToRepair = () => {
+    if (isSubmitting) return;
     if (parsedDetails && trainNumber && sickLine) {
+      setIsSubmitting(true);
       onWagonParsed(
         parsedDetails, trainNumber, arrivalDate, arrivalTime, sickLine, selectedRepairs, comments, priority,
         parsedDetails.typeName === "BTPGLN" ? isDegassed : undefined,
         ["BTPN", "BTPFLN", "BTPNHS"].includes(parsedDetails.typeName) ? isSteamed : undefined
       );
-      // Reset form
-      setWagonNumber(""); setParsedDetails(null); setTrainNumber(""); setPriority("Normal");
-      setSelectedRepairs([]); setComments(""); setIsDegassed(false); setIsSteamed(false);
+      
+      // Delay reset slightly to block double-clicks
+      setTimeout(() => {
+        setWagonNumber(""); setParsedDetails(null); setTrainNumber(""); setPriority("Normal");
+        setSelectedRepairs([]); setComments(""); setIsDegassed(false); setIsSteamed(false);
+        setIsSubmitting(false);
+      }, 300);
     }
   };
 
@@ -334,8 +341,8 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
               </div>
             </div>
 
-            <Button onClick={handleAddToRepair} className="w-full text-lg h-14 shadow-lg" disabled={!canAdd}>
-              Save Arrival & Work Entry
+            <Button onClick={handleAddToRepair} className="w-full text-lg h-14 shadow-lg" disabled={!canAdd || isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Arrival & Work Entry"}
             </Button>
           </div>
         )}

@@ -159,6 +159,8 @@ export interface Wagon {
   repairTypes?: string[];
   inspectionChecklist?: InspectionChecklist;
   fitConfirmation?: FitConfirmation;
+  isSteamed?: boolean;
+  isDegassed?: boolean;
 }
 
 export interface Rake {

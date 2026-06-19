@@ -113,6 +113,8 @@ export default function WagonRegister() {
         isToday,
         hasStatusConflict,
         comments: w.comments || w.defect, // prefer comments, fallback to defect
+        isSteamed: w.isSteamed,
+        isDegassed: w.isDegassed,
       } as unknown as WagonRepair & { isToday: boolean };
     });
   }, [zustandWagons, workflows]);
@@ -181,12 +183,14 @@ export default function WagonRegister() {
       type: details.typeName,
       owner: details.railwayName,
       builtYear: parseInt(details.yearOfManufacture) || new Date().getFullYear(),
-      status: "Cut Off",
+      status: "Issue Marked",
       defect: repairTasks.map(r => r.subRepair).join(", ") + (comments ? ` | ${comments}` : ""),
       updatedAt: arrivalDate,
       priority: priority,
       repairTasks: repairTasks,
-      rakeId: trainNumber
+      rakeId: trainNumber,
+      isSteamed: isSteamed,
+      isDegassed: isDegassed
     });
     toast({ title: "Wagon Added", description: `Wagon ${details.wagonNumber} added to register.` });
   };
@@ -251,7 +255,7 @@ export default function WagonRegister() {
         wagons={filteredWagons}
         filter="all"
         onComplete={(id) => { updateWagon(id, { status: "Fit For Loading" }); toast({title:"Marked Fit"}); }}
-        onUndoComplete={(id) => { updateWagon(id, { status: "Cut Off" }); toast({title:"Undo Fit"}); }}
+        onUndoComplete={(id) => { updateWagon(id, { status: "Issue Marked" }); toast({title:"Undo Fit"}); }}
         onDelete={(id) => { removeWagon(id); toast({title:"Deleted"}); }}
         onUpdateSickLine={(id, sl) => updateWagon(id, { sickLine: sl } as any)}
         onEdit={(id, up) => updateWagon(id, { defect: up.comments })}

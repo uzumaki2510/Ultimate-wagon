@@ -84,14 +84,55 @@ export const useAppStore = create<AppState>()(
         get().log({ actor: "user", action: "Wagon added", wagonId: wagon.id, details: wagon.wagonNo });
         // Auto-create workflow for all wagons
         get().upsertWorkflowForWagon(wagon.id);
+        
+        // Auto-start first stage
+        const wf = get().workflows.find(wfItem => wfItem.wagonId === wagon.id);
+        if (wf && wf.stages.length > 0) {
+          get().startStage(wf.id, wf.stages[0].stageName, "System");
+        }
+        
         return wagon;
       },
       updateWagon: (id, patch, actorName) => {
         set((s) => ({ wagons: s.wagons.map((w) => (w.id === id ? { ...w, ...patch } : w)) }));
         const actionDetails = patch.repairTypes ? `Repair types: ${patch.repairTypes.join(", ")}` : JSON.stringify(patch);
         get().log({ actor: actorName || "user", action: patch.repairTypes ? "Repair Types Updated" : "Wagon updated", wagonId: id, details: actionDetails });
+
+        // INTERCONNECT: If marked Fit from Register, complete workflow
+        if (patch.status === "Fit For Loading" || patch.status === "Fit") {
+          const wf = get().workflows.find(w => w.wagonId === id);
+          if (wf) {
+            set((s) => ({
+              workflows: s.workflows.map(w => w.id === wf.id ? {
+                ...w,
+                stages: w.stages.map(st => st.status !== "Done" ? { ...st, status: "Done", completedAt: new Date().toISOString() } : st),
+                updatedAt: new Date().toISOString()
+              } : w)
+            }));
+          }
+        }
+
+        // INTERCONNECT: If undone Fit, revert the last workflow stage
+        if (patch.status === "Issue Marked" || patch.status === "Under Repair") {
+          const wf = get().workflows.find(w => w.wagonId === id);
+          if (wf) {
+            const allDone = wf.stages.every(st => st.status === "Done");
+            if (allDone && wf.stages.length > 0) {
+              set((s) => ({
+                workflows: s.workflows.map(w => w.id === wf.id ? {
+                  ...w,
+                  stages: w.stages.map((st, i) => i === w.stages.length - 1 ? { ...st, status: "In Progress", completedAt: undefined } : st),
+                  updatedAt: new Date().toISOString()
+                } : w)
+              }));
+            }
+          }
+        }
       },
-      removeWagon: (id) => set((s) => ({ wagons: s.wagons.filter((w) => w.id !== id) })),
+      removeWagon: (id) => set((s) => ({ 
+        wagons: s.wagons.filter((w) => w.id !== id),
+        workflows: s.workflows.filter((w) => w.wagonId !== id)
+      })),
 
       addRake: (r) => {
         const rake: Rake = { ...r, id: nanoid(), createdAt: new Date().toISOString(), wagonIds: r.wagonIds ?? [] };
@@ -163,10 +204,11 @@ export const useAppStore = create<AppState>()(
         // Save snapshot before action
         const wfBefore = get().workflows.find(w => w.id === id);
         if (wfBefore) {
+          const { actionHistory, ...wfWithoutHistory } = wfBefore;
           const snapshot: WorkflowActionHistory = {
             action: "START_STAGE", stageName,
-            previousWorkflowSnapshot: JSON.stringify(wfBefore),
-            createdAt: new Date().toISOString(), userName: staffName,
+            previousWorkflowSnapshot: JSON.stringify(wfWithoutHistory),
+            createdAt: new Date().toISOString(), userName: staffName
           };
           set((s) => ({
             workflows: s.workflows.map(w => w.id === id ? { ...w, actionHistory: [...(w.actionHistory || []), snapshot] } : w),
@@ -194,7 +236,8 @@ export const useAppStore = create<AppState>()(
               else if (stageName === "Repair / Rectification" || (!isFirstStage && wagon.status === "Cut Off")) newStatus = "Under Repair";
               else if (stageName === "Checklist / Testing") newStatus = "Awaiting Testing";
               else if (stageName === "Final Inspection") newStatus = "Awaiting Final Inspection";
-              else if (stageName === "Issue Marked") newStatus = "Sick Line";
+              else if (stageName === "Issue Marked") newStatus = "Issue Marked";
+              else if (stageName === "Sick Reason") newStatus = "Issue Marked";
               
               return { ...wagon, status: newStatus as any };
             }
@@ -212,10 +255,11 @@ export const useAppStore = create<AppState>()(
         // Save snapshot before action
         const wfBefore = get().workflows.find(w => w.id === id);
         if (wfBefore) {
+          const { actionHistory, ...wfWithoutHistory } = wfBefore;
           const snapshot: WorkflowActionHistory = {
             action: "MARK_STAGE_DONE", stageName,
-            previousWorkflowSnapshot: JSON.stringify(wfBefore),
-            createdAt: new Date().toISOString(), userName: staffName,
+            previousWorkflowSnapshot: JSON.stringify(wfWithoutHistory),
+            createdAt: new Date().toISOString(), userName: inspectorName, reason: remarks
           };
           set((s) => ({
             workflows: s.workflows.map(w => w.id === id ? { ...w, actionHistory: [...(w.actionHistory || []), snapshot] } : w),
@@ -239,16 +283,25 @@ export const useAppStore = create<AppState>()(
           })
         }));
         const wf = get().workflows.find((w) => w.id === id);
-        if (wf) get().log({ actor: inspectorName, action: "Stage Marked Done", details: `Stage ${stageName} completed for wagon ${wf.wagonNo}. Remarks: ${remarks}`, wagonId: wf.wagonId });
+        if (wf) {
+          get().log({ actor: inspectorName, action: "Stage Marked Done", details: `Stage ${stageName} completed for wagon ${wf.wagonNo}. Remarks: ${remarks}`, wagonId: wf.wagonId });
+          
+          // INTERCONNECT: If all workflow stages are done, automatically mark wagon as Fit For Loading
+          const allDone = wf.stages.every(st => st.status === "Done");
+          if (allDone) {
+            get().updateWagon(wf.wagonId, { status: "Fit For Loading" }, inspectorName);
+          }
+        }
       },
 
       advanceWorkflow: (id, toStage) => {
         // Save snapshot before action
         const wfBefore = get().workflows.find(w => w.id === id);
         if (wfBefore) {
+          const { actionHistory, ...wfWithoutHistory } = wfBefore;
           const snapshot: WorkflowActionHistory = {
             action: "ADVANCE_WORKFLOW", stageName: toStage,
-            previousWorkflowSnapshot: JSON.stringify(wfBefore),
+            previousWorkflowSnapshot: JSON.stringify(wfWithoutHistory),
             createdAt: new Date().toISOString(), userName: "user",
           };
           set((s) => ({
@@ -275,7 +328,8 @@ export const useAppStore = create<AppState>()(
               else if (toStage === "Repair / Rectification" || wagon.status === "Cut Off") newStatus = "Under Repair";
               else if (toStage === "Checklist / Testing") newStatus = "Awaiting Testing";
               else if (toStage === "Final Inspection") newStatus = "Awaiting Final Inspection";
-              else if (toStage === "Issue Marked") newStatus = "Sick Line";
+              else if (toStage === "Issue Marked") newStatus = "Issue Marked";
+              else if (toStage === "Sick Reason") newStatus = "Issue Marked";
               
               return { ...wagon, status: newStatus as any };
             }
@@ -299,13 +353,11 @@ export const useAppStore = create<AppState>()(
           if (!allDone) {
             return { success: false, error: "Workflow is not completed. Complete all stages before marking wagon Fit." };
           }
-          if (!fitConfirmation) {
-            return { success: false, error: "Fit Confirmation is required for Tank Wagons." };
-          }
           // Save snapshot for undo
+          const { actionHistory, ...wfWithoutHistory } = wf;
           const snapshot: WorkflowActionHistory = {
             action: "MARK_FIT", stageName: wf.currentStage,
-            previousWorkflowSnapshot: JSON.stringify(wf),
+            previousWorkflowSnapshot: JSON.stringify(wfWithoutHistory),
             createdAt: new Date().toISOString(), userName: "user",
           };
           set((s) => ({

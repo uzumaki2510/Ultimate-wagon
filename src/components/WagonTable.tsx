@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, DEFECT_LIBRARY, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
 import { EditWagonModal } from "@/components/EditWagonModal";
-import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -231,7 +231,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         {wagon.details.railwayName}
                       </TableCell>
                       <TableCell>
-                        {wagon.status === "completed" ? (
+                        {wagon.status === "Fit For Loading" || wagon.status === "completed" || wagon.status === "Fit" || wagon.status === "fit" ? (
                           <Badge className="bg-success text-success-foreground">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Fit
@@ -339,17 +339,23 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          {wagon.status === "in-repair" ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-success hover:text-success hover:bg-success/10"
-                              onClick={() => onComplete(wagon.id)}
-                              title="Mark as Fit"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                          ) : (
+                          {wagon.status !== "Fit For Loading" && wagon.status !== "completed" && wagon.status !== "Fit" && wagon.status !== "fit" && (() => {
+                            const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
+                            const allDone = wf ? wf.stages.every(st => st.status === "Done") : true;
+                            if (!allDone) return null;
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-success hover:text-success hover:bg-success/10"
+                                onClick={() => onComplete(wagon.id)}
+                                title="Mark as Fit"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            );
+                          })()}
+                          {(wagon.status === "Fit For Loading" || wagon.status === "completed" || wagon.status === "Fit" || wagon.status === "fit") && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -401,6 +407,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
       {/* Unified Edit Modal for Workflow & Details */}
       {editingWagon && (
         <EditWagonModal 
+          key={editingWagon.id}
           wagonId={editingWagon.id} 
           open={!!editingWagon} 
           onOpenChange={(open) => !open && setEditingWagon(null)} 

@@ -57,32 +57,28 @@ export default function SickLine() {
   };
 
   const submitConfirmation = () => {
-    if (!inspectorName.trim()) {
+    if (!inspectorName.trim() && !sessionStorage.getItem("lastInspectorName")) {
       toast({ title: "Validation Error", description: "SSC/JE Name is required.", variant: "destructive" });
       return;
     }
     if (activeWfId && activeStage) {
       const finalRemarks = remarks.trim() || `Stage ${activeStage} completed successfully by ${inspectorName}.`;
       markStageDone(activeWfId, activeStage, staffName, inspectorName, finalRemarks);
-      toast({ title: "Stage Marked Done", description: `${activeStage} has been confirmed done.` });
+      sessionStorage.setItem("lastInspectorName", inspectorName);
+
+      const wf = workflows.find((w) => w.id === activeWfId);
+      if (wf) {
+        const currentIndex = wf.stages.findIndex((s: any) => s.stageName === activeStage);
+        if (currentIndex > -1 && currentIndex < wf.stages.length - 1) {
+          const nextStage = wf.stages[currentIndex + 1].stageName;
+          advanceWorkflow(wf.id, nextStage);
+          toast({ title: "Stage Completed", description: `Advanced to ${nextStage}.` });
+        } else {
+          toast({ title: "Stage Marked Done", description: `${activeStage} has been confirmed done.` });
+        }
+      }
     }
     setConfirmModalOpen(false);
-  };
-
-  const handleNextStage = (wf: any) => {
-    const currentIndex = wf.stages.findIndex((s: any) => s.stageName === wf.currentStage);
-    const currentObj = wf.stages[currentIndex];
-    
-    if (currentObj.status !== "Done") {
-      toast({ title: "Action Blocked", description: "You must Mark Done before moving to the next stage.", variant: "destructive" });
-      return;
-    }
-
-    if (currentIndex < wf.stages.length - 1) {
-      const nextStage = wf.stages[currentIndex + 1].stageName;
-      advanceWorkflow(wf.id, nextStage);
-      toast({ title: "Moved to Next Stage", description: `Wagon moved to ${nextStage}.` });
-    }
   };
 
   const isDelayed = (stage: WorkflowStageRecord) => {
@@ -164,11 +160,7 @@ export default function SickLine() {
                       <CheckCircle className="h-4 w-4 mr-2" /> Mark Done
                     </Button>
                   )}
-                  {currentStageObj?.status === "Done" && !isFinalStage && (
-                    <Button className="w-full" onClick={() => handleNextStage(wf)}>
-                      Move to Next Stage <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  )}
+                  {/* Move to Next Stage removed since it auto-advances */}
                   {isFinalStage && currentStageObj?.status === "Done" && (
                     <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleMarkFit(wf.wagonId)}>
                       <CheckCircle className="h-4 w-4 mr-2" /> Mark Wagon Fit

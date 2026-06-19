@@ -45,7 +45,7 @@ export default function QuickBoard() {
       reason: "Wheel Alert", 
       bookedTo: "HAPA SL", 
       defects: "",
-      status: "Cut Off"
+      status: "Issue Marked"
     } as any]);
   };
 
@@ -71,7 +71,7 @@ export default function QuickBoard() {
       const nw = addWagon({
         wagonNo: w.wagonNo || "UNKNOWN",
         type: w.type || "Other",
-        status: "Cut Off",
+        status: "Issue Marked",
         defect: w.defects,
         bookedTo: w.bookedTo,
         owner: "Unknown",

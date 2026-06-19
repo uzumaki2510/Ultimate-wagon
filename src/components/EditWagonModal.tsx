@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PlayCircle, CheckCircle, ArrowRight, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DEFECT_LIBRARY } from "@/lib/wagonData";
@@ -42,22 +43,7 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
   // Inspection Checklist state
   const [checklist, setChecklist] = useState<InspectionChecklist>({});
 
-  // Fit Confirmation Checkboxes
-  const [fcDefectRectified, setFcDefectRectified] = useState(false);
-  const [fcFinalInspection, setFcFinalInspection] = useState(false);
-  const [fcNoSafety, setFcNoSafety] = useState(false);
-  const [fcVerified, setFcVerified] = useState(false);
-  const [fcRepairChecklist, setFcRepairChecklist] = useState(false);
-
-  const [fcTankLeakage, setFcTankLeakage] = useState(false);
-  const [fcTankMasterValve, setFcTankMasterValve] = useState(false);
-  const [fcTankBottomValve, setFcTankBottomValve] = useState(false);
-  const [fcTankDeliveryPipe, setFcTankDeliveryPipe] = useState(false);
-  const [fcTankBlankFlange, setFcTankBlankFlange] = useState(false);
-  const [fcTankBarrel, setFcTankBarrel] = useState(false);
-  const [fcTankSafetyFittings, setFcTankSafetyFittings] = useState(false);
-  const [fcTankSteaming, setFcTankSteaming] = useState(false);
-  const [fcTankHydro, setFcTankHydro] = useState(false);
+  const [placementDecision, setPlacementDecision] = useState<string>("sick_line");
 
   const isTankWagon = wagon && ["BTPN", "BTPFLN", "BTPNHS", "BTPGLN"].includes((wagon.type || "").toUpperCase());
   const isWorkflowWagon = true; // All wagons now use workflows
@@ -110,35 +96,27 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
 
   const submitConfirmation = () => {
     if (!wf) return;
-    if (!inspectorName.trim()) {
-      toast({ title: "Validation Error", description: "Inspector Name is required.", variant: "destructive" });
+    if (!inspectorName.trim() && !sessionStorage.getItem("lastInspectorName")) {
+      toast({ title: "Required", description: "Please enter Inspector/SSC/JE Name", variant: "destructive" });
       return;
     }
     
     if (activeStage) {
-      const finalRemarks = remarks.trim() || `Stage ${activeStage} completed by ${loggedInUserName} and verified by ${inspectorName}.`;
+      const pRemarks = activeStage === "Placement Decision" ? `Routed to ${placementDecision === "mv_shed" ? "MV Shed" : "Sick Line"}. ` : "";
+      const finalRemarks = remarks.trim() || `${pRemarks}Stage ${activeStage} completed by ${loggedInUserName} and verified by ${inspectorName}.`;
       markStageDone(wf.id, activeStage, loggedInUserName, inspectorName, finalRemarks);
       sessionStorage.setItem("lastInspectorName", inspectorName);
-      toast({ title: "Stage Marked Done", description: `${activeStage} has been confirmed done.` });
+      
+      const currentIndex = wf.stages.findIndex((s) => s.stageName === activeStage);
+      if (currentIndex > -1 && currentIndex < wf.stages.length - 1) {
+        const nextStage = wf.stages[currentIndex + 1].stageName;
+        advanceWorkflow(wf.id, nextStage);
+        toast({ title: "Stage Completed", description: `Advanced to ${nextStage}.` });
+      } else {
+        toast({ title: "Stage Marked Done", description: `${activeStage} has been confirmed done.` });
+      }
     }
     setConfirmModalOpen(false);
-  };
-
-  const handleNextStage = () => {
-    if (!wf) return;
-    const currentIndex = wf.stages.findIndex((s) => s.stageName === wf.currentStage);
-    const currObj = wf.stages[currentIndex];
-    
-    if (currObj.status !== "Done") {
-      toast({ title: "Action Blocked", description: "You must Mark Done before moving to the next stage.", variant: "destructive" });
-      return;
-    }
-
-    if (currentIndex < wf.stages.length - 1) {
-      const nextStage = wf.stages[currentIndex + 1].stageName;
-      advanceWorkflow(wf.id, nextStage);
-      toast({ title: "Moved to Next Stage", description: `Wagon moved to ${nextStage}.` });
-    }
   };
 
   const hasGroup = (groupName: string) => {
@@ -147,52 +125,8 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
     return editRepairTypes.some(rt => group.defects.some(d => d.name === rt));
   };
 
-  const isFitReady = () => {
-    if (!isFinalStageDone) return false;
-    if (!fcDefectRectified || !fcFinalInspection || !fcNoSafety || !fcVerified) return false;
-    if (!isTankWagon && !fcRepairChecklist) return false;
-    if (isTankWagon) {
-      if (!fcTankLeakage || !fcTankMasterValve || !fcTankBottomValve || !fcTankDeliveryPipe || !fcTankBlankFlange || !fcTankBarrel || !fcTankSafetyFittings || !fcTankSteaming || !fcTankHydro) {
-        return false;
-      }
-    }
-    return true;
-  };
-
   const handleMarkFit = () => {
-    if (!isFitReady()) {
-      toast({ title: "Incomplete", description: "Please complete the Fit Confirmation checkboxes.", variant: "destructive" });
-      return;
-    }
-
-    let fitConf: FitConfirmation | undefined;
-    if (isWorkflowWagon) {
-      fitConf = {
-        allStagesCompleted: true,
-        defectRectified: fcDefectRectified,
-        repairChecklistCompleted: !isTankWagon ? fcRepairChecklist : undefined,
-        finalInspectionCompleted: fcFinalInspection,
-        noSafetyCriticalDefectOpen: fcNoSafety,
-        inspectorVerified: fcVerified,
-        
-        noLeakageFound: fcTankLeakage,
-        masterValveChecked: fcTankMasterValve,
-        bottomDischargeValveChecked: fcTankBottomValve,
-        deliveryPipeChecked: fcTankDeliveryPipe,
-        blankFlangeChecked: fcTankBlankFlange,
-        tankBarrelChecked: fcTankBarrel,
-        safetyFittingsChecked: fcTankSafetyFittings,
-        steamingPurgingDegassingCompleted: fcTankSteaming,
-        hydroTestingCompleted: fcTankHydro,
-
-        inspectorName: inspectorName || sessionStorage.getItem("lastInspectorName") || loggedInUserName,
-        remarks: remarks || "Fit confirmed after workflow completion and inspection.",
-        confirmedAt: new Date().toISOString(),
-        confirmedBy: loggedInUserName,
-      };
-    }
-
-    const res = markWagonFit(wagonId, fitConf);
+    const res = markWagonFit(wagonId);
     if (res.success) {
       toast({ title: "Wagon Marked Fit", description: "The wagon is now Fit For Loading." });
       onOpenChange(false);
@@ -206,8 +140,29 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
     if (!isWorkflowWagon) {
       patch.repairTypes = editRepairTypes;
     }
+    
+    if (wagon?.type?.includes("BTPN")) patch.isSteamed = editIsSteamed;
+    if (wagon?.type === "BTPGLN") patch.isDegassed = editIsDegassed;
+
     updateWagon(wagonId, patch, loggedInUserName);
     updateInspectionChecklist(wagonId, checklist);
+
+    // Auto-complete workflow stages if toggled
+    if (isWorkflowWagon && wf) {
+      if (patch.isSteamed) {
+        const steamStage = wf.stages.find(s => s.stageName === "Steaming");
+        if (steamStage && steamStage.status !== "Done") {
+          markStageDone(wf.id, "Steaming", loggedInUserName, loggedInUserName, "Auto-completed via Steaming toggle.");
+        }
+      }
+      if (patch.isDegassed) {
+        const dgStage = wf.stages.find(s => s.stageName === "RRT De-Gassing");
+        if (dgStage && dgStage.status !== "Done") {
+          markStageDone(wf.id, "RRT De-Gassing", loggedInUserName, loggedInUserName, "Auto-completed via Degassing toggle.");
+        }
+      }
+    }
+
     toast({ title: "Changes Saved", description: "Wagon details updated successfully." });
     onOpenChange(false);
   };
@@ -305,16 +260,37 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
                         <div>
                           <div className={text}>{st.stageName}</div>
                           {st.status === "Done" && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              SSE/JE: {st.inspectorName} | Remarks: {st.remarks}
+                            <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                              <div>SSE/JE: {st.inspectorName} | Remarks: {st.remarks}</div>
+                              {st.completedAt && (
+                                <div className="text-[10px] text-muted-foreground/80">
+                                  Completed At: {new Date(st.completedAt).toLocaleString()}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
                         <div className="text-right flex flex-col items-end gap-1">
                           <Badge variant="outline" className="bg-background">{st.status}</Badge>
                           {isCurrent && (
-                            <div className="flex gap-2 mt-2">
-                              {st.status === "Pending" && (
+                            <div className="flex flex-col items-end gap-2 mt-2 w-full">
+                              {st.stageName === "Placement Decision" && (
+                                <div className="mt-4 mb-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md border text-sm w-full text-left">
+                                  <Label className="font-semibold mb-2 block">Placement Routing Decision</Label>
+                                  <RadioGroup value={placementDecision} onValueChange={setPlacementDecision} className="flex gap-4">
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="mv_shed" id="mv_shed" />
+                                      <Label htmlFor="mv_shed">MV Shed (Master Valve)</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="sick_line" id="sick_line" />
+                                      <Label htmlFor="sick_line">Sick Line (ROH)</Label>
+                                    </div>
+                                  </RadioGroup>
+                                </div>
+                              )}
+                              <div className="flex gap-2">
+                                {st.status === "Pending" && (
                                 <Button size="sm" variant="outline" className="text-blue-600 bg-background hover:bg-blue-50" onClick={() => handleStartStage(st.stageName)}>
                                   <PlayCircle className="h-3 w-3 mr-1" /> Start
                                 </Button>
@@ -324,11 +300,7 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
                                   <CheckCircle className="h-3 w-3 mr-1" /> Mark Done
                                 </Button>
                               )}
-                              {st.status === "Done" && !isFinalStage && (
-                                <Button size="sm" className="bg-background text-primary hover:bg-muted" onClick={handleNextStage}>
-                                  Move to Next Stage <ArrowRight className="h-3 w-3 ml-1" />
-                                </Button>
-                              )}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -336,89 +308,12 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
                     );
                   })}
 
-                  {/* Fit Confirmation Area */}
+                  {/* Fit Button */}
                   {isFinalStageDone && (
-                    <div className="p-4 mt-6 border rounded-md bg-slate-50 dark:bg-slate-900 shadow-sm space-y-4">
-                      <h3 className="font-semibold text-sm text-primary uppercase tracking-wider">Fit Confirmation</h3>
-                      <p className="text-xs text-muted-foreground">Please confirm the following safety checks before marking the wagon fit.</p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <h4 className="font-medium text-xs text-slate-700 dark:text-slate-300">General Checks</h4>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="fc-def" checked={fcDefectRectified} onCheckedChange={(c) => setFcDefectRectified(!!c)} />
-                            <Label htmlFor="fc-def" className="text-sm">Main defect is rectified</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="fc-fin" checked={fcFinalInspection} onCheckedChange={(c) => setFcFinalInspection(!!c)} />
-                            <Label htmlFor="fc-fin" className="text-sm">Final inspection completed</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="fc-saf" checked={fcNoSafety} onCheckedChange={(c) => setFcNoSafety(!!c)} />
-                            <Label htmlFor="fc-saf" className="text-sm">No safety-critical defect is open</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="fc-ver" checked={fcVerified} onCheckedChange={(c) => setFcVerified(!!c)} />
-                            <Label htmlFor="fc-ver" className="text-sm">Inspector has verified the wagon</Label>
-                          </div>
-                        </div>
-
-                        {isTankWagon ? (
-                          <div className="space-y-3">
-                            <h4 className="font-medium text-xs text-slate-700 dark:text-slate-300">Tank Safety Checks</h4>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-leak" checked={fcTankLeakage} onCheckedChange={(c) => setFcTankLeakage(!!c)} />
-                              <Label htmlFor="fc-t-leak" className="text-sm">No leakage found</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-master" checked={fcTankMasterValve} onCheckedChange={(c) => setFcTankMasterValve(!!c)} />
-                              <Label htmlFor="fc-t-master" className="text-sm">Master valve checked</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-bottom" checked={fcTankBottomValve} onCheckedChange={(c) => setFcTankBottomValve(!!c)} />
-                              <Label htmlFor="fc-t-bottom" className="text-sm">Bottom discharge valve checked</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-deliv" checked={fcTankDeliveryPipe} onCheckedChange={(c) => setFcTankDeliveryPipe(!!c)} />
-                              <Label htmlFor="fc-t-deliv" className="text-sm">Delivery pipe checked</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-blank" checked={fcTankBlankFlange} onCheckedChange={(c) => setFcTankBlankFlange(!!c)} />
-                              <Label htmlFor="fc-t-blank" className="text-sm">Blank flange checked</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-barr" checked={fcTankBarrel} onCheckedChange={(c) => setFcTankBarrel(!!c)} />
-                              <Label htmlFor="fc-t-barr" className="text-sm">Tank barrel checked</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-safe" checked={fcTankSafetyFittings} onCheckedChange={(c) => setFcTankSafetyFittings(!!c)} />
-                              <Label htmlFor="fc-t-safe" className="text-sm">Safety fittings checked</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-steam" checked={fcTankSteaming} onCheckedChange={(c) => setFcTankSteaming(!!c)} />
-                              <Label htmlFor="fc-t-steam" className="text-sm">Steaming / purging / de-gassing completed</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-t-hydro" checked={fcTankHydro} onCheckedChange={(c) => setFcTankHydro(!!c)} />
-                              <Label htmlFor="fc-t-hydro" className="text-sm">Hydro testing completed</Label>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <h4 className="font-medium text-xs text-slate-700 dark:text-slate-300">Non-Tank Repair Checks</h4>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox id="fc-rep-check" checked={fcRepairChecklist} onCheckedChange={(c) => setFcRepairChecklist(!!c)} />
-                              <Label htmlFor="fc-rep-check" className="text-sm">Repair checklist completed</Label>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="pt-4 flex justify-end">
-                        <Button size="lg" className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white" disabled={!isFitReady()} onClick={handleMarkFit}>
-                          <CheckCircle className="h-5 w-5 mr-2" /> Confirm & Mark Wagon Fit
-                        </Button>
-                      </div>
+                    <div className="pt-4 flex justify-end">
+                      <Button size="lg" className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white" onClick={handleMarkFit}>
+                        <CheckCircle className="h-5 w-5 mr-2" /> Mark Wagon Fit
+                      </Button>
                     </div>
                   )}
                 </div>
