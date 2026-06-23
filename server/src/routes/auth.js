@@ -13,5 +13,7 @@ router.post('/logout', protect, authController.logout);
 router.get('/me', protect, authController.getMe);
 router.put('/change-password', protect, validate(authValidation.changePassword), authController.changePassword);
 router.post('/refresh-token', authLimiter, validate(authValidation.refreshToken), authController.refreshToken);
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+router.put('/reset-password/:token', authLimiter, authController.resetPassword);
 
 module.exports = router;

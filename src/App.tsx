@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute, AdminRoute } from "@/components/RouteGuards";
+import { ProtectedRoute, AdminRoute, SuperAdminRoute } from "@/components/RouteGuards";
 import AppLayout from "@/components/AppLayout";
 import Dashboard from "@/pages/Dashboard";
 import WagonRegister from "@/pages/WagonRegister";
@@ -18,11 +18,19 @@ import SickLine from "@/pages/SickLine";
 import Employees from "@/pages/Employees";
 import Archives from "@/pages/Archives";
 import Reports from "@/pages/Reports";
+import ReportGenerator from "@/pages/Reports/ReportGenerator";
 import Profile from "@/pages/Profile";
 import Deleted from "@/pages/Deleted";
 import Auth from "@/pages/Auth";
 import AdminLog from "@/pages/AdminLog";
 import NotFound from "@/pages/NotFound";
+
+// Super Admin Pages
+import SuperAdminDashboard from "@/pages/SuperAdmin/Dashboard";
+import AdminManagement from "@/pages/SuperAdmin/AdminManagement";
+import EmployeeApprovals from "@/pages/SuperAdmin/EmployeeApprovals";
+import UserDirectory from "@/pages/SuperAdmin/UserDirectory";
+import AuditLogs from "@/pages/SuperAdmin/AuditLogs";
 
 const queryClient = new QueryClient();
 
@@ -47,7 +55,15 @@ const App = () => (
               <Route path="/sickline" element={<SickLine />} />
               <Route path="/quick-board" element={<QuickBoard />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
               
+              {/* Super Admin Guarded Routes */}
+              <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
+              <Route path="/super-admin/admins" element={<SuperAdminRoute><AdminManagement /></SuperAdminRoute>} />
+              <Route path="/super-admin/approvals" element={<SuperAdminRoute><EmployeeApprovals /></SuperAdminRoute>} />
+              <Route path="/super-admin/users" element={<SuperAdminRoute><UserDirectory /></SuperAdminRoute>} />
+              <Route path="/super-admin/logs" element={<SuperAdminRoute><AuditLogs /></SuperAdminRoute>} />
+
               {/* Admin Guarded Routes */}
               <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
               <Route path="/archives" element={<AdminRoute><Archives /></AdminRoute>} />

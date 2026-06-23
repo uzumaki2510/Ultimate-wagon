@@ -28,23 +28,6 @@ export default function Employees() {
   const { employees: rosterEmployees, addEmployee, updateEmployee, removeEmployee } = useAppStore();
   const [form, setForm] = useState({ name: "", designation: "", role: "", empCode: "" });
   
-  const [adminForm, setAdminForm] = useState({ name: "", email: "", password: "", empCode: "", designation: "", department: "", phone: "" });
-  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
-
-  const handleCreateAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsCreatingAdmin(true);
-    try {
-      await adminApi.createAdmin(adminForm);
-      toast({ title: "Admin Created", description: `${adminForm.name} has been added as an admin.` });
-      setAdminForm({ name: "", email: "", password: "", empCode: "", designation: "", department: "", phone: "" });
-      refresh();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.response?.data?.message || "Failed to create admin.", variant: "destructive" });
-    } finally {
-      setIsCreatingAdmin(false);
-    }
-  };
 
   const refresh = async () => {
     const users = await listEmployees();
@@ -119,12 +102,6 @@ export default function Employees() {
             <UserCheck className="h-4 w-4" />
             Approval Roster ({rosterEmployees.length})
           </TabsTrigger>
-          {isSuperAdmin && (
-            <TabsTrigger value="superadmin" className="gap-2 text-primary">
-              <ShieldAlert className="h-4 w-4" />
-              Super Admin Settings
-            </TabsTrigger>
-          )}
         </TabsList>
 
         {/* ── Pending Approval Tab ── */}
@@ -312,36 +289,7 @@ export default function Employees() {
           </Card>
         </TabsContent>
 
-        {isSuperAdmin && (
-          <TabsContent value="superadmin" className="space-y-6 animate-fade-in">
-            <Card className="border-primary/30">
-              <CardHeader>
-                <CardTitle className="text-primary flex items-center gap-2">
-                  <ShieldAlert className="h-5 w-5" /> Create New Admin
-                </CardTitle>
-                <CardDescription>
-                  Create another admin account. They will have access to manage employees and wagons.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleCreateAdmin} className="grid gap-4 md:grid-cols-2">
-                  <Input required placeholder="Full Name" value={adminForm.name} onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })} />
-                  <Input required type="email" placeholder="Email Address" value={adminForm.email} onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })} />
-                  <Input required type="password" placeholder="Password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} />
-                  <Input required placeholder="Employee ID (Emp Code)" value={adminForm.empCode} onChange={(e) => setAdminForm({ ...adminForm, empCode: e.target.value })} />
-                  <Input required placeholder="Designation" value={adminForm.designation} onChange={(e) => setAdminForm({ ...adminForm, designation: e.target.value })} />
-                  <Input required placeholder="Department" value={adminForm.department} onChange={(e) => setAdminForm({ ...adminForm, department: e.target.value })} />
-                  <Input placeholder="Phone Number (Optional)" value={adminForm.phone} onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })} />
-                  <div className="md:col-span-2 flex justify-end">
-                    <Button type="submit" disabled={isCreatingAdmin}>
-                      {isCreatingAdmin ? "Creating..." : "Create Admin Account"}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+
       </Tabs>
 
       <AlertDialog open={!!toRemove} onOpenChange={(o) => !o && setToRemove(null)}>

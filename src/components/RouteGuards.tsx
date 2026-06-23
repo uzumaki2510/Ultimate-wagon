@@ -16,3 +16,11 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
+
+export function SuperAdminRoute({ children }: { children: ReactNode }) {
+  const { user, isLoading, isSuperAdmin } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!isSuperAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}

@@ -26,6 +26,15 @@ app.use('/api/', apiLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ── Data Sanitization ────────────────────────────────────
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('./middleware/xss');
+
+// Prevent NoSQL injection
+app.use(mongoSanitize());
+// Prevent XSS
+app.use(xss);
+
 // ── Logging ──────────────────────────────────────────────
 if (env.NODE_ENV === 'development') {
   app.use(morgan('dev'));

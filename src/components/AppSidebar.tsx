@@ -1,6 +1,6 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown } from "lucide-react";
+import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown, ShieldAlert, ListFilter } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
@@ -13,7 +13,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user, isAdmin, logout, listPendingEmployees } = useAuth();
+  const { user, isAdmin, isSuperAdmin, logout, listPendingEmployees } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
@@ -29,6 +29,14 @@ export function AppSidebar() {
     { title: "Wagon Register", url: "/register", icon: FileText, role: "all" },
     { title: "Wagon Master", url: "/wagon-directory", icon: FileText, role: "all" },
     { title: "Employees", url: "/employees", icon: Users, role: "all", badge: pendingCount },
+  ];
+
+  const superAdminItems = [
+    { title: "System Dashboard", url: "/super-admin", icon: LayoutDashboard },
+    { title: "Admin Management", url: "/super-admin/admins", icon: ShieldCheck },
+    { title: "Employee Approvals", url: "/super-admin/approvals", icon: Users },
+    { title: "User Directory", url: "/super-admin/users", icon: FileText },
+    { title: "Audit Logs", url: "/super-admin/logs", icon: ListFilter },
   ];
 
   const adminItems = [
@@ -90,6 +98,35 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isSuperAdmin && (
+          <Collapsible defaultOpen className="group/collapsible">
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-primary font-bold">
+                  Super Admin
+                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {superAdminItems.map((n) => (
+                      <SidebarMenuItem key={n.url}>
+                        <SidebarMenuButton asChild isActive={isActive(n.url)}>
+                          <NavLink to={n.url} className="flex items-center gap-2">
+                            <n.icon className="h-4 w-4 shrink-0" />
+                            {!collapsed && <span>{n.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        )}
 
         {isAdmin && (
           <Collapsible defaultOpen className="group/collapsible">

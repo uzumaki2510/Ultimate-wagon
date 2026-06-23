@@ -1,15 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const { authorize } = require('../middleware/rbac');
 const reportController = require('../controllers/reportController');
+const { protect } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/rbac');
 
+// All report routes require at least admin privileges
 router.use(protect);
+router.use(requireAdmin);
 
-router.get('/daily', authorize('reports', 'R'), reportController.getDailyReport);
-router.get('/monthly', authorize('reports', 'R'), reportController.getMonthlyReport);
-router.get('/wagon/:wagonId', authorize('reports', 'R'), reportController.getWagonReport);
-router.get('/roh', authorize('reports', 'R'), reportController.getROHReport);
-router.get('/sick-line', authorize('reports', 'R'), reportController.getSickLineReport);
+router.get('/dashboard', reportController.getDashboardStats);
+router.get('/wagons', reportController.getWagonsReport);
+router.get('/repairs', reportController.getRepairsReport);
+router.get('/inspections', reportController.getInspectionsReport);
+router.get('/employees', reportController.getEmployeesReport);
+router.get('/audit-logs', reportController.getAuditLogsReport);
+
+router.post('/export/pdf', reportController.exportPDF);
+router.post('/export/excel', reportController.exportExcel);
 
 module.exports = router;
