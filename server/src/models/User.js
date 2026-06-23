@@ -30,7 +30,15 @@ const userSchema = new mongoose.Schema(
         values: ROLE_LIST,
         message: 'Role must be one of: ' + ROLE_LIST.join(', '),
       },
-      default: 'Viewer',
+      default: 'employee',
+    },
+    status: {
+      type: String,
+      enum: {
+        values: ['pending', 'approved', 'rejected'],
+        message: 'Status must be one of: pending, approved, rejected',
+      },
+      default: 'pending',
     },
     empCode: {
       type: String,

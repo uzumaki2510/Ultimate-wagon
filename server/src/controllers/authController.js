@@ -6,9 +6,9 @@ const { generateTokenPair, verifyRefreshToken } = require('../services/authServi
 
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
-// @access  Admin
+// @access  Public
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, role, empCode, designation, department, phone } = req.body;
+  const { name, email, password, empCode, designation, department, phone } = req.body;
 
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -16,14 +16,16 @@ const register = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({
-    name, email, password, role, empCode, designation, department, phone,
+    name, email, password, empCode, designation, department, phone,
+    role: 'employee',
+    status: 'pending'
   });
 
   const tokens = generateTokenPair(user._id);
   user.refreshToken = tokens.refreshToken;
   await user.save();
 
-  return ApiResponse.created(res, 'User registered successfully', {
+  return ApiResponse.created(res, 'User registered successfully. Pending admin approval.', {
     user: user.toJSON(),
     ...tokens,
   });
@@ -42,6 +44,13 @@ const login = asyncHandler(async (req, res) => {
 
   if (!user.isActive) {
     throw ApiError.unauthorized('Account has been deactivated. Contact admin.');
+  }
+
+  if (user.status === 'pending') {
+    throw ApiError.forbidden('Your account is pending approval by an admin.');
+  }
+  if (user.status === 'rejected') {
+    throw ApiError.forbidden('Your account registration was rejected.');
   }
 
   const isMatch = await user.comparePassword(password);

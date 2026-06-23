@@ -7,6 +7,10 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+    
+    // Seed Super Admin if necessary
+    const { seedSuperAdmin } = require('./scripts/seed');
+    await seedSuperAdmin();
 
     // Start HTTP server
     const server = app.listen(env.PORT, () => {

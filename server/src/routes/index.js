@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authRoutes = require('./auth');
 const userRoutes = require('./users');
+const adminRoutes = require('./admin');
 const wagonRoutes = require('./wagons');
 const sickLineRoutes = require('./sickLine');
 const rohRoutes = require('./roh');
@@ -16,6 +17,7 @@ const dashboardRoutes = require('./dashboard');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/admin', adminRoutes);
 router.use('/wagons', wagonRoutes);
 router.use('/sick-line', sickLineRoutes);
 router.use('/roh', rohRoutes);

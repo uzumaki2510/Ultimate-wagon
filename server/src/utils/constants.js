@@ -1,14 +1,14 @@
 // ── Roles ────────────────────────────────────────────────
 const ROLES = {
-  ADMIN: 'Admin',
-  SSE: 'SSE',
-  JE: 'JE',
-  SUPERVISOR: 'Supervisor',
-  TECHNICIAN: 'Technician',
-  VIEWER: 'Viewer',
+  SUPER_ADMIN: 'super_admin',
+  ADMIN: 'admin',
+  EMPLOYEE: 'employee',
 };
 
 const ROLE_LIST = Object.values(ROLES);
+
+// ── User Statuses ────────────────────────────────────────
+const USER_STATUSES = ['pending', 'approved', 'rejected'];
 
 // ── Wagon Types ──────────────────────────────────────────
 const WAGON_TYPES = [
@@ -115,16 +115,13 @@ const RAILWAY_ZONES = [
 // ── RBAC Permissions ─────────────────────────────────────
 // C = Create, R = Read, U = Update, D = Delete
 const PERMISSIONS = {
-  [ROLES.ADMIN]:      { users: 'CRUD', wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'CRUD', dashboard: 'R' },
-  [ROLES.SSE]:        { users: 'R',    wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'R',    dashboard: 'R' },
-  [ROLES.JE]:         { users: 'R',    wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRU',  inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRU',  movements: 'CRU',  reports: 'R',    dashboard: 'R' },
-  [ROLES.SUPERVISOR]: { users: 'R',    wagons: 'CR',   sickLine: 'CRU',  roh: 'CR',   inspections: 'CRU',  brakeTests: 'CRU',  repairs: 'CRU',  certifications: 'R',    movements: 'CRU',  reports: 'R',    dashboard: 'R' },
-  [ROLES.TECHNICIAN]: { users: '',     wagons: 'CR',   sickLine: 'CRU',  roh: 'R',    inspections: 'R',    brakeTests: 'CRU',  repairs: 'CRU',  certifications: 'R',    movements: 'R',    reports: 'R',    dashboard: 'R' },
-  [ROLES.VIEWER]:     { users: '',     wagons: 'R',    sickLine: 'R',    roh: 'R',    inspections: 'R',    brakeTests: 'R',    repairs: 'R',    certifications: 'R',    movements: 'R',    reports: 'R',    dashboard: 'R' },
+  [ROLES.SUPER_ADMIN]: { users: 'CRUD', admin: 'CRUD', wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'CRUD', dashboard: 'R' },
+  [ROLES.ADMIN]:       { users: 'CRU',  admin: 'R',    wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'R',    dashboard: 'R' },
+  [ROLES.EMPLOYEE]:    { users: 'R',    admin: '',     wagons: 'CR',   sickLine: 'CRU',  roh: 'CRU',  inspections: 'CRU',  brakeTests: 'CRU',  repairs: 'CRU',  certifications: 'CRU',  movements: 'CRU',  reports: 'R',    dashboard: 'R' },
 };
 
 module.exports = {
-  ROLES, ROLE_LIST,
+  ROLES, ROLE_LIST, USER_STATUSES,
   WAGON_TYPES, WAGON_CATEGORIES, WAGON_STATUSES,
   PRIORITY_LEVELS, SICK_REASONS, BOOKED_TO, SICK_LINES,
   SICK_LINE_STATUSES, ROH_STATUSES,

@@ -3,7 +3,7 @@ import { authApi } from "@/api/auth";
 import { usersApi } from "@/api/users";
 import { LoginRecord } from "@/types";
 
-export type UserRole = "admin" | "employee" | "Admin" | "Employee";
+export type UserRole = "super_admin" | "admin" | "employee";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export interface User {
@@ -15,8 +15,8 @@ export interface User {
   department: string;
   designation: string;
   role: UserRole;
-  approved?: ApprovalStatus;
-  isActive?: boolean;
+  status: ApprovalStatus;
+  isActive: boolean;
   createdAt?: string;
 }
 
@@ -24,6 +24,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (data: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -118,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const listEmployees = async (): Promise<User[]> => {
     try {
       const res = await usersApi.getEmployees();
-      return res.data?.filter((u: any) => u.isActive) || [];
+      return res.data || [];
     } catch (error) {
       console.error("Failed to list employees", error);
       return [];
@@ -127,8 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const listPendingEmployees = async (): Promise<User[]> => {
     try {
-      const res = await usersApi.getEmployees();
-      return res.data?.filter((u: any) => !u.isActive) || [];
+      const res = await usersApi.getPendingEmployees();
+      return res.data || [];
     } catch (error) {
       console.error("Failed to list pending employees", error);
       return [];
@@ -137,9 +138,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const approveEmployee = async (userId: string, status: ApprovalStatus) => {
     try {
-      await usersApi.approveEmployee(userId, status);
+      if (status === 'approved') {
+        await usersApi.approveEmployee(userId);
+      } else if (status === 'rejected') {
+        await usersApi.rejectEmployee(userId);
+      }
     } catch (error) {
-      console.error("Failed to approve employee", error);
+      console.error("Failed to approve/reject employee", error);
       throw error;
     }
   };
@@ -158,12 +163,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return [];
   };
 
+  const isAdmin = user?.role === "super_admin" || user?.role === "admin";
+  const isSuperAdmin = user?.role === "super_admin";
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isLoading,
-        isAdmin: user?.role?.toLowerCase() === "admin",
+        isAdmin,
+        isSuperAdmin,
         login,
         signup,
         logout,
