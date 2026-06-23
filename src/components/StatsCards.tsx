@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils";
 
 interface StatsCardsProps {
   wagons: WagonRepair[];
-  filter: "all" | "in-repair" | "completed";
-  onFilterChange: (filter: "all" | "in-repair" | "completed") => void;
+  filter?: "all" | "in-repair" | "completed";
+  onFilterChange?: (filter: "all" | "in-repair" | "completed") => void;
 }
 
-export function StatsCards({ wagons, filter, onFilterChange }: StatsCardsProps) {
+export function StatsCards({ wagons, filter = "all", onFilterChange }: StatsCardsProps) {
   const totalWagons = wagons.length;
   const inRepair = wagons.filter((w) => w.status === "in-repair").length;
   const completed = wagons.filter((w) => w.status === "completed").length;
@@ -52,7 +52,7 @@ export function StatsCards({ wagons, filter, onFilterChange }: StatsCardsProps) 
         return (
           <Card
             key={stat.id}
-            onClick={() => onFilterChange(stat.id)}
+            onClick={() => onFilterChange?.(stat.id)}
             className={cn(
               "cursor-pointer transition-all duration-200 group relative overflow-hidden",
               isActive 

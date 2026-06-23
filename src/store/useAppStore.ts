@@ -157,10 +157,10 @@ export const useAppStore = create<AppState>()(
         const memo: UnitMemo = { ...m, id: nanoid(), createdAt: new Date().toISOString() };
         set((s) => ({ memos: [...s.memos, memo] }));
         memo.entries.forEach((e) => {
-          if (memo.type === "sick") {
+          if (memo.memoType === "sick") {
             get().upsertWorkflowForWagon(e.wagonId, memo.id);
             get().updateWagon(e.wagonId, { status: "Sick Line" }, "system");
-          } else if (memo.type === "fit") {
+          } else if (memo.memoType === "fit") {
             get().updateWagon(e.wagonId, { status: "Fit For Loading" }, "system");
           }
         });

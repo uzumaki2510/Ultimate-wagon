@@ -231,7 +231,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         {wagon.details.railwayName}
                       </TableCell>
                       <TableCell>
-                        {wagon.status === "Fit For Loading" || wagon.status === "completed" || wagon.status === "Fit" || wagon.status === "fit" ? (
+                        {(wagon.status as string) === "Fit For Loading" || wagon.status === "completed" || (wagon.status as string) === "Fit" || (wagon.status as string) === "fit" ? (
                           <Badge className="bg-success text-success-foreground">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Fit
@@ -339,7 +339,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          {wagon.status !== "Fit For Loading" && wagon.status !== "completed" && wagon.status !== "Fit" && wagon.status !== "fit" && (() => {
+                          {(wagon.status as string) !== "Fit For Loading" && wagon.status !== "completed" && (wagon.status as string) !== "Fit" && (wagon.status as string) !== "fit" && (() => {
                             const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
                             const allDone = wf ? wf.stages.every(st => st.status === "Done") : true;
                             if (!allDone) return null;
@@ -355,7 +355,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               </Button>
                             );
                           })()}
-                          {(wagon.status === "Fit For Loading" || wagon.status === "completed" || wagon.status === "Fit" || wagon.status === "fit") && (
+                          {((wagon.status as string) === "Fit For Loading" || wagon.status === "completed" || (wagon.status as string) === "Fit" || (wagon.status as string) === "fit") && (
                             <Button
                               size="sm"
                               variant="outline"
