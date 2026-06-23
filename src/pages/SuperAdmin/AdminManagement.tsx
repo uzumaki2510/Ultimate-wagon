@@ -25,7 +25,8 @@ export default function AdminManagement() {
       const res = await adminApi.getAllUsers({ role: 'admin' });
       if (res.success) setAdmins(res.data);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to load admins", variant: "destructive" });
+      const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
+      toast({ title: "Failed to load admins", description: errMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }

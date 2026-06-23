@@ -26,8 +26,9 @@ export default function UserDirectory() {
       
       const res = await adminApi.getAllUsers(params);
       if (res.success) setUsers(res.data);
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to load users directory", variant: "destructive" });
+    } catch (error: any) {
+      const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
+      toast({ title: "Failed to load users directory", description: errMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }

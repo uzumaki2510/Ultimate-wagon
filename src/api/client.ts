@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Create an Axios instance
 const apiClient = axios.create({
-  baseURL: "https://ultimate-wagon-backend.onrender.com/api/v1",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1",
   headers: {
     "Content-Type": "application/json",
   },
@@ -12,8 +12,12 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("wagon_access_token");
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      if (config.headers.set) {
+        config.headers.set('Authorization', `Bearer ${token}`);
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

@@ -19,7 +19,8 @@ export default function EmployeeApprovals() {
       const res = await adminApi.getPendingUsers();
       if (res.success) setPending(res.data);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to load pending approvals", variant: "destructive" });
+      const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
+      toast({ title: "Failed to load pending approvals", description: errMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }

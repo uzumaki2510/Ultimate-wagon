@@ -25,8 +25,9 @@ export default function SuperAdminDashboard() {
         if (res.success) {
           setMetrics(res.data);
         }
-      } catch (error) {
-        toast({ title: "Error", description: "Failed to load dashboard metrics", variant: "destructive" });
+      } catch (error: any) {
+        const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
+        toast({ title: "Failed to load dashboard metrics", description: errMsg, variant: "destructive" });
       } finally {
         setLoading(false);
       }

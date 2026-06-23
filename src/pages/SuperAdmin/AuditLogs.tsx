@@ -19,8 +19,9 @@ export default function AuditLogs() {
       if (actionFilter) params.action = actionFilter;
       const res = await adminApi.getAuditLogs(params);
       if (res.success) setLogs(res.data);
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to load audit logs", variant: "destructive" });
+    } catch (error: any) {
+      const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
+      toast({ title: "Failed to load audit logs", description: errMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
