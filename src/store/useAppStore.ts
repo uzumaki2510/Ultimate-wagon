@@ -6,7 +6,6 @@ import {
   FitConfirmation, InspectionChecklist
 } from "@/types";
 import { getWorkflowTemplate } from "@/lib/workflowConfig";
-import { buildDemoData } from "@/lib/demoData";
 
 interface AppState {
   wagons: Wagon[];
@@ -20,8 +19,6 @@ interface AppState {
   isAdmin: boolean;
   toggleAdmin: (v?: boolean) => void;
 
-  seedDemo: () => void;
-  resetAll: () => void;
 
   // wagons
   addWagon: (wagon: Omit<Wagon, "id">) => Wagon;
@@ -68,15 +65,6 @@ export const useAppStore = create<AppState>()(
       isAdmin: true,
       toggleAdmin: (v) => set((s) => ({ isAdmin: v ?? !s.isAdmin })),
 
-      seedDemo: () => {
-        if (get().seeded) return;
-        const d = buildDemoData();
-        set({ ...d, seeded: true, audit: [{ id: nanoid(), at: new Date().toISOString(), actor: "system", action: "Demo data seeded" }] });
-      },
-      resetAll: () => {
-        const d = buildDemoData();
-        set({ ...d, seeded: true, audit: [{ id: nanoid(), at: new Date().toISOString(), actor: "system", action: "System reset to demo" }] });
-      },
 
       addWagon: (w) => {
         const wagon: Wagon = { ...w, id: nanoid() };
