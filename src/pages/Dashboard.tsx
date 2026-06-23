@@ -25,7 +25,7 @@ export default function Dashboard() {
 
     const wf = workflows.find(wf => wf.wagonId === w.id);
     
-    let isFit = w.status === "Fit For Loading" || (w.status as string) === "Completed";
+    let isFit = w.status === "FIT_READY" || (w.status as string) === "Completed";
     if (wf && wf.stages.length > 0) {
       const finalStage = wf.stages[wf.stages.length - 1];
       if (finalStage.status === "Done") isFit = true;
@@ -36,8 +36,8 @@ export default function Dashboard() {
       return;
     }
 
-    let isSick = w.status === "Cut Off" || w.status === "Sick Line" || (w.status as string) === "Sick";
-    let isRepair = w.status === "Under Repair";
+    let isSick = w.status === "REPAIR_IN_PROGRESS" || w.status === "SICK_LINE" || (w.status as string) === "SICK_LINE";
+    let isRepair = w.status === "REPAIR_IN_PROGRESS";
 
     if (wf && wf.stages.length > 0) {
       const isFirstStage = wf.currentStage === wf.stages[0].stageName;

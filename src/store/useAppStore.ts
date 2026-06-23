@@ -52,7 +52,7 @@ interface AppState {
   markWagonFit: (wagonId: string, fitConfirmation?: FitConfirmation) => { success: boolean; error?: string };
   updateInspectionChecklist: (wagonId: string, patch: Partial<InspectionChecklist>) => void;
   undoLastWorkflowAction: (wagonId: string, reason?: string) => { success: boolean; error?: string };
-  fixWorkflowConsistency: () => void;
+  debugWorkflow: (wagonId: string) => void;
 
   // employees
   addEmployee: (e: Omit<Employee, "id">) => Employee;
@@ -89,7 +89,15 @@ export const useAppStore = create<AppState>()(
       },
 
       addWagon: (w) => {
-        const wagon: Wagon = { ...w, id: nanoid() };
+        let initialStatus = w.status;
+        const hasDefect = w.defect || (w.repairTasks && w.repairTasks.length > 0);
+        if (hasDefect || ["Issue Marked", "Sick Line", "Cut Off", "Sick"].includes(w.status)) {
+          initialStatus = "SICK_LINE" as any;
+        } else if (!["ARRIVED", "INSPECTION_PENDING", "INSPECTION_COMPLETE", "SICK_LINE", "REPAIR_IN_PROGRESS", "REPAIR_COMPLETE", "FIT_CERTIFICATE_PENDING", "FIT_READY", "RELEASED"].includes(w.status)) {
+          initialStatus = "ARRIVED" as any;
+        }
+
+        const wagon: Wagon = { ...w, id: nanoid(), status: initialStatus };
         set((s) => ({ wagons: [...s.wagons, wagon] }));
         wagonApi.createWagon(wagon).catch(console.error);
         get().log({ actor: "user", action: "Wagon added", wagonId: wagon.id, details: wagon.wagonNo });
@@ -111,7 +119,7 @@ export const useAppStore = create<AppState>()(
         get().log({ actor: actorName || "user", action: patch.repairTypes ? "Repair Types Updated" : "Wagon updated", wagonId: id, details: actionDetails });
 
         // INTERCONNECT: If marked Fit from Register, complete workflow
-        if (patch.status === "Fit For Loading" || patch.status === "Fit") {
+        if (patch.status === "FIT_READY" || patch.status === "FIT_READY") {
           const wf = get().workflows.find(w => w.wagonId === id);
           if (wf) {
             set((s) => ({
@@ -125,7 +133,7 @@ export const useAppStore = create<AppState>()(
         }
 
         // INTERCONNECT: If undone Fit, revert the last workflow stage
-        if (patch.status === "Issue Marked" || patch.status === "Under Repair") {
+        if (patch.status === "SICK_LINE" || patch.status === "REPAIR_IN_PROGRESS") {
           const wf = get().workflows.find(w => w.wagonId === id);
           if (wf) {
             const allDone = wf.stages.every(st => st.status === "Done");
@@ -167,7 +175,7 @@ export const useAppStore = create<AppState>()(
         }));
       },
       markDefective: (wagonId) => {
-        get().updateWagon(wagonId, { status: "Cut Off" });
+        get().updateWagon(wagonId, { status: "REPAIR_IN_PROGRESS" });
         get().log({ actor: "user", action: "Wagon marked defective", wagonId });
       },
 
@@ -178,9 +186,9 @@ export const useAppStore = create<AppState>()(
         memo.entries.forEach((e) => {
           if (memo.memoType === "sick") {
             get().upsertWorkflowForWagon(e.wagonId, memo.id);
-            get().updateWagon(e.wagonId, { status: "Sick Line" }, "system");
+            get().updateWagon(e.wagonId, { status: "SICK_LINE" }, "system");
           } else if (memo.memoType === "fit") {
-            get().updateWagon(e.wagonId, { status: "Fit For Loading" }, "system");
+            get().updateWagon(e.wagonId, { status: "FIT_READY" }, "system");
           }
         });
         get().log({ actor: "user", action: "Memo created", memoId: memo.id, details: memo.memoNo });
@@ -260,12 +268,12 @@ export const useAppStore = create<AppState>()(
           const updatedWagons = s.wagons.map(wagon => {
             if (wagon.id === wf.wagonId) {
               let newStatus = wagon.status;
-              if (stageName === "Initial Inspection") newStatus = "Under Inspection";
-              else if (stageName === "Repair / Rectification" || (!isFirstStage && wagon.status === "Cut Off")) newStatus = "Under Repair";
-              else if (stageName === "Checklist / Testing") newStatus = "Awaiting Testing";
-              else if (stageName === "Final Inspection") newStatus = "Awaiting Final Inspection";
-              else if (stageName === "Issue Marked") newStatus = "Issue Marked";
-              else if (stageName === "Sick Reason") newStatus = "Issue Marked";
+              if (stageName === "Initial Inspection") newStatus = "INSPECTION_PENDING";
+              else if (stageName === "Repair / Rectification" || (!isFirstStage && wagon.status === "REPAIR_IN_PROGRESS")) newStatus = "REPAIR_IN_PROGRESS";
+              else if (stageName === "Checklist / Testing") newStatus = "FIT_CERTIFICATE_PENDING";
+              else if (stageName === "Final Inspection") newStatus = "FIT_CERTIFICATE_PENDING";
+              else if (stageName === "SICK_LINE") newStatus = "SICK_LINE";
+              else if (stageName === "Sick Reason") newStatus = "SICK_LINE";
               
               return { ...wagon, status: newStatus as any };
             }
@@ -317,7 +325,7 @@ export const useAppStore = create<AppState>()(
           // INTERCONNECT: If all workflow stages are done, automatically mark wagon as Fit For Loading
           const allDone = wf.stages.every(st => st.status === "Done");
           if (allDone) {
-            get().updateWagon(wf.wagonId, { status: "Fit For Loading" }, inspectorName);
+            get().updateWagon(wf.wagonId, { status: "FIT_READY" }, inspectorName);
           }
         }
       },
@@ -352,12 +360,12 @@ export const useAppStore = create<AppState>()(
           const updatedWagons = s.wagons.map(wagon => {
             if (wagon.id === wf.wagonId) {
               let newStatus = wagon.status;
-              if (toStage === "Initial Inspection") newStatus = "Under Inspection";
-              else if (toStage === "Repair / Rectification" || wagon.status === "Cut Off") newStatus = "Under Repair";
-              else if (toStage === "Checklist / Testing") newStatus = "Awaiting Testing";
-              else if (toStage === "Final Inspection") newStatus = "Awaiting Final Inspection";
-              else if (toStage === "Issue Marked") newStatus = "Issue Marked";
-              else if (toStage === "Sick Reason") newStatus = "Issue Marked";
+              if (toStage === "Initial Inspection") newStatus = "INSPECTION_PENDING";
+              else if (toStage === "Repair / Rectification" || wagon.status === "REPAIR_IN_PROGRESS") newStatus = "REPAIR_IN_PROGRESS";
+              else if (toStage === "Checklist / Testing") newStatus = "FIT_CERTIFICATE_PENDING";
+              else if (toStage === "Final Inspection") newStatus = "FIT_CERTIFICATE_PENDING";
+              else if (toStage === "SICK_LINE") newStatus = "SICK_LINE";
+              else if (toStage === "Sick Reason") newStatus = "SICK_LINE";
               
               return { ...wagon, status: newStatus as any };
             }
@@ -394,7 +402,7 @@ export const useAppStore = create<AppState>()(
         }
         
         // Ensure regular wagons can pass without fitConfirmation
-        get().updateWagon(wagonId, { status: "Fit For Loading", fitConfirmation });
+        get().updateWagon(wagonId, { status: "FIT_READY", fitConfirmation });
         if (wf) get().log({ actor: fitConfirmation?.inspectorName || "user", action: "Wagon Marked Fit", details: `Wagon ${wf.wagonNo} marked Fit For Loading`, wagonId });
         return { success: true };
       },
@@ -436,13 +444,13 @@ export const useAppStore = create<AppState>()(
 
         // If the undone action was MARK_FIT, restore wagon status
         if (lastAction.action === "MARK_FIT") {
-          get().updateWagon(wagonId, { status: "Under Repair" });
+          get().updateWagon(wagonId, { status: "REPAIR_IN_PROGRESS" as any });
         }
         // If undo START_STAGE on first stage, restore to Sick Line
         if (lastAction.action === "START_STAGE") {
           const isFirstStage = previousWf.stages.length > 0 && previousWf.currentStage === previousWf.stages[0].stageName;
           if (isFirstStage) {
-            get().updateWagon(wagonId, { status: "Sick Line" });
+            get().updateWagon(wagonId, { status: "SICK_LINE" as any });
           }
         }
 
@@ -451,36 +459,16 @@ export const useAppStore = create<AppState>()(
         return { success: true };
       },
 
-      fixWorkflowConsistency: () => {
-        const { wagons, workflows } = get();
-        const patches: { id: string; status: Wagon["status"] }[] = [];
-        
-        wagons.forEach(w => {
-          const isTankWagon = ["BTPN", "BTPFLN", "BTPNHS", "BTPGLN"].includes((w.type || "").toUpperCase());
-          if (!isTankWagon) return;
-          
-          const wf = workflows.find(wfItem => wfItem.wagonId === w.id);
-          if (!wf) return;
-          
-          const allDone = wf.stages.every(st => st.status === "Done");
-          const wagonIsFit = w.status === "Fit For Loading";
-          
-          if (wagonIsFit && !allDone) {
-            // Status conflict: workflow incomplete but marked fit
-            const isFirstStage = wf.currentStage === wf.stages[0].stageName;
-            const isFirstStagePending = isFirstStage && wf.stages[0].status === "Pending";
-            patches.push({ id: w.id, status: isFirstStagePending ? "Sick Line" : "Under Repair" });
-          }
-        });
-        
-        if (patches.length > 0) {
-          set((s) => ({
-            wagons: s.wagons.map(w => {
-              const patch = patches.find(p => p.id === w.id);
-              return patch ? { ...w, status: patch.status } : w;
-            }),
-          }));
-          get().log({ actor: "system", action: "Workflow Consistency Fix", details: `Fixed ${patches.length} wagon(s) with status conflicts` });
+      debugWorkflow: (wagonId) => {
+        const wagon = get().wagons.find(w => w.id === wagonId);
+        const wf = get().workflows.find(w => w.wagonId === wagonId);
+        if (wagon) {
+          console.group(`🚂 Workflow Debug: Wagon ${wagon.wagonNo}`);
+          console.log(`Current Status: ${wagon.status}`);
+          console.log(`Current Workflow Stage: ${wf ? wf.currentStage : 'None'}`);
+          console.log(`Repair Count: ${wagon.repairTasks?.length || 0}`);
+          console.log(`Fit Certificate State: ${wagon.fitConfirmation ? 'Issued' : 'Pending'}`);
+          console.groupEnd();
         }
       },
 

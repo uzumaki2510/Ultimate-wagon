@@ -286,7 +286,6 @@ export interface WagonRepair {
   btpnWorkflow?: BTPNWorkflowData;
   isDegassed?: boolean;
   isSteamed?: boolean;
-  hasStatusConflict?: boolean;
 }
 
 export interface MonthlyArchive {

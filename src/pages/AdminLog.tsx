@@ -22,7 +22,7 @@ import { format, formatDistanceToNow } from "date-fns";
 function actionColor(action: string): "default" | "secondary" | "destructive" | "outline" {
   if (action.includes("deleted") || action.includes("removed")) return "destructive";
   if (action.includes("created") || action.includes("added") || action.includes("seeded")) return "secondary";
-  if (action.includes("approved") || action.includes("Fit")) return "default";
+  if (action.includes("approved") || action.includes("FIT_READY")) return "default";
   return "outline";
 }
 

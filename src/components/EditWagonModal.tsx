@@ -104,7 +104,7 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
     }
     
     if (activeStage) {
-      let pRemarks = activeStage === "Placement Decision" ? `Routed to ${placementDecision === "mv_shed" ? "MV Shed" : "Sick Line"}. ` : "";
+      let pRemarks = activeStage === "Placement Decision" ? `Routed to ${placementDecision === "mv_shed" ? "MV Shed" : "SICK_LINE"}. ` : "";
       if (activeStage === "Placement Decision" && selectedPlacementRepairs.length > 0) {
         pRemarks += `Repairs marked: ${selectedPlacementRepairs.join(", ")}. `;
       }

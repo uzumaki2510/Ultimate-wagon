@@ -15,12 +15,12 @@ export const WORKFLOW_CONFIGS: Record<string, WorkflowTemplate> = {
       { name: "HAPA Examination", targetDurationHours: 2 },
       { name: "Purging", targetDurationHours: 4 },
       { name: "Yard Examination", targetDurationHours: 1 },
-      { name: "Fit For Loading", targetDurationHours: 0 },
+      { name: "FIT_READY", targetDurationHours: 0 },
     ]
   },
   BTPN: {
     stages: [
-      { name: "Issue Marked", targetDurationHours: 0 },
+      { name: "SICK_LINE", targetDurationHours: 0 },
       { name: "Steaming", targetDurationHours: 2 },
       { name: "Steam Point 24h", targetDurationHours: 24 },
       { name: "Placement Decision", targetDurationHours: 1 },
@@ -30,12 +30,12 @@ export const WORKFLOW_CONFIGS: Record<string, WorkflowTemplate> = {
   },
   GENERAL: {
     stages: [
-      { name: "Issue Marked", targetDurationHours: 0 },
+      { name: "SICK_LINE", targetDurationHours: 0 },
       { name: "Initial Inspection", targetDurationHours: 1 },
       { name: "Repair / Rectification", targetDurationHours: 4 },
       { name: "Checklist / Testing", targetDurationHours: 2 },
       { name: "Final Inspection", targetDurationHours: 1 },
-      { name: "Fit For Loading", targetDurationHours: 0 },
+      { name: "FIT_READY", targetDurationHours: 0 },
     ]
   }
 };

@@ -34,7 +34,7 @@ export default function SickLine() {
 
   const activeWorkflows = workflows.filter(wf => {
     const wagon = wagons.find(w => w.id === wf.wagonId);
-    return wagon && wagon.status !== "Fit For Loading";
+    return wagon && wagon.status !== "FIT_READY";
   });
 
   const handleMarkFit = (wagonId: string) => {

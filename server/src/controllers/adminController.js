@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const Wagon = require('../models/Wagon');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -261,6 +262,110 @@ const getAuditLogs = asyncHandler(async (req, res) => {
   return ApiResponse.paginated(res, 'Audit logs retrieved', logs, buildPaginationMeta(total, page, limit));
 });
 
+// @desc    Repair Wagon Workflow Statuses
+// @route   POST /api/v1/admin/workflow/repair
+// @access  Super Admin
+const repairWorkflow = asyncHandler(async (req, res) => {
+  const Wagon = require('../models/Wagon'); // lazy load
+  const wagons = await Wagon.find();
+  const report = { totalScanned: wagons.length, repaired: 0, changes: [] };
+
+  const validStates = [
+    "ARRIVED", "INSPECTION_PENDING", "INSPECTION_COMPLETE",
+    "SICK_LINE", "REPAIR_IN_PROGRESS", "REPAIR_COMPLETE",
+    "FIT_CERTIFICATE_PENDING", "FIT_READY", "RELEASED"
+  ];
+
+  for (let w of wagons) {
+    if (!validStates.includes(w.status)) {
+      const oldStatus = w.status;
+      let newStatus = 'ARRIVED';
+      
+      switch (oldStatus) {
+        case 'Fit For Loading':
+        case 'Fit':
+          newStatus = 'FIT_READY'; break;
+        case 'Under Repair':
+        case 'Cut Off':
+          newStatus = 'REPAIR_IN_PROGRESS'; break;
+        case 'Sick Line':
+        case 'Issue Marked':
+          newStatus = 'SICK_LINE'; break;
+        case 'Under Inspection':
+        case 'Awaiting Inspection':
+          newStatus = 'INSPECTION_PENDING'; break;
+        case 'Awaiting Testing':
+        case 'Awaiting Final Inspection':
+          newStatus = 'FIT_CERTIFICATE_PENDING'; break;
+        case 'In Service':
+          newStatus = 'RELEASED'; break;
+        default:
+          newStatus = w.defect ? 'SICK_LINE' : 'ARRIVED';
+      }
+
+      await Wagon.updateOne({ _id: w._id }, { $set: { status: newStatus } });
+      report.repaired++;
+      report.changes.push({ wagonNo: w.wagonNo, oldStatus, newStatus });
+    }
+  }
+
+  return ApiResponse.success(res, 'Workflow repair completed', report);
+});
+
+// @desc    Repair wagon workflow states
+// @route   POST /api/v1/admin/workflow/repair
+// @access  Super Admin
+const repairWorkflowStates = asyncHandler(async (req, res) => {
+  const Wagon = require('../models/Wagon');
+  const wagons = await Wagon.find({});
+  let totalRepaired = 0;
+  const repairedWagons = [];
+
+  const VALID_STATUSES = [
+    'ARRIVED', 'INSPECTION_PENDING', 'INSPECTION_COMPLETE',
+    'SICK_LINE', 'REPAIR_IN_PROGRESS', 'REPAIR_COMPLETE',
+    'FIT_CERTIFICATE_PENDING', 'FIT_READY', 'RELEASED',
+  ];
+
+  for (const wagon of wagons) {
+    if (!VALID_STATUSES.includes(wagon.status)) {
+      let newStatus = 'SICK_LINE';
+      const s = wagon.status.toLowerCase();
+      
+      if (s.includes('fit') || s.includes('complet')) {
+        newStatus = 'FIT_READY';
+      } else if (s.includes('repair')) {
+        newStatus = 'REPAIR_IN_PROGRESS';
+      } else if (s.includes('inspect')) {
+        newStatus = 'INSPECTION_PENDING';
+      }
+
+      const oldStatus = wagon.status;
+      wagon.status = newStatus;
+      await wagon.save();
+      
+      totalRepaired++;
+      repairedWagons.push({
+        wagonNo: wagon.wagonNo,
+        oldStatus: oldStatus,
+        newStatus
+      });
+    }
+  }
+
+  await createAuditLog({
+    action: 'Workflow State Repair',
+    performedBy: req.user._id,
+    role: req.user.role,
+    metadata: { totalRepaired }
+  });
+
+  return ApiResponse.success(res, 'Workflow states repaired successfully', {
+    totalRepaired,
+    repairedWagons
+  });
+});
+
 module.exports = {
   getDashboardMetrics,
   getAllUsers,
@@ -271,5 +376,7 @@ module.exports = {
   deactivateUser,
   reactivateUser,
   resetAdminPassword,
-  getAuditLogs
+  getAuditLogs,
+  repairWorkflow,
+  repairWorkflowStates
 };

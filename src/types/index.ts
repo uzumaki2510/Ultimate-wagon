@@ -16,17 +16,15 @@ export const WAGON_TYPES = ["BTPGLN", "BTPN", "BTPFLN", "BTPNHS", "BCNMI", "BOXN
 export type WagonType = typeof WAGON_TYPES[number];
 
 export type WagonStatus =
-  | "In Service"
-  | "Cut Off"
-  | "Sick Line"
-  | "Issue Marked"
-  | "Under Inspection"
-  | "Under Repair"
-  | "Awaiting Inspection"
-  | "Awaiting Testing"
-  | "Awaiting Final Inspection"
-  | "Fit For Loading"
-  | "Fit";
+  | "ARRIVED"
+  | "INSPECTION_PENDING"
+  | "INSPECTION_COMPLETE"
+  | "SICK_LINE"
+  | "REPAIR_IN_PROGRESS"
+  | "REPAIR_COMPLETE"
+  | "FIT_CERTIFICATE_PENDING"
+  | "FIT_READY"
+  | "RELEASED";
 
 export type PriorityLevel = "Normal" | "Urgent" | "Safety Critical";
 

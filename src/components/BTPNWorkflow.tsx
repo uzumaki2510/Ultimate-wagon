@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 // BTPN/BTPFLN Workflow stages based on flowchart
 export const BTPN_STAGES = [
-  { id: "yard_issue", name: "Issue Marked", icon: AlertTriangle },
+  { id: "yard_issue", name: "SICK_LINE", icon: AlertTriangle },
   { id: "steaming", name: "Steaming", icon: ThermometerSun },
   { id: "steam_cleaning", name: "Steam Point (24h)", icon: Timer },
   { id: "placement_decision", name: "Placement", icon: Factory },

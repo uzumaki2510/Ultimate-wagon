@@ -30,4 +30,7 @@ router.put('/user/:id/reset-password', adminController.resetAdminPassword);
 // Audit Logs
 router.get('/audit-logs', paginate, adminController.getAuditLogs);
 
+// Workflow Repair
+router.post('/workflow/repair', adminController.repairWorkflowStates);
+
 module.exports = router;

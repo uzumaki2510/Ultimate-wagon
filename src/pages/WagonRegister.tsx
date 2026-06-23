@@ -31,52 +31,14 @@ export default function WagonRegister() {
     return zustandWagons.map(w => {
       const wf = workflows.find(wfItem => wfItem.wagonId === w.id);
       
-      const isTankWagon = ["BTPN", "BTPFLN", "BTPNHS", "BTPGLN"].includes((w.type || "").toUpperCase());
-      let hasStatusConflict = false;
-      let allDone = false;
-      
-      if (wf && wf.stages.length > 0) {
-        allDone = wf.stages.every(st => st.status === "Done");
-        if (isTankWagon && w.status === "Fit For Loading" && !allDone) {
-          hasStatusConflict = true;
-        }
-      }
-
-      let isFit = w.status === "Fit For Loading" || (w.status as string) === "Completed";
-      if (allDone) isFit = true;
-      if (hasStatusConflict) isFit = false;
-
-      let isSick = w.status === "Cut Off" || w.status === "Sick Line" || (w.status as string) === "Sick";
-      let isRepair = w.status === "Under Repair";
-
-      if (wf && wf.stages.length > 0) {
-        const currentStageName = wf.currentStage;
-        const currentStageRecord = wf.stages.find(st => st.stageName === currentStageName);
-        
-        if (w.status === "Cut Off" || w.status === "Sick Line" || w.status === "Issue Marked" || (w.status as string) === "Sick") {
-          isSick = true;
-          isRepair = false;
-        } else if (w.status === "Under Repair" || w.status === "Under Inspection" || w.status === "Awaiting Testing" || w.status === "Awaiting Final Inspection") {
-          isSick = false;
-          isRepair = true;
-        } else {
-           const isFirstStage = currentStageName === wf.stages[0].stageName;
-           const isFirstStageDone = isFirstStage && currentStageRecord?.status === "Done";
-           
-           if (isFirstStage && !isFirstStageDone) {
-             isSick = true;
-             isRepair = false;
-           } else {
-             isSick = false;
-             isRepair = true;
-           }
-        }
-      }
-
       let mappedStatus = "all";
-      if (isFit) mappedStatus = "fit";
-      else if (isRepair || hasStatusConflict) mappedStatus = "in-repair";
-      else if (isSick) mappedStatus = "sick";
+      if (w.status === "FIT_READY" || w.status === "RELEASED" || (w.status as string) === "FIT_CERTIFICATE_PENDING" || (w.status as string) === "REPAIR_COMPLETE" || w.status === "FIT_READY" || (w.status as string) === "completed") {
+        mappedStatus = "fit";
+      } else if (w.status === "REPAIR_IN_PROGRESS" || w.status === "REPAIR_IN_PROGRESS") {
+        mappedStatus = "in-repair";
+      } else if (w.status === "SICK_LINE" || w.status === "REPAIR_IN_PROGRESS" || w.status === "SICK_LINE" || (w.status as string) === "SICK_LINE" || w.status === "SICK_LINE") {
+        mappedStatus = "sick";
+      }
       
       const isToday = w.updatedAt?.startsWith(todayStr);
       
@@ -108,7 +70,6 @@ export default function WagonRegister() {
         sickLine: (w as any).sickLine || "line1",
         status: mappedStatus as any,
         isToday,
-        hasStatusConflict,
         comments: w.comments || w.defect,
         isSteamed: w.isSteamed,
         isDegassed: w.isDegassed,
@@ -175,7 +136,7 @@ export default function WagonRegister() {
       type: details.typeName,
       owner: details.railwayName,
       builtYear: parseInt(details.yearOfManufacture) || new Date().getFullYear(),
-      status: "Issue Marked",
+      status: "SICK_LINE" as any,
       defect: repairTasks.map(r => r.subRepair).join(", ") + (comments ? ` | ${comments}` : ""),
       updatedAt: arrivalDate,
       priority: priority,
@@ -253,8 +214,8 @@ export default function WagonRegister() {
       <WagonTable 
         wagons={filteredWagons}
         filter="all"
-        onComplete={(id) => { updateWagon(id, { status: "Fit For Loading" }); toast({title:"Marked Fit"}); }}
-        onUndoComplete={(id) => { updateWagon(id, { status: "Issue Marked" }); toast({title:"Undo Fit"}); }}
+        onComplete={(id) => { updateWagon(id, { status: "FIT_READY" as any }); toast({title:"Marked Fit"}); }}
+        onUndoComplete={(id) => { updateWagon(id, { status: "SICK_LINE" as any }); toast({title:"Undo Fit"}); }}
         onDelete={(id) => { removeWagon(id); toast({title:"Deleted"}); }}
         onUpdateSickLine={(id, sl) => updateWagon(id, { sickLine: sl } as any)}
         onEdit={(id, up) => updateWagon(id, { defect: up.comments })}

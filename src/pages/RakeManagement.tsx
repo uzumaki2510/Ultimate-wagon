@@ -97,7 +97,7 @@ export default function RakeManagement() {
                     </td>
                     <td className="p-2"><Input value={w.owner} onChange={(e) => store.updateWagon(w.id, { owner: e.target.value })} className="h-8" /></td>
                     <td className="p-2"><Input value={String(w.builtYear)} onChange={(e) => store.updateWagon(w.id, { builtYear: e.target.value })} className="h-8 w-20" /></td>
-                    <td className="p-2"><Badge variant={w.status === "Cut Off" ? "destructive" : "secondary"}>{w.status}</Badge></td>
+                    <td className="p-2"><Badge variant={w.status === "REPAIR_IN_PROGRESS" ? "destructive" : "secondary"}>{w.status}</Badge></td>
                     <td className="p-2 text-right space-x-1">
                       <Button size="sm" variant="outline" onClick={() => store.markDefective(w.id)}>
                         <AlertTriangle className="h-4 w-4 mr-1" /> Mark Defective

@@ -48,10 +48,10 @@ export function ExportButton({ wagons, selectedWagons = [] }: ExportButtonProps)
       "Category": wagon.details.category,
       "Railway": wagon.details.railwayName,
       "Year of Manufacture": wagon.details.yearOfManufacture,
-      "Sick Line": getSickLineName(wagon.sickLine),
+      "SICK_LINE": getSickLineName(wagon.sickLine),
       "Sick (Arrival)": formatDateTime(wagon.arrivalDate),
       "Fit (Completion)": wagon.completedDate ? formatDateTime(wagon.completedDate) : "",
-      "Status": wagon.status === "in-repair" ? "Sick" : "Fit",
+      "Status": wagon.status === "in-repair" ? "SICK_LINE" : "FIT_READY",
       "Comments": wagon.comments || "",
     }));
 

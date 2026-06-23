@@ -26,8 +26,8 @@ export default function Reports() {
 
   const stats = useMemo(() => {
     const total = filteredWagons.length;
-    const fit = filteredWagons.filter(w => w.status === "Fit For Loading").length;
-    const sick = filteredWagons.filter(w => w.status !== "Fit For Loading" && w.status !== "In Service").length;
+    const fit = filteredWagons.filter(w => w.status === "FIT_READY").length;
+    const sick = filteredWagons.filter(w => w.status !== "FIT_READY" && w.status !== "In Service").length;
     
     let criticalDefects = 0;
     let urgentDefects = 0;
@@ -45,7 +45,7 @@ export default function Reports() {
 
     const delayedWorkflows = workflows.filter(wf => {
       const w = wagons.find(wag => wag.id === wf.wagonId);
-      if (!w || w.status === "Fit For Loading") return false;
+      if (!w || w.status === "FIT_READY") return false;
       const current = wf.stages.find(s => s.stageName === wf.currentStage);
       if (!current || !current.startedAt) return false;
       const diffHrs = (new Date().getTime() - new Date(current.startedAt).getTime()) / (1000 * 60 * 60);

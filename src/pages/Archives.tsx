@@ -71,12 +71,12 @@ export default function Archives() {
       "Category": wagon.details.category,
       "Railway": wagon.details.railwayName,
       "Year of Manufacture": wagon.details.yearOfManufacture,
-      "Sick Line": getSickLineName(wagon.sickLine),
+      "SICK_LINE": getSickLineName(wagon.sickLine),
       "Sick (Arrival)": new Date(wagon.arrivalDate).toLocaleString("en-IN"),
       "Fit (Completion)": wagon.completedDate
         ? new Date(wagon.completedDate).toLocaleString("en-IN")
         : "",
-      "Status": wagon.status === "in-repair" ? "Sick" : "Fit",
+      "Status": wagon.status === "in-repair" ? "SICK_LINE" : "FIT_READY",
       "Comments": wagon.comments || "",
     }));
 

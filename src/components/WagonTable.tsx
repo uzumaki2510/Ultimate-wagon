@@ -231,22 +231,34 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         {wagon.details.railwayName}
                       </TableCell>
                       <TableCell>
-                        {(wagon.status as string) === "Fit For Loading" || wagon.status === "completed" || (wagon.status as string) === "Fit" || (wagon.status as string) === "fit" ? (
-                          <Badge className="bg-success text-success-foreground">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Fit
-                          </Badge>
-                        ) : wagon.hasStatusConflict ? (
-                          <Badge className="bg-destructive text-destructive-foreground">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Status Conflict
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-warning text-warning-foreground">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {wagon.status === "in-repair" ? "In Repair" : "Sick"}
-                          </Badge>
-                        )}
+                        {(() => {
+                          const wStatus = wagon.status as string;
+                          const isFit = wStatus === "FIT_READY" || wStatus === "RELEASED" || wStatus === "FIT_CERTIFICATE_PENDING" || wStatus === "FIT_READY" || wStatus === "completed" || wStatus === "FIT_READY" || wStatus === "fit";
+                          const isRepair = wStatus === "REPAIR_IN_PROGRESS" || wStatus === "in-repair" || wStatus === "REPAIR_IN_PROGRESS";
+                          
+                          if (isFit) {
+                            return (
+                              <Badge className="bg-success text-success-foreground">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Fit Ready
+                              </Badge>
+                            );
+                          } else if (isRepair) {
+                            return (
+                              <Badge className="bg-warning text-warning-foreground">
+                                <Clock className="h-3 w-3 mr-1" />
+                                In Repair
+                              </Badge>
+                            );
+                          } else {
+                            return (
+                              <Badge className="bg-destructive text-destructive-foreground">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                Sick
+                              </Badge>
+                            );
+                          }
+                        })()}
                       </TableCell>
                       <TableCell>
                         {wagon.comments ? (
@@ -301,7 +313,9 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                       <TableCell>
                         {(() => {
                           const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
-                          if (!wf || wagon.status !== "in-repair") return <span className="text-muted-foreground text-xs">-</span>;
+                          const wStatus = wagon.status as string;
+                          const isRepair = wStatus === "REPAIR_IN_PROGRESS" || wStatus === "in-repair" || wStatus === "REPAIR_IN_PROGRESS" || wStatus === "SICK_LINE" || wStatus === "sick";
+                          if (!wf || !isRepair) return <span className="text-muted-foreground text-xs">-</span>;
                           return (
                             <div className="flex gap-1 items-center overflow-x-auto max-w-[200px] no-scrollbar">
                               {wf.stages.map((st, i) => {
@@ -317,17 +331,22 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {wagon.status === "in-repair" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-primary hover:text-primary hover:bg-primary/10"
-                              onClick={() => setEditingWagon(wagon)}
-                              title="Open Workflow Timeline"
-                            >
-                              <ArrowRightCircle className="h-4 w-4" />
-                            </Button>
-                          )}
+                          {(() => {
+                            const wStatus = wagon.status as string;
+                            const isRepair = wStatus === "REPAIR_IN_PROGRESS" || wStatus === "in-repair" || wStatus === "REPAIR_IN_PROGRESS" || wStatus === "SICK_LINE" || wStatus === "sick" || wStatus === "INSPECTION_PENDING" || wStatus === "INSPECTION_COMPLETE";
+                            if (!isRepair) return null;
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-primary hover:text-primary hover:bg-primary/10"
+                                onClick={() => setEditingWagon(wagon)}
+                                title="Open Workflow Timeline"
+                              >
+                                <ArrowRightCircle className="h-4 w-4" />
+                              </Button>
+                            );
+                          })()}
                           {isAdmin && (
                             <Button
                               size="sm"
@@ -339,7 +358,10 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          {(wagon.status as string) !== "Fit For Loading" && wagon.status !== "completed" && (wagon.status as string) !== "Fit" && (wagon.status as string) !== "fit" && (() => {
+                          {(() => {
+                            const wStatus = wagon.status as string;
+                            const isFit = wStatus === "FIT_READY" || wStatus === "RELEASED" || wStatus === "FIT_CERTIFICATE_PENDING" || wStatus === "FIT_READY" || wStatus === "completed" || wStatus === "FIT_READY" || wStatus === "fit";
+                            if (isFit) return null;
                             const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
                             const allDone = wf ? wf.stages.every(st => st.status === "Done") : true;
                             if (!allDone) return null;
@@ -355,17 +377,22 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               </Button>
                             );
                           })()}
-                          {((wagon.status as string) === "Fit For Loading" || wagon.status === "completed" || (wagon.status as string) === "Fit" || (wagon.status as string) === "fit") && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-warning hover:text-warning hover:bg-warning/10"
-                              onClick={() => onUndoComplete(wagon.id)}
-                              title="Undo - Mark as Sick"
-                            >
-                              <Undo2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                          {(() => {
+                            const wStatus = wagon.status as string;
+                            const isFit = wStatus === "FIT_READY" || wStatus === "RELEASED" || wStatus === "FIT_CERTIFICATE_PENDING" || wStatus === "FIT_READY" || wStatus === "completed" || wStatus === "FIT_READY" || wStatus === "fit";
+                            if (!isFit) return null;
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-warning hover:text-warning hover:bg-warning/10"
+                                onClick={() => onUndoComplete(wagon.id)}
+                                title="Undo - Mark as Sick"
+                              >
+                                <Undo2 className="h-4 w-4" />
+                              </Button>
+                            );
+                          })()}
                           {isAdmin && (
                             <Button
                               size="sm"

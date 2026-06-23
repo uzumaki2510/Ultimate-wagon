@@ -40,7 +40,7 @@ export function AppSidebar() {
   ];
 
   const adminItems = [
-    { title: "Sick Line", url: "/sickline", icon: Wrench },
+    { title: "SICK_LINE", url: "/sickline", icon: Wrench },
     { title: "Quick Entry", url: "/quick-board", icon: Zap },
     { title: "Unit Memos", url: "/memos", icon: FileText },
     { title: "Reports", url: "/reports", icon: FileText },

@@ -28,8 +28,8 @@ export default function MemoEditor() {
   const urlType = searchParams.get("type") as "sick" | "fit" | null;
   const resolvedType: "sick" | "fit" = existing?.memoType ?? urlType ?? "sick";
   const isSick = resolvedType === "sick";
-  const defaultStatus = isSick ? "Cut Off" : "Fit For Loading";
-  const defaultBookedTo = isSick ? "HAPA SL" : "Fit For Loading";
+  const defaultStatus = isSick ? "REPAIR_IN_PROGRESS" : "FIT_READY";
+  const defaultBookedTo = isSick ? "HAPA SL" : "FIT_READY";
 
   const [activeTab, setActiveTab] = useState("info");
 
@@ -99,7 +99,7 @@ export default function MemoEditor() {
       if (isSick) {
         finalEntries.forEach(e => store.upsertWorkflowForWagon(e.wagonId, created.id));
       } else {
-        finalEntries.forEach(e => store.updateWagon(e.wagonId, { status: "Fit For Loading" }));
+        finalEntries.forEach(e => store.updateWagon(e.wagonId, { status: "FIT_READY" }));
       }
       toast({ title: "Success", description: "Memo saved successfully." });
       nav(`/memos/${created.id}`);
