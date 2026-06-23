@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const listEmployees = async (): Promise<User[]> => {
     try {
       const res = await usersApi.getEmployees();
-      return res.data || [];
+      return (res.data || []).map((u: any) => ({ ...u, id: u._id || u.id }));
     } catch (error) {
       console.error("Failed to list employees", error);
       return [];
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const listPendingEmployees = async (): Promise<User[]> => {
     try {
       const res = await usersApi.getPendingEmployees();
-      return res.data || [];
+      return (res.data || []).map((u: any) => ({ ...u, id: u._id || u.id }));
     } catch (error) {
       console.error("Failed to list pending employees", error);
       return [];
