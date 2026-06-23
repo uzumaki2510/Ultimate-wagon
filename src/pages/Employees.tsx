@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth, User } from "@/contexts/AuthContext";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
@@ -20,40 +20,58 @@ export default function Employees() {
   const { listEmployees, listPendingEmployees, approveEmployee, deleteEmployee } = useAuth();
   const { toast } = useToast();
 
-  const [systemUsers, setSystemUsers] = useState<User[]>(listEmployees());
-  const [pending, setPending] = useState<User[]>(listPendingEmployees());
+  const [systemUsers, setSystemUsers] = useState<User[]>([]);
+  const [pending, setPending] = useState<User[]>([]);
   const [toRemove, setToRemove] = useState<User | null>(null);
 
   const { employees: rosterEmployees, addEmployee, updateEmployee, removeEmployee } = useAppStore();
   const [form, setForm] = useState({ name: "", designation: "", role: "", empCode: "" });
 
-  const refresh = () => {
-    setSystemUsers(listEmployees());
-    setPending(listPendingEmployees());
+  const refresh = async () => {
+    const users = await listEmployees();
+    const pend = await listPendingEmployees();
+    setSystemUsers(users);
+    setPending(pend);
   };
 
-  const handleApprove = (emp: User) => {
-    approveEmployee(emp.email, "approved");
+  useEffect(() => {
     refresh();
-    toast({ title: "Account Approved", description: `${emp.name} can now log in.` });
+  }, []);
+
+  const handleApprove = async (emp: User) => {
+    try {
+      await approveEmployee(emp.id, "approved");
+      await refresh();
+      toast({ title: "Account Approved", description: `${emp.name} can now log in.` });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to approve account", variant: "destructive" });
+    }
   };
 
-  const handleReject = (emp: User) => {
-    approveEmployee(emp.email, "rejected");
-    refresh();
-    toast({
-      title: "Account Rejected",
-      description: `${emp.name}'s registration was rejected.`,
-      variant: "destructive",
-    });
+  const handleReject = async (emp: User) => {
+    try {
+      await approveEmployee(emp.id, "rejected");
+      await refresh();
+      toast({
+        title: "Account Rejected",
+        description: `${emp.name}'s registration was rejected.`,
+        variant: "destructive",
+      });
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to reject account", variant: "destructive" });
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!toRemove) return;
-    deleteEmployee(toRemove.email);
-    refresh();
-    toast({ title: "Employee removed", description: `${toRemove.name} has been removed.` });
-    setToRemove(null);
+    try {
+      await deleteEmployee(toRemove.id);
+      await refresh();
+      toast({ title: "Employee removed", description: `${toRemove.name} has been removed.` });
+      setToRemove(null);
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to delete account", variant: "destructive" });
+    }
   };
 
   return (

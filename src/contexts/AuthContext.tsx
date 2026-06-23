@@ -1,19 +1,23 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { authApi } from "@/api/auth";
+import { usersApi } from "@/api/users";
 import { LoginRecord } from "@/types";
 
-export type UserRole = "admin" | "employee";
+export type UserRole = "admin" | "employee" | "Admin" | "Employee";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  employeeId: string;
+  employeeId?: string;
+  empCode?: string;
   department: string;
   designation: string;
   role: UserRole;
-  approved: ApprovalStatus;
-  createdAt: string;
+  approved?: ApprovalStatus;
+  isActive?: boolean;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -21,226 +25,137 @@ interface AuthContextType {
   isLoading: boolean;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: SignupData) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
-  listEmployees: () => User[];
-  listPendingEmployees: () => User[];
-  approveEmployee: (email: string, status: ApprovalStatus) => void;
-  deleteEmployee: (email: string) => void;
+  listEmployees: () => Promise<User[]>;
+  listPendingEmployees: () => Promise<User[]>;
+  approveEmployee: (userId: string, status: ApprovalStatus) => Promise<void>;
+  deleteEmployee: (userId: string) => Promise<void>;
   getLoginRecords: () => LoginRecord[];
 }
 
-interface SignupData {
-  email: string;
-  password: string;
-  name: string;
-  employeeId: string;
-  department: string;
-  designation: string;
-}
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const USERS_KEY = "wagon_app_users";
-const CURRENT_USER_KEY = "wagon_app_current_user";
-const LOGIN_RECORDS_KEY = "wagon_app_login_records";
-
-const PRESET_ADMIN_EMAIL = "admin@railway.gov.in";
-const PRESET_ADMIN_PASSWORD = "admin123";
-const PRESET_ADMIN: User = {
-  id: "preset-admin",
-  email: PRESET_ADMIN_EMAIL,
-  name: "System Administrator",
-  employeeId: "ADMIN",
-  department: "C&W Department",
-  designation: "Administrator",
-  role: "admin",
-  approved: "approved",
-  createdAt: new Date(0).toISOString(),
-};
-
-/** Persist a login event for the given user */
-function recordLogin(user: User) {
-  const raw = localStorage.getItem(LOGIN_RECORDS_KEY);
-  const records: Record<string, LoginRecord> = raw ? JSON.parse(raw) : {};
-  const existing = records[user.id];
-  records[user.id] = {
-    userId: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    lastLogin: new Date().toISOString(),
-    loginCount: (existing?.loginCount ?? 0) + 1,
-  };
-  localStorage.setItem(LOGIN_RECORDS_KEY, JSON.stringify(records));
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem(CURRENT_USER_KEY);
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      if (!parsed.role) parsed.role = "employee";
-      // Backfill: legacy accounts without approved field are treated as approved
-      if (!parsed.approved) parsed.approved = "approved";
-      setUser(parsed);
+  const fetchUser = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("wagon_access_token");
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+      const res = await authApi.getCurrentUser();
+      if (res.success && res.data) {
+        setUser(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch current user", error);
+      localStorage.removeItem("wagon_access_token");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
-  const getUsers = (): Record<string, { user: User; password: string }> => {
-    const users = localStorage.getItem(USERS_KEY);
-    return users ? JSON.parse(users) : {};
-  };
-
-  const saveUsers = (users: Record<string, { user: User; password: string }>) => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  };
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const emailLower = email.toLowerCase().trim();
-
-    if (emailLower === PRESET_ADMIN_EMAIL) {
-      if (password !== PRESET_ADMIN_PASSWORD) {
-        return { success: false, error: "Invalid admin password" };
+    try {
+      const res = await authApi.login(email, password);
+      if (res.success && res.data?.accessToken) {
+        localStorage.setItem("wagon_access_token", res.data.accessToken);
+        await fetchUser();
+        return { success: true };
       }
-      recordLogin(PRESET_ADMIN);
-      setUser(PRESET_ADMIN);
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(PRESET_ADMIN));
-      return { success: true };
+      return { success: false, error: res.message || "Login failed" };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || "An error occurred during login. Please try again." 
+      };
     }
-
-    const users = getUsers();
-    const userRecord = users[emailLower];
-
-    if (!userRecord) {
-      return { success: false, error: "No account found with this email" };
-    }
-
-    if (userRecord.password !== password) {
-      return { success: false, error: "Invalid password" };
-    }
-
-    const u: User = {
-      ...userRecord.user,
-      role: userRecord.user.role || ("employee" as UserRole),
-      approved: userRecord.user.approved ?? "approved", // backfill legacy
-    };
-
-    if (u.approved === "pending") {
-      return { success: false, error: "Your account is awaiting admin approval. Please try again after approval." };
-    }
-
-    if (u.approved === "rejected") {
-      return { success: false, error: "Your account registration was rejected. Please contact the administrator." };
-    }
-
-    recordLogin(u);
-    setUser(u);
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
-    return { success: true };
   };
 
-  const signup = async (data: SignupData): Promise<{ success: boolean; error?: string }> => {
-    const users = getUsers();
-    const emailLower = data.email.toLowerCase();
-
-    if (emailLower === PRESET_ADMIN_EMAIL) {
-      return { success: false, error: "This email is reserved" };
+  const signup = async (data: any): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // Map frontend fields to backend fields if necessary
+      const payload = {
+        ...data,
+        empCode: data.employeeId,
+      };
+      
+      const res = await authApi.register(payload);
+      if (res.success) {
+        return { success: true };
+      }
+      return { success: false, error: res.message || "Signup failed" };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || "An error occurred during registration. Please try again." 
+      };
     }
-
-    if (users[emailLower]) {
-      return { success: false, error: "An account with this email already exists" };
-    }
-
-    const newUser: User = {
-      id: crypto.randomUUID(),
-      email: emailLower,
-      name: data.name,
-      employeeId: data.employeeId,
-      department: data.department,
-      designation: data.designation,
-      role: "employee",
-      approved: "pending", // ← must wait for admin approval
-      createdAt: new Date().toISOString(),
-    };
-
-    users[emailLower] = { user: newUser, password: data.password };
-    saveUsers(users);
-
-    // Do NOT log user in or set session — they must wait for approval
-    return { success: true };
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(CURRENT_USER_KEY);
+    localStorage.removeItem("wagon_access_token");
   };
 
   const updateProfile = (data: Partial<User>) => {
-    if (!user) return;
-
-    const updatedUser = { ...user, ...data };
-    setUser(updatedUser);
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
-
-    if (user.id === PRESET_ADMIN.id) return;
-
-    const users = getUsers();
-    if (users[user.email]) {
-      users[user.email].user = updatedUser;
-      saveUsers(users);
+    // Requires backend endpoint for profile update
+    console.warn("Profile update via API not implemented yet");
+    if (user) {
+      setUser({ ...user, ...data });
     }
   };
 
-  const listEmployees = (): User[] => {
-    const users = getUsers();
-    return Object.values(users)
-      .map((r) => ({
-        ...r.user,
-        role: r.user.role || ("employee" as UserRole),
-        approved: r.user.approved ?? "approved",
-      }))
-      .filter((u) => u.approved === "approved");
-  };
-
-  const listPendingEmployees = (): User[] => {
-    const users = getUsers();
-    return Object.values(users)
-      .map((r) => ({
-        ...r.user,
-        role: r.user.role || ("employee" as UserRole),
-        approved: r.user.approved ?? "approved",
-      }))
-      .filter((u) => u.approved === "pending")
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  };
-
-  const approveEmployee = (email: string, status: ApprovalStatus) => {
-    const users = getUsers();
-    const key = email.toLowerCase();
-    if (users[key]) {
-      users[key].user = { ...users[key].user, approved: status };
-      saveUsers(users);
+  const listEmployees = async (): Promise<User[]> => {
+    try {
+      const res = await usersApi.getEmployees();
+      return res.data?.filter((u: any) => u.isActive) || [];
+    } catch (error) {
+      console.error("Failed to list employees", error);
+      return [];
     }
   };
 
-  const deleteEmployee = (email: string) => {
-    const users = getUsers();
-    delete users[email.toLowerCase()];
-    saveUsers(users);
+  const listPendingEmployees = async (): Promise<User[]> => {
+    try {
+      const res = await usersApi.getEmployees();
+      return res.data?.filter((u: any) => !u.isActive) || [];
+    } catch (error) {
+      console.error("Failed to list pending employees", error);
+      return [];
+    }
+  };
+
+  const approveEmployee = async (userId: string, status: ApprovalStatus) => {
+    try {
+      await usersApi.approveEmployee(userId, status);
+    } catch (error) {
+      console.error("Failed to approve employee", error);
+      throw error;
+    }
+  };
+
+  const deleteEmployee = async (userId: string) => {
+    try {
+      await usersApi.deleteEmployee(userId);
+    } catch (error) {
+      console.error("Failed to delete employee", error);
+      throw error;
+    }
   };
 
   const getLoginRecords = (): LoginRecord[] => {
-    const raw = localStorage.getItem(LOGIN_RECORDS_KEY);
-    const records: Record<string, LoginRecord> = raw ? JSON.parse(raw) : {};
-    return Object.values(records).sort(
-      (a, b) => new Date(b.lastLogin).getTime() - new Date(a.lastLogin).getTime()
-    );
+    // Needs backend audit log implementation
+    return [];
   };
 
   return (
@@ -248,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isAdmin: user?.role === "admin",
+        isAdmin: user?.role?.toLowerCase() === "admin",
         login,
         signup,
         logout,

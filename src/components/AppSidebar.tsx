@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User, LogOut, Trash2, Zap, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
@@ -13,10 +14,15 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, logout, listPendingEmployees } = useAuth();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (isAdmin) {
+      listPendingEmployees().then(pend => setPendingCount(pend.length)).catch(() => {});
+    }
+  }, [isAdmin, listPendingEmployees]);
 
   const isActive = (u: string) => u === "/" ? pathname === "/" : pathname.startsWith(u);
-
-  const pendingCount = isAdmin ? listPendingEmployees().length : 0;
 
   const navItems = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
@@ -120,7 +126,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/profile")}>
               <NavLink to="/profile" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
+                <UserIcon className="h-4 w-4" />
                 {!collapsed && <span className="truncate">{user?.name || "Profile"}</span>}
               </NavLink>
             </SidebarMenuButton>

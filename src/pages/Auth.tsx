@@ -373,9 +373,6 @@ const Auth = () => {
         </>
         )} {/* end pendingApproval else */}
 
-        <p className="text-center text-xs text-muted-foreground">
-          Data stored locally for offline access
-        </p>
       </div>
     </div>
   );
