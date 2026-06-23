@@ -174,7 +174,7 @@ const Auth = () => {
                   <Shield className="h-5 w-5 text-primary" /> Admin Login
                 </CardTitle>
                 <CardDescription>
-                  Restricted access. Default: <span className="font-mono">admin@railway.gov.in</span> / <span className="font-mono">admin123</span>
+                  Restricted access.
                 </CardDescription>
               </CardHeader>
               <CardContent>
