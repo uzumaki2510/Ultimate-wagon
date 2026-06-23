@@ -13,7 +13,8 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("wagon_access_token");
     if (token) {
-      if (config.headers.set) {
+      config.headers = config.headers || {};
+      if (config.headers.set && typeof config.headers.set === 'function') {
         config.headers.set('Authorization', `Bearer ${token}`);
       } else {
         config.headers.Authorization = `Bearer ${token}`;
