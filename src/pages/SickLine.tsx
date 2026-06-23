@@ -20,7 +20,7 @@ export default function SickLine() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [activeWfId, setActiveWfId] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<string | null>(null);
-  
+
   const [staffName, setStaffName] = useState("");
   const [inspectorName, setInspectorName] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -209,8 +209,8 @@ export default function SickLine() {
         <TabsContent value="btpn" className="mt-0">{renderWagonCards(wf => wf.wagonType.includes("BTPN") || wf.wagonType.includes("BTPFLN"))}</TabsContent>
         <TabsContent value="delayed" className="mt-0">
           {renderWagonCards(wf => {
-             const currentObj = wf.stages.find((s: any) => s.stageName === wf.currentStage);
-             return !!(currentObj && isDelayed(currentObj));
+            const currentObj = wf.stages.find((s: any) => s.stageName === wf.currentStage);
+            return !!(currentObj && isDelayed(currentObj));
           })}
         </TabsContent>
         <TabsContent value="fit" className="mt-0">

@@ -43,7 +43,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            
+
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/register" element={<WagonRegister />} />
@@ -56,7 +56,7 @@ const App = () => (
               <Route path="/quick-board" element={<QuickBoard />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
-              
+
               {/* Super Admin Guarded Routes */}
               <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
               <Route path="/super-admin/admins" element={<SuperAdminRoute><AdminManagement /></SuperAdminRoute>} />
@@ -71,11 +71,11 @@ const App = () => (
 
               {/* All authenticated users */}
               <Route path="/deleted" element={<Deleted />} />
-              
+
               {/* Profile Route */}
               <Route path="/profile" element={<Profile />} />
             </Route>
-            
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

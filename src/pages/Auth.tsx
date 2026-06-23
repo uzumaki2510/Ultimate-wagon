@@ -27,7 +27,7 @@ const Auth = () => {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupName, setSignupName] = useState("");
-  const [signupEmployeeId, setSignupEmployeeId] = useState("");
+  const [signupEmpCode, setSignupEmpCode] = useState("");
   const [signupDepartment, setSignupDepartment] = useState("");
   const [signupDesignation, setSignupDesignation] = useState("");
 
@@ -58,7 +58,7 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!signupEmail || !signupPassword || !signupName || !signupEmployeeId) {
+    if (!signupEmail || !signupPassword || !signupName || !signupEmpCode) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -82,7 +82,7 @@ const Auth = () => {
       email: signupEmail,
       password: signupPassword,
       name: signupName,
-      employeeId: signupEmployeeId,
+      empCode: signupEmpCode,
       department: signupDepartment || "C&W Department",
       designation: signupDesignation || "Staff",
     });
@@ -301,8 +301,8 @@ const Auth = () => {
                       <Input
                         id="signup-employee-id"
                         placeholder="EMP001"
-                        value={signupEmployeeId}
-                        onChange={(e) => setSignupEmployeeId(e.target.value)}
+                        value={signupEmpCode}
+                        onChange={(e) => setSignupEmpCode(e.target.value)}
                         required
                       />
                     </div>

@@ -139,7 +139,7 @@ export default function Employees() {
                     {pending.map((emp) => (
                       <TableRow key={emp.id} className="hover:bg-amber-50/30 dark:hover:bg-amber-950/20">
                         <TableCell className="font-medium">{emp.name}</TableCell>
-                        <TableCell className="font-mono text-sm">{emp.employeeId}</TableCell>
+                        <TableCell className="font-mono text-sm">{emp.empCode || "Not Assigned"}</TableCell>
                         <TableCell className="text-sm">{emp.email}</TableCell>
                         <TableCell className="text-sm">{emp.department}</TableCell>
                         <TableCell className="text-sm">{emp.designation}</TableCell>
@@ -201,7 +201,7 @@ export default function Employees() {
                     {systemUsers.map((emp) => (
                       <TableRow key={emp.id}>
                         <TableCell className="font-medium">{emp.name}</TableCell>
-                        <TableCell className="font-mono text-sm">{emp.employeeId}</TableCell>
+                        <TableCell className="font-mono text-sm">{emp.empCode || "Not Assigned"}</TableCell>
                         <TableCell>{emp.email}</TableCell>
                         <TableCell>{emp.designation}</TableCell>
                         <TableCell className="text-right">

@@ -84,7 +84,7 @@ const Profile = () => {
             <>
               {/* Employee Details Grid */}
               <div className="grid gap-4 sm:grid-cols-2">
-                <DetailItem icon={IdCard} label="Employee ID" value={user.employeeId} />
+                <DetailItem icon={IdCard} label="Employee ID" value={user.empCode || "Not Assigned"} />
                 <DetailItem icon={Mail} label="Email" value={user.email} />
                 <DetailItem icon={Building} label="Department" value={user.department} />
                 <DetailItem icon={BadgeCheck} label="Designation" value={user.designation} />
@@ -134,7 +134,7 @@ const Profile = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Employee ID</Label>
-                  <Input value={user.employeeId} disabled className="bg-muted" />
+                  <Input value={user.empCode || "Not Assigned"} disabled className="bg-muted" />
                   <p className="text-xs text-muted-foreground">Employee ID cannot be changed</p>
                 </div>
                 <div className="space-y-2">

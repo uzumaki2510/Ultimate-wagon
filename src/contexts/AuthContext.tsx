@@ -10,7 +10,6 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  employeeId?: string;
   empCode?: string;
   department: string;
   designation: string;
@@ -87,7 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Map frontend fields to backend fields if necessary
       const payload = {
         ...data,
-        empCode: data.employeeId,
       };
       
       const res = await authApi.register(payload);

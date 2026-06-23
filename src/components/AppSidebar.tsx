@@ -18,7 +18,7 @@ export function AppSidebar() {
 
   useEffect(() => {
     if (isAdmin) {
-      listPendingEmployees().then(pend => setPendingCount(pend.length)).catch(() => {});
+      listPendingEmployees().then(pend => setPendingCount(pend.length)).catch(() => { });
     }
   }, [isAdmin, listPendingEmployees]);
 
@@ -69,13 +69,13 @@ export function AppSidebar() {
           )}
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((n) => (
+              {filteredItems.map((n) => (
                 <SidebarMenuItem key={n.url}>
                   <SidebarMenuButton asChild isActive={isActive(n.url)}>
                     <NavLink to={n.url} className="flex items-center gap-2">
@@ -169,11 +169,11 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton 
+            <SidebarMenuButton
               onClick={() => {
                 logout();
                 navigate("/auth");
-              }} 
+              }}
               className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
