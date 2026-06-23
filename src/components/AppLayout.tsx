@@ -23,28 +23,32 @@ export default function AppLayout() {
   }
 
   if (!user) {
-    // Redirect handled by Router or local check
     return null;
   }
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full bg-background selection:bg-primary/20">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center gap-3 border-b bg-card px-3 sticky top-0 z-20">
-            <SidebarTrigger />
-            <div className="font-semibold tracking-tight text-sm md:text-base">Ultimate Wagon Whisperer</div>
-            <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">Railway UNIT MEMO System</Badge>
-            <div className="ml-auto flex items-center gap-2">
-              {isAdmin && <Badge className="bg-success text-success-foreground text-[10px] md:text-xs">Admin</Badge>}
-              <Button size="sm" className="text-xs h-8" onClick={() => nav("/memos/new")}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> New Memo
+          <header className="h-14 sm:h-16 flex items-center gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sticky top-0 z-30 shadow-sm">
+            <SidebarTrigger className="hover:bg-secondary rounded-md transition-colors" />
+            <div className="font-semibold tracking-tight text-sm md:text-base flex items-center gap-2">
+              <span className="hidden sm:inline-block">Ultimate Wagon Whisperer</span>
+              <span className="sm:hidden">UWW</span>
+            </div>
+            <Badge variant="outline" className="text-[10px] hidden md:inline-flex bg-primary/5 border-primary/20 text-primary">Railway UNIT MEMO System</Badge>
+            <div className="ml-auto flex items-center gap-2 sm:gap-4">
+              {isAdmin && <Badge className="bg-success/10 text-success border-success/20 text-[10px] md:text-xs">Admin</Badge>}
+              <Button size="sm" className="text-xs h-8 sm:h-9 shadow-sm" onClick={() => nav("/memos/new")}>
+                <Plus className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">New Memo</span>
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-x-auto">
-            <Outlet />
+          <main className="flex-1 overflow-x-hidden">
+            <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 animate-fade-in">
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>

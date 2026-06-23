@@ -87,6 +87,15 @@
   h1,h2,h3,h4 { font-family: 'Inter', system-ui, sans-serif; }
 }
 
+@layer utilities {
+  .shadow-modern {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
+  }
+  .shadow-modern-lg {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 12px 24px rgba(0, 0, 0, 0.03);
+  }
+}
+
 /* Yellow memo paper styles (used on print preview) */
 .memo-paper {
   background-color: hsl(var(--rail-yellow-paper));

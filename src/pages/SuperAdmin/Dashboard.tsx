@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { adminApi } from "@/api/admin";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ShieldCheck, Clock, UserX, CheckCircle, Activity } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Users, ShieldCheck, Clock, UserX, CheckCircle, Activity, LayoutDashboard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import { LoadingState } from "@/components/shared/LoadingState";
+import { ActionCard } from "@/components/shared/ActionCard";
 
 interface DashboardMetrics {
   totalEmployees: number;
@@ -36,88 +40,70 @@ export default function SuperAdminDashboard() {
   }, [toast]);
 
   if (loading || !metrics) {
-    return <div className="p-8 text-center animate-pulse">Loading dashboard...</div>;
+    return <LoadingState text="Loading super admin dashboard..." />;
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Super Admin Dashboard</h1>
-        <p className="text-sm text-muted-foreground">High-level overview of system users and registrations.</p>
+    <div className="space-y-8 animate-fade-in pb-12">
+      <PageHeader 
+        title="Super Admin Dashboard"
+        description="High-level overview of system users and registrations."
+        icon={LayoutDashboard}
+      />
+
+      <div className="space-y-4">
+        <h2 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">System Overview</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <StatCard
+            title="Total Employees"
+            value={metrics.totalEmployees}
+            icon={Users}
+          />
+          <StatCard
+            title="Total Admins"
+            value={metrics.totalAdmins}
+            icon={ShieldCheck}
+          />
+          <StatCard
+            title="Active Accounts"
+            value={metrics.activeUsers}
+            icon={CheckCircle}
+          />
+          <StatCard
+            title="Pending Approvals"
+            value={metrics.pendingApprovals}
+            icon={Clock}
+            className={metrics.pendingApprovals > 0 ? "border-amber-200 bg-amber-50/30" : ""}
+          />
+          <StatCard
+            title="Rejected"
+            value={metrics.rejectedUsers}
+            icon={UserX}
+            className="border-destructive/10"
+          />
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.totalEmployees}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Admins</CardTitle>
-            <ShieldCheck className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.totalAdmins}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Accounts</CardTitle>
-            <CheckCircle className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.activeUsers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-            <Clock className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.pendingApprovals}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejected Registrations</CardTitle>
-            <UserX className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.rejectedUsers}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" /> Recent Registrations
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+      <div className="space-y-4">
+        <h2 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">Recent Activity</h2>
+        <ActionCard
+          title="Recent Registrations"
+          icon={Activity}
+          className="bg-card"
+        >
+          <div className="space-y-4 mt-2">
             {metrics.recentRegistrations.length === 0 ? (
               <p className="text-sm text-muted-foreground">No recent registrations.</p>
             ) : (
               metrics.recentRegistrations.map((user) => (
-                <div key={user._id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                <div key={user._id} className="flex items-center justify-between border-b border-border/50 pb-4 last:border-0 last:pb-0">
                   <div>
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <p className="font-semibold text-sm sm:text-base tracking-tight text-foreground">{user.name}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{user.email}</p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">{user.role}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${user.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : user.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{user.role}</span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${user.status === 'approved' ? 'bg-success/10 text-success' : user.status === 'pending' ? 'bg-warning/10 text-warning-foreground border border-warning/20' : 'bg-destructive/10 text-destructive'}`}>
                       {user.status}
                     </span>
                   </div>
@@ -125,8 +111,8 @@ export default function SuperAdminDashboard() {
               ))
             )}
           </div>
-        </CardContent>
-      </Card>
+        </ActionCard>
+      </div>
     </div>
   );
 }

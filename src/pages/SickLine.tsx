@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { WorkflowStageRecord } from "@/types";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function SickLine() {
   const { workflows, wagons, markWagonFit, advanceWorkflow, startStage, markStageDone } = useAppStore();
@@ -100,7 +101,7 @@ export default function SickLine() {
 
   const renderWagonCards = (filterFn: (wf: any) => boolean) => {
     const wfs = activeWorkflows.filter(filterFn);
-    if (wfs.length === 0) return <div className="p-8 text-center text-muted-foreground bg-card border rounded-lg shadow-sm">No wagons in this category.</div>;
+    if (wfs.length === 0) return <div className="p-8 text-center text-muted-foreground bg-card border border-border/50 rounded-lg shadow-sm">No wagons in this category.</div>;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -111,58 +112,58 @@ export default function SickLine() {
           const isFinalStage = wf.stages.findIndex((s: any) => s.stageName === wf.currentStage) === wf.stages.length - 1;
 
           return (
-            <Card key={wf.id} className={`shadow-sm transition-all hover:shadow-md border-l-4 ${isCurrentDelayed ? 'border-l-red-500' : 'border-l-primary'}`}>
-              <CardContent className="p-4 flex flex-col h-full">
-                <div className="flex justify-between items-start mb-3">
+            <Card key={wf.id} className={`shadow-sm transition-all hover:shadow-modern border-l-4 bg-card ${isCurrentDelayed ? 'border-l-destructive border-y-border/50 border-r-border/50' : 'border-l-primary border-y-border/50 border-r-border/50'}`}>
+              <CardContent className="p-5 flex flex-col h-full">
+                <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="font-mono font-bold text-lg">{wf.wagonNo}</h3>
-                    <Badge variant="outline" className="text-[10px] mt-1">{wf.wagonType}</Badge>
+                    <h3 className="font-mono font-bold text-lg tracking-tight">{wf.wagonNo}</h3>
+                    <Badge variant="outline" className="text-[10px] mt-1 shadow-sm">{wf.wagonType}</Badge>
                   </div>
                   {isCurrentDelayed && (
-                    <Badge variant="destructive" className="animate-pulse flex gap-1 items-center">
+                    <Badge variant="destructive" className="animate-pulse flex gap-1 items-center shadow-sm">
                       <AlertTriangle className="h-3 w-3" /> Delayed
                     </Badge>
                   )}
                 </div>
 
-                <div className="space-y-1 text-sm text-muted-foreground mb-4 flex-1">
-                  <div className="flex justify-between"><span>Defect:</span> <span className="font-medium text-foreground truncate max-w-[150px]">{wagon?.defect || "N/A"}</span></div>
-                  <div className="flex justify-between"><span>Booked To:</span> <span className="font-medium text-foreground">{wagon?.bookedTo || "-"}</span></div>
+                <div className="space-y-1.5 text-sm text-muted-foreground mb-5 flex-1 bg-secondary/30 p-3 rounded-lg border border-border/50">
+                  <div className="flex justify-between items-center"><span className="text-xs uppercase tracking-wider font-medium">Defect:</span> <span className="font-semibold text-foreground truncate max-w-[150px]">{wagon?.defect || "N/A"}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-xs uppercase tracking-wider font-medium">Booked To:</span> <span className="font-semibold text-foreground">{wagon?.bookedTo || "-"}</span></div>
                 </div>
 
                 {/* Progress Bar Visuals */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                    <span className="text-primary truncate">{wf.currentStage}</span>
-                    {currentStageObj?.inspectorName && <span className="text-xs text-muted-foreground mt-1">SSE/JE: {currentStageObj.inspectorName}</span>}
-                    <span className={isCurrentDelayed ? 'text-red-600' : 'text-muted-foreground'}>{getTimeSpent(currentStageObj!)}</span>
+                <div className="mb-5">
+                  <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+                    <span className="text-primary truncate pr-2">{wf.currentStage}</span>
+                    {currentStageObj?.inspectorName && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-sm">SSE/JE: {currentStageObj.inspectorName}</span>}
+                    <span className={`${isCurrentDelayed ? 'text-destructive font-bold' : 'text-muted-foreground'} whitespace-nowrap ml-auto`}>{getTimeSpent(currentStageObj!)}</span>
                   </div>
-                  <div className="w-full bg-secondary h-2 rounded-full overflow-hidden flex">
+                  <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden flex shadow-inner">
                     {wf.stages.map((st: any, i: number) => {
                       let color = "bg-secondary";
-                      if (st.status === "Done") color = "bg-green-500";
-                      else if (st.stageName === wf.currentStage) color = isCurrentDelayed ? "bg-red-500" : "bg-primary";
-                      return <div key={i} className={`h-full ${color} flex-1 border-r border-background/50 last:border-0`} title={st.stageName} />
+                      if (st.status === "Done") color = "bg-success";
+                      else if (st.stageName === wf.currentStage) color = isCurrentDelayed ? "bg-destructive" : "bg-primary";
+                      return <div key={i} className={`h-full ${color} flex-1 border-r border-background/50 last:border-0 transition-colors`} title={st.stageName} />
                     })}
                   </div>
-                  <div className="text-[10px] text-muted-foreground text-right mt-1">Target: {currentStageObj?.targetDurationHours}h</div>
+                  <div className="text-[10px] text-muted-foreground text-right mt-1 font-medium">Target: {currentStageObj?.targetDurationHours}h</div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="pt-3 border-t flex flex-col gap-2 mt-auto">
+                <div className="pt-4 border-t border-border/50 flex flex-col gap-2 mt-auto">
                   {currentStageObj?.status === "Pending" && (
-                    <Button variant="outline" className="w-full text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => handleStartStage(wf.id, wf.currentStage)}>
+                    <Button variant="outline" className="w-full text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 shadow-sm transition-colors" onClick={() => handleStartStage(wf.id, wf.currentStage)}>
                       <PlayCircle className="h-4 w-4 mr-2" /> Start Stage
                     </Button>
                   )}
                   {currentStageObj?.status === "In Progress" && (
-                    <Button variant="outline" className="w-full text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => openConfirmation(wf.id, wf.currentStage)}>
+                    <Button variant="outline" className="w-full text-warning border-warning/30 hover:bg-warning/10 hover:text-warning shadow-sm transition-colors" onClick={() => openConfirmation(wf.id, wf.currentStage)}>
                       <CheckCircle className="h-4 w-4 mr-2" /> Mark Done
                     </Button>
                   )}
                   {/* Move to Next Stage removed since it auto-advances */}
                   {isFinalStage && currentStageObj?.status === "Done" && (
-                    <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleMarkFit(wf.wagonId)}>
+                    <Button className="w-full bg-success hover:bg-success/90 text-success-foreground shadow-sm transition-colors" onClick={() => handleMarkFit(wf.wagonId)}>
                       <CheckCircle className="h-4 w-4 mr-2" /> Mark Wagon Fit
                     </Button>
                   )}
@@ -188,12 +189,11 @@ export default function SickLine() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Wrench className="h-6 w-6 text-primary" /> Sick Line Workflows
-        </h1>
-        <p className="text-sm text-muted-foreground">Manual stage management requiring Inspector Confirmation.</p>
-      </div>
+      <PageHeader 
+        title="Sick Line Workflows"
+        description="Manual stage management requiring Inspector Confirmation."
+        icon={Wrench}
+      />
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-4 flex flex-wrap h-auto bg-transparent justify-start gap-2 border-b w-full rounded-none px-0">

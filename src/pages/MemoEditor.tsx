@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, Save, Printer, ArrowRight, ArrowLeft, PlusCircle, CheckCircle } from "lucide-react";
+import { Trash2, Save, Printer, ArrowRight, ArrowLeft, PlusCircle, CheckCircle, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default function MemoEditor() {
   const { id } = useParams();
@@ -120,11 +121,11 @@ export default function MemoEditor() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {isNew ? `Create ${isSick ? 'Sick' : 'Fit'} Memo` : `Edit Memo: ${memo.memoNo}`}
-        </h1>
-      </div>
+      <PageHeader 
+        title={isNew ? `Create ${isSick ? 'Sick' : 'Fit'} Memo` : `Edit Memo: ${memo.memoNo}`}
+        description="Create or modify a wagon memo for the yard."
+        icon={FileText}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">

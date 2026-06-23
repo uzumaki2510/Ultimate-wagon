@@ -3,16 +3,17 @@ import { useAppStore } from "@/store/useAppStore";
 import { WagonTable } from "@/components/WagonTable";
 import { WagonInput } from "@/components/WagonInput";
 import { ExportButton } from "@/components/ExportButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { WagonRepair, WagonDetails, SickLine, RepairType, generateId } from "@/lib/wagonData";
+import { Card, CardContent } from "@/components/ui/card";
+import { WagonRepair, WagonDetails } from "@/lib/wagonData";
 import { PriorityLevel, RepairTask } from "@/types/index";
-import { Train, ListFilter, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Train } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { FilterBar } from "@/components/shared/FilterBar";
+import { StatCard } from "@/components/shared/StatCard";
 
 export default function WagonRegister() {
   const { wagons: zustandWagons, workflows, addWagon, updateWagon, removeWagon } = useAppStore();
@@ -22,10 +23,8 @@ export default function WagonRegister() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState(searchParams.get("filterStatus") || "all");
-  const [filterType, setFilterType] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
 
-  // Map Zustand Wagons to WagonRepair format for the WagonTable component
   const mappedWagons: WagonRepair[] = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0];
     
@@ -45,7 +44,7 @@ export default function WagonRegister() {
 
       let isFit = w.status === "Fit For Loading" || (w.status as string) === "Completed";
       if (allDone) isFit = true;
-      if (hasStatusConflict) isFit = false; // Don't show as fit if there's a conflict
+      if (hasStatusConflict) isFit = false;
 
       let isSick = w.status === "Cut Off" || w.status === "Sick Line" || (w.status as string) === "Sick";
       let isRepair = w.status === "Under Repair";
@@ -54,7 +53,6 @@ export default function WagonRegister() {
         const currentStageName = wf.currentStage;
         const currentStageRecord = wf.stages.find(st => st.stageName === currentStageName);
         
-        // Use the store status to dictate visual badge if possible
         if (w.status === "Cut Off" || w.status === "Sick Line" || w.status === "Issue Marked" || (w.status as string) === "Sick") {
           isSick = true;
           isRepair = false;
@@ -62,7 +60,6 @@ export default function WagonRegister() {
           isSick = false;
           isRepair = true;
         } else {
-           // Fallback to workflow stage if store status doesn't match
            const isFirstStage = currentStageName === wf.stages[0].stageName;
            const isFirstStageDone = isFirstStage && currentStageRecord?.status === "Done";
            
@@ -109,17 +106,16 @@ export default function WagonRegister() {
         arrivalTime: "00:00",
         trainNumber: w.rakeId || "",
         sickLine: (w as any).sickLine || "line1",
-        status: mappedStatus as any, // Type coercion to avoid TS errors on new statuses
+        status: mappedStatus as any,
         isToday,
         hasStatusConflict,
-        comments: w.comments || w.defect, // prefer comments, fallback to defect
+        comments: w.comments || w.defect,
         isSteamed: w.isSteamed,
         isDegassed: w.isDegassed,
       } as unknown as WagonRepair & { isToday: boolean };
     });
   }, [zustandWagons, workflows]);
 
-  // Apply Search & Filters
   const filteredWagons = useMemo(() => {
     let result = mappedWagons;
 
@@ -141,21 +137,17 @@ export default function WagonRegister() {
       }
     }
 
-    if (filterType !== "all") {
-      result = result.filter(w => w.details.typeName === filterType);
-    }
-
     if (filterCategory !== "all") {
       result = result.filter(w => w.details.category === filterCategory);
     }
 
     return result;
-  }, [mappedWagons, search, filterStatus, filterType, filterCategory]);
+  }, [mappedWagons, search, filterStatus, filterCategory]);
 
   const stats = useMemo(() => {
     const total = mappedWagons.length;
     const sick = mappedWagons.filter(w => w.status === "in-repair" || w.status === "sick").length;
-    const fit = mappedWagons.filter(w => w.status === "completed").length;
+    const fit = mappedWagons.filter(w => (w.status as string) === "fit" || w.status === "completed").length;
     
     const categories = mappedWagons.reduce((acc, w) => {
       const cat = w.details.category;
@@ -195,57 +187,64 @@ export default function WagonRegister() {
     toast({ title: "Wagon Added", description: `Wagon ${details.wagonNumber} added to register.` });
   };
 
+  const statusOptions = [
+    { label: "Sick Wagons", value: "sick" },
+    { label: "In Repair", value: "in-repair" },
+    { label: "Completed / Fit", value: "fit" },
+    { label: "Today Arrivals", value: "today" },
+  ];
+
+  const categoryOptions = [
+    { label: "Open Wagon", value: "Open Wagon" },
+    { label: "Covered Wagon", value: "Covered Wagon" },
+    { label: "Tank Wagon", value: "Tank Wagon" },
+    { label: "Flat Wagon", value: "Flat Wagon" },
+    { label: "Hopper Wagon", value: "Hopper Wagon" },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Wagon Register</h1>
-          <p className="text-sm text-muted-foreground">Comprehensive search, filter, and management of all wagons.</p>
-        </div>
-        <ExportButton wagons={filteredWagons} selectedWagons={[]} />
-      </div>
+      <PageHeader
+        title="Wagon Register"
+        description="Comprehensive search, filter, and management of all wagons."
+        icon={Train}
+        actions={<ExportButton wagons={filteredWagons} selectedWagons={[]} />}
+      />
 
-      {/* Advanced Search & Filter Bar */}
-      <Card className="border-primary/20 shadow-sm">
-        <CardContent className="p-4 flex flex-col md:flex-row gap-3">
-          <Input 
-            placeholder="Search wagon number, type, owner, category..." 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1"
-          />
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="sick">Sick Wagons</SelectItem>
-              <SelectItem value="in-repair">In Repair</SelectItem>
-              <SelectItem value="fit">Completed / Fit</SelectItem>
-              <SelectItem value="today">Today Arrivals</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Category" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="Open Wagon">Open Wagon</SelectItem>
-              <SelectItem value="Covered Wagon">Covered Wagon</SelectItem>
-              <SelectItem value="Tank Wagon">Tank Wagon</SelectItem>
-              <SelectItem value="Flat Wagon">Flat Wagon</SelectItem>
-              <SelectItem value="Hopper Wagon">Hopper Wagon</SelectItem>
-            </SelectContent>
-          </Select>
+      <Card className="border-border/50 shadow-sm overflow-hidden">
+        <CardContent className="p-4 bg-muted/30">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <SearchBar 
+              value={search} 
+              onChange={setSearch} 
+              placeholder="Search wagon number, type, owner..." 
+              className="flex-1" 
+            />
+            <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+              <FilterBar 
+                value={filterStatus} 
+                onChange={setFilterStatus} 
+                options={statusOptions} 
+                placeholder="Status" 
+              />
+              <FilterBar 
+                value={filterCategory} 
+                onChange={setFilterCategory} 
+                options={categoryOptions} 
+                placeholder="Category" 
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Category Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        <Card className="bg-slate-50"><CardContent className="p-3 text-center"><div className="text-xs text-muted-foreground">Total</div><div className="text-xl font-bold">{stats.total}</div></CardContent></Card>
-        <Card className="bg-red-50"><CardContent className="p-3 text-center"><div className="text-xs text-red-600">In Repair</div><div className="text-xl font-bold text-red-700">{stats.sick}</div></CardContent></Card>
-        <Card className="bg-green-50"><CardContent className="p-3 text-center"><div className="text-xs text-green-600">Completed</div><div className="text-xl font-bold text-green-700">{stats.fit}</div></CardContent></Card>
+        <StatCard title="Total" value={stats.total} className="bg-slate-50/50" />
+        <StatCard title="In Repair" value={stats.sick} className="bg-red-50/50 text-red-700" />
+        <StatCard title="Completed" value={stats.fit} className="bg-green-50/50 text-green-700" />
         
         {["Open Wagon", "Covered Wagon", "Tank Wagon", "Flat Wagon", "Hopper Wagon"].map(cat => (
-          <Card key={cat}><CardContent className="p-3 text-center"><div className="text-xs text-muted-foreground truncate" title={cat}>{cat}</div><div className="text-lg font-bold">{stats.categories[cat] || 0}</div></CardContent></Card>
+          <StatCard key={cat} title={cat} value={stats.categories[cat] || 0} />
         ))}
       </div>
 

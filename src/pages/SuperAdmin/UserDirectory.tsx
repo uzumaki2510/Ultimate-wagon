@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Download, Search, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SearchBar } from "@/components/shared/SearchBar";
+import { LoadingState } from "@/components/shared/LoadingState";
 
 export default function UserDirectory() {
   const [users, setUsers] = useState<any[]>([]);
@@ -58,36 +61,34 @@ export default function UserDirectory() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">User Directory</h1>
-          <p className="text-sm text-muted-foreground">Complete master list of all accounts in the system.</p>
-        </div>
-        <Button variant="outline" onClick={exportCSV} className="gap-2 shrink-0">
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
-      </div>
+    <div className="space-y-6 animate-fade-in pb-12">
+      <PageHeader 
+        title="User Directory"
+        description="Complete master list of all accounts in the system."
+        icon={Users}
+        actions={
+          <Button variant="outline" onClick={exportCSV} className="gap-2 shrink-0 shadow-sm bg-background hover:bg-muted">
+            <Download className="h-4 w-4" /> <span className="hidden sm:inline">Export CSV</span>
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader>
+      <Card className="border-border/50 shadow-sm overflow-hidden">
+        <CardHeader className="bg-secondary/20 pb-4 border-b border-border/50">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               <CardTitle>Directory ({users.length})</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search name, email, code..."
-                  className="pl-8"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                />
-              </div>
+              <SearchBar 
+                value={q}
+                onChange={setQ}
+                placeholder="Search name, email, code..."
+                className="w-full sm:w-[250px]"
+              />
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[140px] shadow-sm bg-background">
                   <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
                 <SelectContent>
@@ -98,7 +99,7 @@ export default function UserDirectory() {
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[140px] shadow-sm bg-background">
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
@@ -111,39 +112,39 @@ export default function UserDirectory() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <div className="py-8 text-center animate-pulse">Loading directory...</div>
+            <LoadingState text="Loading directory..." />
           ) : (
-            <div className="rounded-md border">
+            <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>User Details</TableHead>
-                    <TableHead>Emp Code</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Joined</TableHead>
+                <TableHeader className="bg-secondary/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-semibold pl-6">User Details</TableHead>
+                    <TableHead className="font-semibold">Emp Code</TableHead>
+                    <TableHead className="font-semibold">Role</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Department</TableHead>
+                    <TableHead className="font-semibold">Joined</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                         No users found matching your filters.
                       </TableCell>
                     </TableRow>
                   ) : (
                     users.map(u => (
-                      <TableRow key={u._id} className={u.isActive === false ? 'opacity-50 bg-muted/20' : ''}>
-                        <TableCell>
-                          <div className="font-medium">{u.name}</div>
+                      <TableRow key={u._id} className={`${u.isActive === false ? 'opacity-50 bg-muted/20' : ''} hover:bg-muted/50 transition-colors`}>
+                        <TableCell className="pl-6">
+                          <div className="font-semibold tracking-tight">{u.name}</div>
                           <div className="text-xs text-muted-foreground">{u.email}</div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{u.empCode || '-'}</TableCell>
+                        <TableCell className="font-mono text-xs">{u.empCode || '-'}</TableCell>
                         <TableCell>
-                          <span className={`text-xs px-2 py-0.5 rounded-md uppercase tracking-wide font-semibold ${
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold ${
                             u.role === 'super_admin' ? 'bg-primary/20 text-primary' :
                             u.role === 'admin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
                             'bg-muted text-muted-foreground'
@@ -152,17 +153,17 @@ export default function UserDirectory() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className={`h-2 w-2 rounded-full ${
+                          <div className="flex items-center gap-1.5">
+                            <span className={`h-2 w-2 rounded-full shadow-sm ${
                               !u.isActive ? 'bg-gray-400' :
-                              u.status === 'approved' ? 'bg-emerald-500' :
-                              u.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'
+                              u.status === 'approved' ? 'bg-success' :
+                              u.status === 'pending' ? 'bg-warning' : 'bg-destructive'
                             }`} />
-                            <span className="text-sm capitalize">{!u.isActive ? 'Inactive' : u.status}</span>
+                            <span className="text-sm font-medium capitalize">{!u.isActive ? 'Inactive' : u.status}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-sm">{u.department || '-'}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(u.createdAt).toLocaleDateString()}
                         </TableCell>
                       </TableRow>

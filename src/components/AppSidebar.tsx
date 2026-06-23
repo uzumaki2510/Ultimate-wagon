@@ -71,8 +71,8 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+        <SidebarGroup className="pt-4">
+          <SidebarGroupLabel className="text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredItems.map((n) => (
@@ -101,9 +101,9 @@ export function AppSidebar() {
 
         {isSuperAdmin && (
           <Collapsible defaultOpen className="group/collapsible">
-            <SidebarGroup>
+            <SidebarGroup className="pt-2">
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-primary font-bold">
+                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">
                   Super Admin
                   <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                 </CollapsibleTrigger>
@@ -130,9 +130,9 @@ export function AppSidebar() {
 
         {isAdmin && (
           <Collapsible defaultOpen className="group/collapsible">
-            <SidebarGroup>
+            <SidebarGroup className="pt-2">
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center">
+                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">
                   Admin / More
                   <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                 </CollapsibleTrigger>
@@ -162,9 +162,11 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/profile")}>
-              <NavLink to="/profile" className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4" />
-                {!collapsed && <span className="truncate">{user?.name || "Profile"}</span>}
+              <NavLink to="/profile" className="flex items-center gap-3">
+                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                  <UserIcon className="h-3 w-3" />
+                </div>
+                {!collapsed && <span className="truncate font-medium">{user?.name || "Profile"}</span>}
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
