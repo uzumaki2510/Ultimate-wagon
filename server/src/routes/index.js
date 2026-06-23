@@ -14,6 +14,9 @@ const certificationRoutes = require('./certifications');
 const movementRoutes = require('./movements');
 const reportRoutes = require('./reports');
 const dashboardRoutes = require('./dashboard');
+const memoRoutes = require('./memos');
+const workflowRoutes = require('./workflows');
+const rakeRoutes = require('./rakes');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -28,5 +31,8 @@ router.use('/certifications', certificationRoutes);
 router.use('/movements', movementRoutes);
 router.use('/reports', reportRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/memos', memoRoutes);
+router.use('/workflows', workflowRoutes);
+router.use('/rakes', rakeRoutes);
 
 module.exports = router;

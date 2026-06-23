@@ -11,8 +11,13 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function AppLayout() {
   const nav = useNavigate();
   const { user, isAdmin, isLoading } = useAuth();
+  const { initializeStore } = useAppStore();
 
-
+  useEffect(() => {
+    if (user && !isLoading) {
+      initializeStore();
+    }
+  }, [user, isLoading, initializeStore]);
 
   if (isLoading) {
     return (

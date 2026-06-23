@@ -6,8 +6,13 @@ import {
   FitConfirmation, InspectionChecklist
 } from "@/types";
 import { getWorkflowTemplate } from "@/lib/workflowConfig";
+import { wagonApi } from "@/api/wagons";
+import { memoApi } from "@/api/memos";
+import { workflowApi } from "@/api/workflows";
+import { rakeApi } from "@/api/rakes";
 
 interface AppState {
+  initializeStore: () => Promise<void>;
   wagons: Wagon[];
   rakes: Rake[];
   memos: UnitMemo[];
@@ -59,16 +64,34 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>()(
-  persist(
-    (set, get) => ({
+  (set, get) => ({
       wagons: [], rakes: [], memos: [], workflows: [], employees: [], audit: [], seeded: false,
       isAdmin: true,
       toggleAdmin: (v) => set((s) => ({ isAdmin: v ?? !s.isAdmin })),
 
+      initializeStore: async () => {
+        try {
+          const [wagonsRes, memosRes, workflowsRes, rakesRes] = await Promise.all([
+            wagonApi.getWagons().catch(() => ({ data: { data: [] } })),
+            memoApi.getMemos().catch(() => ({ data: { data: [] } })),
+            workflowApi.getWorkflows().catch(() => ({ data: { data: [] } })),
+            rakeApi.getRakes().catch(() => ({ data: { data: [] } }))
+          ]);
+          set({
+            wagons: (wagonsRes?.data?.data || wagonsRes?.data || []).map((w: any) => ({...w, id: w._id || w.id})),
+            memos: (memosRes?.data?.data || memosRes?.data || []).map((m: any) => ({...m, id: m._id || m.id})),
+            workflows: (workflowsRes?.data?.data || workflowsRes?.data || []).map((wf: any) => ({...wf, id: wf._id || wf.id})),
+            rakes: (rakesRes?.data?.data || rakesRes?.data || []).map((r: any) => ({...r, id: r._id || r.id}))
+          });
+        } catch (err) {
+          console.error("Failed to initialize store", err);
+        }
+      },
 
       addWagon: (w) => {
         const wagon: Wagon = { ...w, id: nanoid() };
         set((s) => ({ wagons: [...s.wagons, wagon] }));
+        wagonApi.createWagon(wagon).catch(console.error);
         get().log({ actor: "user", action: "Wagon added", wagonId: wagon.id, details: wagon.wagonNo });
         // Auto-create workflow for all wagons
         get().upsertWorkflowForWagon(wagon.id);
@@ -83,6 +106,7 @@ export const useAppStore = create<AppState>()(
       },
       updateWagon: (id, patch, actorName) => {
         set((s) => ({ wagons: s.wagons.map((w) => (w.id === id ? { ...w, ...patch } : w)) }));
+        wagonApi.updateWagon(id, patch).catch(console.error);
         const actionDetails = patch.repairTypes ? `Repair types: ${patch.repairTypes.join(", ")}` : JSON.stringify(patch);
         get().log({ actor: actorName || "user", action: patch.repairTypes ? "Repair Types Updated" : "Wagon updated", wagonId: id, details: actionDetails });
 
@@ -117,10 +141,13 @@ export const useAppStore = create<AppState>()(
           }
         }
       },
-      removeWagon: (id) => set((s) => ({ 
-        wagons: s.wagons.filter((w) => w.id !== id),
-        workflows: s.workflows.filter((w) => w.wagonId !== id)
-      })),
+      removeWagon: (id) => {
+        set((s) => ({ 
+          wagons: s.wagons.filter((w) => w.id !== id),
+          workflows: s.workflows.filter((w) => w.wagonId !== id)
+        }));
+        wagonApi.deleteWagon(id).catch(console.error);
+      },
 
       addRake: (r) => {
         const rake: Rake = { ...r, id: nanoid(), createdAt: new Date().toISOString(), wagonIds: r.wagonIds ?? [] };
@@ -128,7 +155,10 @@ export const useAppStore = create<AppState>()(
         get().log({ actor: "user", action: "Rake created", details: rake.rakeId });
         return rake;
       },
-      updateRake: (id, patch) => set((s) => ({ rakes: s.rakes.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
+      updateRake: (id, patch) => {
+        set((s) => ({ rakes: s.rakes.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
+        rakeApi.updateRake(id, patch).catch(console.error);
+      },
       removeRake: (id) => set((s) => ({ rakes: s.rakes.filter((r) => r.id !== id) })),
       addWagonToRake: (rakeId, wagonId) => {
         set((s) => ({
@@ -144,6 +174,7 @@ export const useAppStore = create<AppState>()(
       addMemo: (m) => {
         const memo: UnitMemo = { ...m, id: nanoid(), createdAt: new Date().toISOString() };
         set((s) => ({ memos: [...s.memos, memo] }));
+        memoApi.createMemo(memo).catch(console.error);
         memo.entries.forEach((e) => {
           if (memo.memoType === "sick") {
             get().upsertWorkflowForWagon(e.wagonId, memo.id);
@@ -157,6 +188,7 @@ export const useAppStore = create<AppState>()(
       },
       updateMemo: (id, patch) => {
         set((s) => ({ memos: s.memos.map((m) => (m.id === id ? { ...m, ...patch } : m)) }));
+        memoApi.updateMemo(id, patch).catch(console.error);
         get().log({ actor: "user", action: "Memo updated", memoId: id });
       },
       removeMemo: (id) => set((s) => ({ memos: s.memos.filter((m) => m.id !== id) })),
@@ -193,6 +225,7 @@ export const useAppStore = create<AppState>()(
         };
         
         set((s) => ({ workflows: [...s.workflows, item] }));
+        workflowApi.createWorkflow(item).catch(console.error);
       },
 
       startStage: (id, stageName, staffName = "User") => {
@@ -472,10 +505,5 @@ export const useAppStore = create<AppState>()(
           ].slice(0, 1000),
         }));
       },
-    }),
-    {
-      name: "wagon-whisperer-store",
-      version: 1,
-    },
-  ),
+  })
 );
