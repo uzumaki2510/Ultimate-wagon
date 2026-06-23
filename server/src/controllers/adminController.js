@@ -11,6 +11,8 @@ const { buildPaginationMeta } = require('../middleware/pagination');
 // @route   GET /api/v1/admin/dashboard
 // @access  Admin, Super Admin
 const getDashboardMetrics = asyncHandler(async (req, res) => {
+  const baseQuery = req.user.role === ROLES.ADMIN ? { role: { $ne: ROLES.SUPER_ADMIN } } : {};
+
   const [
     totalEmployees,
     totalAdmins,
@@ -19,12 +21,12 @@ const getDashboardMetrics = asyncHandler(async (req, res) => {
     rejectedUsers,
     recentRegistrations
   ] = await Promise.all([
-    User.countDocuments({ role: ROLES.EMPLOYEE }),
-    User.countDocuments({ role: ROLES.ADMIN }),
-    User.countDocuments({ status: 'pending' }),
-    User.countDocuments({ isActive: true, status: 'approved' }),
-    User.countDocuments({ status: 'rejected' }),
-    User.find().sort({ createdAt: -1 }).limit(5).select('name email role status createdAt')
+    User.countDocuments({ ...baseQuery, role: ROLES.EMPLOYEE }),
+    User.countDocuments({ ...baseQuery, role: ROLES.ADMIN }),
+    User.countDocuments({ ...baseQuery, status: 'pending' }),
+    User.countDocuments({ ...baseQuery, isActive: true, status: 'approved' }),
+    User.countDocuments({ ...baseQuery, status: 'rejected' }),
+    User.find(baseQuery).sort({ createdAt: -1 }).limit(5).select('name email role status createdAt')
   ]);
 
   return ApiResponse.success(res, 'Dashboard metrics retrieved', {
@@ -52,8 +54,15 @@ const getAllUsers = asyncHandler(async (req, res) => {
       { empCode: { $regex: q, $options: 'i' } },
     ];
   }
-  if (role) filter.role = role;
   if (status) filter.status = status;
+
+  // Enforce RBAC: Admins cannot see Super Admins
+  if (req.user.role === ROLES.ADMIN) {
+    filter.role = { $ne: ROLES.SUPER_ADMIN };
+  } else if (req.user.role === ROLES.SUPER_ADMIN && role) {
+    // If Super Admin specifically requested a role, use it
+    filter.role = role;
+  }
 
   const [users, total] = await Promise.all([
     User.find(filter).sort(sort || { createdAt: -1 }).skip(skip).limit(limit).lean(),
@@ -67,7 +76,13 @@ const getAllUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/admin/pending-users
 // @access  Admin, Super Admin
 const getPendingUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({ status: 'pending' }).sort('-createdAt').lean();
+  const filter = { status: 'pending' };
+  
+  if (req.user.role === ROLES.ADMIN) {
+    filter.role = { $ne: ROLES.SUPER_ADMIN };
+  }
+
+  const users = await User.find(filter).sort('-createdAt').lean();
   return ApiResponse.success(res, 'Pending users retrieved', users);
 });
 
@@ -107,6 +122,10 @@ const approveUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound('User not found');
 
+  if (req.user.role === ROLES.ADMIN && user.role === ROLES.SUPER_ADMIN) {
+    throw ApiError.forbidden('Admins cannot approve or modify Super Admins');
+  }
+
   user.status = 'approved';
   user.isActive = true;
   await user.save();
@@ -127,6 +146,10 @@ const approveUser = asyncHandler(async (req, res) => {
 const rejectUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound('User not found');
+
+  if (req.user.role === ROLES.ADMIN && user.role === ROLES.SUPER_ADMIN) {
+    throw ApiError.forbidden('Admins cannot reject or modify Super Admins');
+  }
 
   user.status = 'rejected';
   user.isActive = false;
