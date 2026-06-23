@@ -156,7 +156,14 @@ export const useAppStore = create<AppState>()(
       addMemo: (m) => {
         const memo: UnitMemo = { ...m, id: nanoid(), createdAt: new Date().toISOString() };
         set((s) => ({ memos: [...s.memos, memo] }));
-        memo.entries.forEach((e) => get().upsertWorkflowForWagon(e.wagonId, memo.id));
+        memo.entries.forEach((e) => {
+          if (memo.type === "sick") {
+            get().upsertWorkflowForWagon(e.wagonId, memo.id);
+            get().updateWagon(e.wagonId, { status: "Sick Line" }, "system");
+          } else if (memo.type === "fit") {
+            get().updateWagon(e.wagonId, { status: "Fit For Loading" }, "system");
+          }
+        });
         get().log({ actor: "user", action: "Memo created", memoId: memo.id, details: memo.memoNo });
         return memo;
       },
@@ -197,7 +204,7 @@ export const useAppStore = create<AppState>()(
           currentStage: stageRecords[0].stageName, stages: stageRecords, updatedAt: new Date().toISOString(),
         };
         
-        set((s) => ({ workflows: [...s.workflows, item], wagons: s.wagons.map((w) => w.id === wagonId ? { ...w, status: "Sick Line" } : w) }));
+        set((s) => ({ workflows: [...s.workflows, item] }));
       },
 
       startStage: (id, stageName, staffName = "User") => {

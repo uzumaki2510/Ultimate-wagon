@@ -1,10 +1,11 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User, LogOut, Trash2, Zap } from "lucide-react";
+import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User, LogOut, Trash2, Zap, ChevronDown } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -85,23 +86,32 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Admin / More</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {adminItems.map((n) => (
-                  <SidebarMenuItem key={n.url}>
-                    <SidebarMenuButton asChild isActive={isActive(n.url)}>
-                      <NavLink to={n.url} className="flex items-center gap-2">
-                        <n.icon className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span>{n.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <Collapsible defaultOpen className="group/collapsible">
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center">
+                  Admin / More
+                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {adminItems.map((n) => (
+                      <SidebarMenuItem key={n.url}>
+                        <SidebarMenuButton asChild isActive={isActive(n.url)}>
+                          <NavLink to={n.url} className="flex items-center gap-2">
+                            <n.icon className="h-4 w-4 shrink-0" />
+                            {!collapsed && <span>{n.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
         )}
       </SidebarContent>
 

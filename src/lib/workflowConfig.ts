@@ -23,7 +23,6 @@ export const WORKFLOW_CONFIGS: Record<string, WorkflowTemplate> = {
       { name: "Issue Marked", targetDurationHours: 0 },
       { name: "Steaming", targetDurationHours: 2 },
       { name: "Steam Point 24h", targetDurationHours: 24 },
-      { name: "Rectification", targetDurationHours: 4 },
       { name: "Placement Decision", targetDurationHours: 1 },
       { name: "Hydro Testing", targetDurationHours: 3 },
       { name: "Fit For Use", targetDurationHours: 0 },

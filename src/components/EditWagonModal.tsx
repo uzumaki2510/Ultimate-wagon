@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import { MV_SHED_REPAIRS, SICK_LINE_ROH_REPAIRS } from "@/lib/placementRepairs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
   const [checklist, setChecklist] = useState<InspectionChecklist>({});
 
   const [placementDecision, setPlacementDecision] = useState<string>("sick_line");
+  const [selectedPlacementRepairs, setSelectedPlacementRepairs] = useState<string[]>([]);
 
   const isTankWagon = wagon && ["BTPN", "BTPFLN", "BTPNHS", "BTPGLN"].includes((wagon.type || "").toUpperCase());
   const isWorkflowWagon = true; // All wagons now use workflows
@@ -102,7 +104,10 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
     }
     
     if (activeStage) {
-      const pRemarks = activeStage === "Placement Decision" ? `Routed to ${placementDecision === "mv_shed" ? "MV Shed" : "Sick Line"}. ` : "";
+      let pRemarks = activeStage === "Placement Decision" ? `Routed to ${placementDecision === "mv_shed" ? "MV Shed" : "Sick Line"}. ` : "";
+      if (activeStage === "Placement Decision" && selectedPlacementRepairs.length > 0) {
+        pRemarks += `Repairs marked: ${selectedPlacementRepairs.join(", ")}. `;
+      }
       const finalRemarks = remarks.trim() || `${pRemarks}Stage ${activeStage} completed by ${loggedInUserName} and verified by ${inspectorName}.`;
       markStageDone(wf.id, activeStage, loggedInUserName, inspectorName, finalRemarks);
       sessionStorage.setItem("lastInspectorName", inspectorName);
@@ -276,8 +281,8 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
                             <div className="flex flex-col items-end gap-2 mt-2 w-full">
                               {st.stageName === "Placement Decision" && (
                                 <div className="mt-4 mb-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-md border text-sm w-full text-left">
-                                  <Label className="font-semibold mb-2 block">Placement Routing Decision</Label>
-                                  <RadioGroup value={placementDecision} onValueChange={setPlacementDecision} className="flex gap-4">
+                                  <Label className="font-semibold mb-3 block">Placement Routing Decision & Repairs</Label>
+                                  <RadioGroup value={placementDecision} onValueChange={(val) => { setPlacementDecision(val); setSelectedPlacementRepairs([]); }} className="flex gap-4 mb-4">
                                     <div className="flex items-center space-x-2">
                                       <RadioGroupItem value="mv_shed" id="mv_shed" />
                                       <Label htmlFor="mv_shed">MV Shed (Master Valve)</Label>
@@ -287,6 +292,31 @@ export function EditWagonModal({ wagonId, open, onOpenChange }: EditWagonModalPr
                                       <Label htmlFor="sick_line">Sick Line (ROH)</Label>
                                     </div>
                                   </RadioGroup>
+                                  
+                                  <div className="mt-3">
+                                    <Label className="text-xs text-muted-foreground mb-2 block">
+                                      Select repairs performed (Optional):
+                                    </Label>
+                                    <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto p-1">
+                                      {(placementDecision === "mv_shed" ? MV_SHED_REPAIRS : SICK_LINE_ROH_REPAIRS).map((repair) => {
+                                        const isSelected = selectedPlacementRepairs.includes(repair);
+                                        return (
+                                          <Badge 
+                                            key={repair}
+                                            variant={isSelected ? "default" : "outline"}
+                                            className="cursor-pointer hover:bg-primary/80 transition-colors"
+                                            onClick={() => {
+                                              setSelectedPlacementRepairs(prev => 
+                                                isSelected ? prev.filter(r => r !== repair) : [...prev, repair]
+                                              );
+                                            }}
+                                          >
+                                            {repair}
+                                          </Badge>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                               <div className="flex gap-2">

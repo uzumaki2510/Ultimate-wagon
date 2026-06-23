@@ -127,8 +127,8 @@ export function WagonInput({ onWagonParsed }: WagonInputProps) {
   const getWorkflowPreview = () => {
     if (!parsedDetails) return [];
     if (parsedDetails.typeName === "BTPGLN") return ["Sick Reason", "RRT De-Gassing", "HAPA Examination", "Purging", "Yard Examination", "Fit For Loading"];
-    if (["BTPN", "BTPFLN", "BTPNHS"].includes(parsedDetails.typeName)) return ["Issue Marked", "Steaming", "Steam Point", "Rectification", "Hydro Testing", "Fit For Use"];
-    return ["Issue Marked", "Rectification", "Inspection", "Fit"];
+    if (["BTPN", "BTPFLN", "BTPNHS"].includes(parsedDetails.typeName)) return ["Issue Marked", "Steaming", "Steam Point", "Placement Decision", "Hydro Testing", "Fit For Use"];
+    return ["Issue Marked", "Repair / Rectification", "Checklist / Testing", "Fit For Loading"];
   };
 
   return (
