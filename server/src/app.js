@@ -13,10 +13,8 @@ const app = express();
 // ── Security ─────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: env.CLIENT_URL,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: process.env.FRONTEND_URL || env.FRONTEND_URL,
+  credentials: true
 }));
 
 // ── Rate Limiting ────────────────────────────────────────

@@ -35,4 +35,12 @@ router.use('/memos', memoRoutes);
 router.use('/workflows', workflowRoutes);
 router.use('/rakes', rakeRoutes);
 
+const mongoose = require('mongoose');
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
 module.exports = router;

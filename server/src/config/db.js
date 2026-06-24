@@ -4,16 +4,18 @@ const env = require('./env');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(env.MONGO_URI, {
+    const conn = await mongoose.connect(env.MONGODB_URI, {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
 
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
+    console.log('MongoDB connection success');
 
     mongoose.connection.on('error', (err) => {
       logger.error(`MongoDB connection error: ${err.message}`);
+      console.error(`MongoDB connection error: ${err.message}`);
     });
 
     mongoose.connection.on('disconnected', () => {
@@ -27,6 +29,7 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     logger.error(`MongoDB connection failed: ${error.message}`);
+    console.error(`MongoDB connection failed: ${error.message}`);
     process.exit(1);
   }
 };

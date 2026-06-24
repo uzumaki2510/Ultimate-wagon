@@ -5,6 +5,11 @@ const logger = require('./config/logger');
 
 const startServer = async () => {
   try {
+    // Startup logging
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Port:', process.env.PORT);
+    console.log('Frontend URL:', process.env.FRONTEND_URL);
+
     // Connect to MongoDB
     await connectDB();
     

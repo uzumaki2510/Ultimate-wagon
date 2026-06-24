@@ -21,6 +21,10 @@ const Wagon = require('../src/models/Wagon');
 // We also need to mock the DB connection to avoid trying to actually connect
 jest.mock('../src/config/db', () => jest.fn().mockResolvedValue(true));
 
+jest.mock('../src/models/RefreshToken', () => ({
+  create: jest.fn().mockResolvedValue(true),
+}));
+
 // Mock authService token verification to bypass JWT real check
 const authService = require('../src/services/authService');
 jest.mock('../src/services/authService', () => ({
@@ -40,6 +44,13 @@ describe('Backend API Mock Tests', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe('Wagon Whisper API is running');
     });
+
+    it('should return api/v1/health check', async () => {
+      const res = await request(app).get('/api/v1/health');
+      expect(res.statusCode).toBe(200);
+      expect(res.body.status).toBe('ok');
+      expect(res.body.database).toBeDefined();
+    });
   });
 
   describe('Auth Flow', () => {
@@ -48,7 +59,7 @@ describe('Backend API Mock Tests', () => {
         _id: 'user123',
         name: 'Test Admin',
         email: 'admin@test.com',
-        role: 'Admin',
+        role: 'admin',
         isActive: true,
         comparePassword: jest.fn().mockResolvedValue(true),
         save: jest.fn().mockResolvedValue(true),
@@ -58,6 +69,8 @@ describe('Backend API Mock Tests', () => {
       User.findOne.mockReturnValue({
         select: jest.fn().mockResolvedValue(mockUser)
       });
+
+      authService.verifyRefreshToken.mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 });
 
       const res = await request(app)
         .post('/api/v1/auth/login')
@@ -90,7 +103,7 @@ describe('Backend API Mock Tests', () => {
 
     it('should create a wagon successfully', async () => {
       User.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue({ _id: 'user123', role: 'Admin', isActive: true })
+        select: jest.fn().mockResolvedValue({ _id: 'user123', role: 'admin', isActive: true })
       });
 
       Wagon.findOne.mockResolvedValue(null);
@@ -119,7 +132,7 @@ describe('Backend API Mock Tests', () => {
 
     it('should fetch paginated wagons', async () => {
       User.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue({ _id: 'user123', role: 'Admin', isActive: true })
+        select: jest.fn().mockResolvedValue({ _id: 'user123', role: 'admin', isActive: true })
       });
 
       Wagon.find.mockReturnValue({

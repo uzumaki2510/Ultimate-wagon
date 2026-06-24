@@ -1,8 +1,9 @@
 import axios from "axios";
+import { API_BASE_URL } from "../config";
 
 // Create an Axios instance
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://ultimate-wagon-backend.onrender.com/api/v1",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
