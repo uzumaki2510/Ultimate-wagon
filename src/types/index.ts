@@ -15,16 +15,20 @@ export type BookedTo = typeof BOOKED_TO[number];
 export const WAGON_TYPES = ["BTPGLN", "BTPN", "BTPFLN", "BTPNHS", "BCNMI", "BOXN", "Other"] as const;
 export type WagonType = typeof WAGON_TYPES[number];
 
-export type WagonStatus =
-  | "ARRIVED"
-  | "INSPECTION_PENDING"
-  | "INSPECTION_COMPLETE"
-  | "SICK_LINE"
-  | "REPAIR_IN_PROGRESS"
-  | "REPAIR_COMPLETE"
-  | "FIT_CERTIFICATE_PENDING"
-  | "FIT_READY"
-  | "RELEASED";
+export enum WagonWorkflowStatus {
+  ARRIVED = "ARRIVED",
+  INSPECTION_PENDING = "INSPECTION_PENDING",
+  INSPECTION_COMPLETE = "INSPECTION_COMPLETE",
+  SICK_LINE = "SICK_LINE",
+  REPAIR_IN_PROGRESS = "REPAIR_IN_PROGRESS",
+  REPAIR_COMPLETE = "REPAIR_COMPLETE",
+  FIT_CERTIFICATE_PENDING = "FIT_CERTIFICATE_PENDING",
+  FIT_READY = "FIT_READY",
+  RELEASED = "RELEASED",
+  IN_SERVICE = "IN_SERVICE"
+}
+
+export type WagonStatus = `${WagonWorkflowStatus}`;
 
 export type PriorityLevel = "Normal" | "Urgent" | "Safety Critical";
 

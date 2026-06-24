@@ -32,11 +32,11 @@ export default function WagonRegister() {
       const wf = workflows.find(wfItem => wfItem.wagonId === w.id);
       
       let mappedStatus = "all";
-      if (w.status === "FIT_READY" || w.status === "RELEASED" || (w.status as string) === "FIT_CERTIFICATE_PENDING" || (w.status as string) === "REPAIR_COMPLETE" || w.status === "FIT_READY" || (w.status as string) === "completed") {
+      if (w.status === "FIT_READY" || w.status === "RELEASED" || (w.status as string) === "FIT_CERTIFICATE_PENDING" || (w.status as string) === "REPAIR_COMPLETE" || (w.status as string) === "completed") {
         mappedStatus = "fit";
-      } else if (w.status === "REPAIR_IN_PROGRESS" || w.status === "REPAIR_IN_PROGRESS") {
+      } else if (w.status === "REPAIR_IN_PROGRESS" || (w.status as string) === "Under Repair") {
         mappedStatus = "in-repair";
-      } else if (w.status === "SICK_LINE" || w.status === "REPAIR_IN_PROGRESS" || w.status === "SICK_LINE" || (w.status as string) === "SICK_LINE" || w.status === "SICK_LINE") {
+      } else if (w.status === "SICK_LINE" || (w.status as string) === "Issue Marked" || (w.status as string) === "Cut Off" || (w.status as string) === "Sick Line" || (w.status as string) === "Sick") {
         mappedStatus = "sick";
       }
       

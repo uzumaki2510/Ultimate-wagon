@@ -119,7 +119,7 @@ export const useAppStore = create<AppState>()(
         get().log({ actor: actorName || "user", action: patch.repairTypes ? "Repair Types Updated" : "Wagon updated", wagonId: id, details: actionDetails });
 
         // INTERCONNECT: If marked Fit from Register, complete workflow
-        if (patch.status === "FIT_READY" || patch.status === "FIT_READY") {
+        if (patch.status === "FIT_READY") {
           const wf = get().workflows.find(w => w.wagonId === id);
           if (wf) {
             set((s) => ({

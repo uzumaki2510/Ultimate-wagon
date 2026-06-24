@@ -27,7 +27,7 @@ export default function Reports() {
   const stats = useMemo(() => {
     const total = filteredWagons.length;
     const fit = filteredWagons.filter(w => w.status === "FIT_READY").length;
-    const sick = filteredWagons.filter(w => w.status !== "FIT_READY" && w.status !== "In Service").length;
+    const sick = filteredWagons.filter(w => w.status !== "FIT_READY" && w.status !== "IN_SERVICE").length;
     
     let criticalDefects = 0;
     let urgentDefects = 0;

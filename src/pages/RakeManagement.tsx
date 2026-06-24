@@ -28,8 +28,8 @@ export default function RakeManagement() {
 
   const addWagon = () => {
     if (!selectedRake) return;
-    const w = store.addWagon({ wagonNo: "", type: "BTPN", owner: "", builtYear: new Date().getFullYear(), status: "In Service", rakeId: selectedRake });
-    store.addWagonToRake(selectedRake, w.id);
+    const w = store.addWagon({ wagonNo: "", type: "BTPN", owner: "", builtYear: new Date().getFullYear(), status: "IN_SERVICE", rakeId: selectedRake });
+    if (selectedRake) store.addWagonToRake(selectedRake, w.id);
   };
 
   return (
