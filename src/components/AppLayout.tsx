@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { NotificationBell } from "@/components/shared/NotificationBell";
+import { GlobalSearch } from "@/components/shared/GlobalSearch";
 
 export default function AppLayout() {
   const nav = useNavigate();
@@ -44,7 +46,11 @@ export default function AppLayout() {
             </div>
             <Badge variant="outline" className="text-[10px] hidden md:inline-flex bg-primary/5 border-primary/20 text-primary">Railway UNIT MEMO System</Badge>
             <div className="ml-auto flex items-center gap-2 sm:gap-4">
+              <div className="hidden lg:block mr-2">
+                <GlobalSearch />
+              </div>
               {isAdmin && <Badge className="bg-success/10 text-success border-success/20 text-[10px] md:text-xs">Admin</Badge>}
+              <NotificationBell />
               <Button size="sm" className="text-xs h-8 sm:h-9 shadow-sm" onClick={() => nav("/memos/new")}>
                 <Plus className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">New Memo</span>
               </Button>

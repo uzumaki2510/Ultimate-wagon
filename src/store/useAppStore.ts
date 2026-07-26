@@ -3,13 +3,25 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import {
   AuditEvent, Employee, Rake, UnitMemo, Wagon, WorkflowItem, WorkflowStageRecord, WorkflowActionHistory,
-  FitConfirmation, InspectionChecklist
+  FitConfirmation, InspectionChecklist, WagonDocument
 } from "@/types";
 import { getWorkflowTemplate } from "@/lib/workflowConfig";
 import { wagonApi } from "@/api/wagons";
 import { memoApi } from "@/api/memos";
 import { workflowApi } from "@/api/workflows";
 import { rakeApi } from "@/api/rakes";
+import { auditApi } from "@/api/audit";
+import { notificationApi } from "@/api/notifications";
+import { masterDataApi, MasterDataRecord } from "@/api/masterData";
+
+export interface AppNotification {
+  _id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
 
 interface AppState {
   initializeStore: () => Promise<void>;
@@ -20,10 +32,19 @@ interface AppState {
   employees: Employee[];
   audit: AuditEvent[];
   seeded: boolean;
+  documents: WagonDocument[];
+  masterData: MasterDataRecord[];
+  
+  notifications: AppNotification[];
+  unreadCount: number;
+  fetchNotifications: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 
   isAdmin: boolean;
   toggleAdmin: (v?: boolean) => void;
 
+  log: (e: any) => void;
 
   // wagons
   addWagon: (wagon: Omit<Wagon, "id">) => Wagon;
@@ -48,6 +69,8 @@ interface AppState {
   upsertWorkflowForWagon: (wagonId: string, memoId?: string) => void;
   advanceWorkflow: (id: string, toStage: string) => void;
   startStage: (id: string, stageName: string, staffName?: string) => void;
+  pauseStage: (id: string, stageName: string, staffName: string, reason?: string) => void;
+  resumeStage: (id: string, stageName: string, staffName: string) => void;
   markStageDone: (id: string, stageName: string, staffName: string, inspectorName: string, remarks: string) => void;
   markWagonFit: (wagonId: string, fitConfirmation?: FitConfirmation) => { success: boolean; error?: string };
   updateInspectionChecklist: (wagonId: string, patch: Partial<InspectionChecklist>) => void;
@@ -59,13 +82,24 @@ interface AppState {
   updateEmployee: (id: string, patch: Partial<Employee>) => void;
   removeEmployee: (id: string) => void;
 
-  // audit
-  log: (e: Omit<AuditEvent, "id" | "at">) => void;
+  // documents
+  addDocumentMeta: (doc: WagonDocument) => void;
+  removeDocumentMeta: (id: string) => void;
+  getWagonDocuments: (wagonId: string) => WagonDocument[];
+
+  // master data
+  fetchMasterData: () => Promise<void>;
+  addMasterData: (data: Omit<MasterDataRecord, "_id" | "isActive">) => Promise<void>;
+  updateMasterData: (id: string, patch: Partial<MasterDataRecord>) => Promise<void>;
+  deleteMasterData: (id: string) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()(
   (set, get) => ({
       wagons: [], rakes: [], memos: [], workflows: [], employees: [], audit: [], seeded: false,
+      documents: [],
+      masterData: [],
+      notifications: [], unreadCount: 0,
       isAdmin: true,
       toggleAdmin: (v) => set((s) => ({ isAdmin: v ?? !s.isAdmin })),
 
@@ -83,8 +117,46 @@ export const useAppStore = create<AppState>()(
             workflows: (workflowsRes?.data?.data || workflowsRes?.data || []).map((wf: any) => ({...wf, id: wf._id || wf.id})),
             rakes: (rakesRes?.data?.data || rakesRes?.data || []).map((r: any) => ({...r, id: r._id || r.id}))
           });
+          get().fetchNotifications();
+          get().fetchMasterData();
         } catch (err) {
           console.error("Failed to initialize store", err);
+        }
+      },
+
+      fetchNotifications: async () => {
+        try {
+          const res = await notificationApi.getNotifications();
+          set({ 
+            notifications: res.data?.data?.notifications || [],
+            unreadCount: res.data?.data?.unreadCount || 0
+          });
+        } catch (error) {
+          console.error("Failed to fetch notifications", error);
+        }
+      },
+
+      markNotificationRead: async (id) => {
+        try {
+          await notificationApi.markAsRead(id);
+          set(s => ({
+            notifications: s.notifications.map(n => n._id === id ? { ...n, isRead: true } : n),
+            unreadCount: Math.max(0, s.unreadCount - 1)
+          }));
+        } catch (error) {
+          console.error("Failed to mark notification read", error);
+        }
+      },
+
+      markAllNotificationsRead: async () => {
+        try {
+          await notificationApi.markAllAsRead();
+          set(s => ({
+            notifications: s.notifications.map(n => ({ ...n, isRead: true })),
+            unreadCount: 0
+          }));
+        } catch (error) {
+          console.error("Failed to mark all notifications read", error);
         }
       },
 
@@ -287,6 +359,64 @@ export const useAppStore = create<AppState>()(
         if (wf) get().log({ actor: staffName, action: "Stage Started", details: `Started ${stageName} for wagon ${wf.wagonNo}`, wagonId: wf.wagonId });
       },
 
+      pauseStage: (id, stageName, staffName, reason) => {
+        const wfBefore = get().workflows.find(w => w.id === id);
+        if (wfBefore) {
+          const { actionHistory, ...wfWithoutHistory } = wfBefore;
+          const snapshot: WorkflowActionHistory = {
+            action: "PAUSE_STAGE", stageName,
+            previousWorkflowSnapshot: JSON.stringify(wfWithoutHistory),
+            createdAt: new Date().toISOString(), userName: staffName, reason
+          };
+          set((s) => ({
+            workflows: s.workflows.map(w => w.id === id ? { ...w, actionHistory: [...(w.actionHistory || []), snapshot] } : w),
+          }));
+        }
+
+        set((s) => {
+          const updatedWorkflows = s.workflows.map(w => {
+            if (w.id !== id) return w;
+            const updatedStages = w.stages.map(st => 
+              st.stageName === stageName ? { ...st, status: "Paused" as const, remarks: reason ? `${st.remarks ? st.remarks + ' | ' : ''}Paused: ${reason}` : st.remarks } : st
+            );
+            return { ...w, stages: updatedStages, updatedAt: new Date().toISOString() };
+          });
+          return { workflows: updatedWorkflows };
+        });
+
+        const wf = get().workflows.find((w) => w.id === id);
+        if (wf) get().log({ actor: staffName, action: "Stage Paused", details: `Paused ${stageName} for wagon ${wf.wagonNo}. Reason: ${reason || 'None'}`, wagonId: wf.wagonId });
+      },
+
+      resumeStage: (id, stageName, staffName) => {
+        const wfBefore = get().workflows.find(w => w.id === id);
+        if (wfBefore) {
+          const { actionHistory, ...wfWithoutHistory } = wfBefore;
+          const snapshot: WorkflowActionHistory = {
+            action: "RESUME_STAGE", stageName,
+            previousWorkflowSnapshot: JSON.stringify(wfWithoutHistory),
+            createdAt: new Date().toISOString(), userName: staffName
+          };
+          set((s) => ({
+            workflows: s.workflows.map(w => w.id === id ? { ...w, actionHistory: [...(w.actionHistory || []), snapshot] } : w),
+          }));
+        }
+
+        set((s) => {
+          const updatedWorkflows = s.workflows.map(w => {
+            if (w.id !== id) return w;
+            const updatedStages = w.stages.map(st => 
+              st.stageName === stageName ? { ...st, status: "In Progress" as const } : st
+            );
+            return { ...w, stages: updatedStages, updatedAt: new Date().toISOString() };
+          });
+          return { workflows: updatedWorkflows };
+        });
+
+        const wf = get().workflows.find((w) => w.id === id);
+        if (wf) get().log({ actor: staffName, action: "Stage Resumed", details: `Resumed ${stageName} for wagon ${wf.wagonNo}`, wagonId: wf.wagonId });
+      },
+
       markStageDone: (id, stageName, staffName, inspectorName, remarks) => {
         // Save snapshot before action
         const wfBefore = get().workflows.find(w => w.id === id);
@@ -326,6 +456,19 @@ export const useAppStore = create<AppState>()(
           const allDone = wf.stages.every(st => st.status === "Done");
           if (allDone) {
             get().updateWagon(wf.wagonId, { status: "FIT_READY" }, inspectorName);
+          }
+
+          // Generate Notifications
+          if (stageName.includes("Steam")) {
+            notificationApi.createNotification({
+              type: "SYSTEM_ALERT", title: "Steam Completed", message: `Steam cleaning completed for wagon ${wf.wagonNo}`,
+              refModel: "Wagon", refId: wf.wagonId, targetRoles: ["admin", "employee"]
+            }).catch(console.error);
+          } else if (stageName.includes("Repair")) {
+            notificationApi.createNotification({
+              type: "STATUS_UPDATE", title: "Repair Completed", message: `Repairs completed for wagon ${wf.wagonNo}`,
+              refModel: "Wagon", refId: wf.wagonId, targetRoles: ["admin", "employee"]
+            }).catch(console.error);
           }
         }
       },
@@ -375,7 +518,16 @@ export const useAppStore = create<AppState>()(
           return { workflows: updatedWorkflows, wagons: updatedWagons };
         });
         const wf = get().workflows.find((w) => w.id === id);
-        if (wf) get().log({ actor: "user", action: "Moved to Next Stage", details: `Advanced to ${toStage} for wagon ${wf.wagonNo}`, wagonId: wf.wagonId });
+        if (wf) {
+          get().log({ actor: "user", action: "Moved to Next Stage", details: `Advanced to ${toStage} for wagon ${wf.wagonNo}`, wagonId: wf.wagonId });
+          
+          if (toStage.includes("Inspection")) {
+            notificationApi.createNotification({
+              type: "ACTION_REQUIRED", title: "Inspection Pending", message: `Wagon ${wf.wagonNo} is waiting for ${toStage}`,
+              refModel: "Wagon", refId: wf.wagonId, targetRoles: ["admin", "employee"]
+            }).catch(console.error);
+          }
+        }
       },
 
       markWagonFit: (wagonId, fitConfirmation) => {
@@ -403,7 +555,13 @@ export const useAppStore = create<AppState>()(
         
         // Ensure regular wagons can pass without fitConfirmation
         get().updateWagon(wagonId, { status: "FIT_READY", fitConfirmation });
-        if (wf) get().log({ actor: fitConfirmation?.inspectorName || "user", action: "Wagon Marked Fit", details: `Wagon ${wf.wagonNo} marked Fit For Loading`, wagonId });
+        if (wf) {
+          get().log({ actor: fitConfirmation?.inspectorName || "user", action: "Wagon Marked Fit", details: `Wagon ${wf.wagonNo} marked Fit For Loading`, wagonId });
+          notificationApi.createNotification({
+            type: "SYSTEM_ALERT", title: "Certificate Issued", message: `Fit Certificate issued for wagon ${wf.wagonNo}`,
+            refModel: "Wagon", refId: wagonId, targetRoles: ["admin", "employee"]
+          }).catch(console.error);
+        }
         return { success: true };
       },
 
@@ -481,17 +639,99 @@ export const useAppStore = create<AppState>()(
       removeEmployee: (id) => set((s) => ({ employees: s.employees.filter((e) => e.id !== id) })),
 
       log: (e) => {
-        // Enrich with current user identity from AuthContext/API later if needed
         let userId: string | undefined;
         let userEmail: string | undefined;
         let userName: string | undefined;
         let userRole: string | undefined;
+
+        // Try to infer department based on action/details
+        let department = "Operations";
+        const text = `${e.action} ${e.details || ""}`.toLowerCase();
+        if (text.includes("steam")) department = "Steam Department";
+        else if (text.includes("degass") || text.includes("purge")) department = "Degassing Department";
+        else if (text.includes("inspect")) department = "Inspection Department";
+        else if (text.includes("repair")) department = "Repair Department";
+
+        const logEntry = { 
+          ...e, id: nanoid(), at: new Date().toISOString(), userId, userEmail, userName, userRole 
+        };
+
         set((s) => ({
-          audit: [
-            { ...e, id: nanoid(), at: new Date().toISOString(), userId, userEmail, userName, userRole },
-            ...s.audit,
-          ].slice(0, 1000),
+          audit: [logEntry, ...s.audit].slice(0, 1000),
         }));
+
+        // Fire to backend async
+        auditApi.createAuditLog({
+          action: e.action,
+          metadata: {
+            actor: e.actor,
+            department,
+            details: e.details,
+            wagonId: e.wagonId,
+            memoId: e.memoId
+          }
+        }).catch(err => console.error("Failed to push audit log", err));
       },
+
+      addDocumentMeta: (doc) => {
+        set((s) => {
+          // Increment version if a document of the same type already exists for this wagon
+          const existingDocs = s.documents.filter(d => d.wagonId === doc.wagonId && d.type === doc.type);
+          let newVersion = 1;
+          if (existingDocs.length > 0) {
+            newVersion = Math.max(...existingDocs.map(d => d.version)) + 1;
+          }
+          return { documents: [...s.documents, { ...doc, version: newVersion }] };
+        });
+        get().log({ actor: doc.uploadedBy, action: "Document Uploaded", details: `Uploaded ${doc.type}: ${doc.name}`, wagonId: doc.wagonId });
+      },
+
+      removeDocumentMeta: (id) => {
+        const doc = get().documents.find(d => d.id === id);
+        set((s) => ({ documents: s.documents.filter(d => d.id !== id) }));
+        if (doc) {
+          get().log({ actor: "System", action: "Document Deleted", details: `Deleted ${doc.type}: ${doc.name}`, wagonId: doc.wagonId });
+        }
+      },
+
+      getWagonDocuments: (wagonId) => {
+        return get().documents.filter(d => d.wagonId === wagonId).sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+      },
+
+      fetchMasterData: async () => {
+        try {
+          const data = await masterDataApi.getAll();
+          set({ masterData: data });
+        } catch (error) {
+          console.error("Failed to fetch master data", error);
+        }
+      },
+      addMasterData: async (data) => {
+        try {
+          const record = await masterDataApi.create(data);
+          set(s => ({ masterData: [...s.masterData, record] }));
+        } catch (error) {
+          console.error("Failed to create master data", error);
+          throw error;
+        }
+      },
+      updateMasterData: async (id, patch) => {
+        try {
+          const record = await masterDataApi.update(id, patch);
+          set(s => ({ masterData: s.masterData.map(md => md._id === id ? record : md) }));
+        } catch (error) {
+          console.error("Failed to update master data", error);
+          throw error;
+        }
+      },
+      deleteMasterData: async (id) => {
+        try {
+          await masterDataApi.delete(id);
+          set(s => ({ masterData: s.masterData.filter(md => md._id !== id) }));
+        } catch (error) {
+          console.error("Failed to delete master data", error);
+          throw error;
+        }
+      }
   })
 );

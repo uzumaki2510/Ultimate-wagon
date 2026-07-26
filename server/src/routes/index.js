@@ -17,6 +17,9 @@ const dashboardRoutes = require('./dashboard');
 const memoRoutes = require('./memos');
 const workflowRoutes = require('./workflows');
 const rakeRoutes = require('./rakes');
+const auditLogRoutes = require('./auditLogs');
+const notificationRoutes = require('./notifications');
+const masterDataRoutes = require('./masterData');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -34,6 +37,9 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/memos', memoRoutes);
 router.use('/workflows', workflowRoutes);
 router.use('/rakes', rakeRoutes);
+router.use('/audit-logs', auditLogRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/master-data', masterDataRoutes);
 
 const mongoose = require('mongoose');
 router.get('/health', (req, res) => {

@@ -7,19 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { REASONS, BOOKED_TO, WAGON_TYPES, WagonMemoEntry, UnitMemo } from "@/types";
+import { BOOKED_TO as STATIC_BOOKED_TO, REASONS as STATIC_REASONS, WagonMemoEntry, UnitMemo, WAGON_TYPES as STATIC_WAGON_TYPES } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { nanoid } from "nanoid";
-import { Zap, ChevronRight, ChevronLeft, Save, FileText, Send, PlusCircle, Trash2 } from "lucide-react";
+import { Zap, PlusCircle, Trash2, ChevronLeft, ChevronRight, Save } from "lucide-react";
 
 export default function QuickBoard() {
   const navigate = useNavigate();
-  const { addMemo, addWagon, upsertWorkflowForWagon } = useAppStore();
+  const { addMemo, addWagon, upsertWorkflowForWagon, masterData } = useAppStore();
   const { user } = useAuth();
   const { toast } = useToast();
 
   const [step, setStep] = useState(1);
+
+  const REASONS = masterData.filter(d => d.category === "DEFECT" && d.isActive).map(d => d.value).length > 0 
+    ? masterData.filter(d => d.category === "DEFECT" && d.isActive).map(d => d.value) 
+    : STATIC_REASONS;
+
+  const BOOKED_TO = masterData.filter(d => d.category === "WORKSHOP_LINE" && d.isActive).map(d => d.value).length > 0 
+    ? masterData.filter(d => d.category === "WORKSHOP_LINE" && d.isActive).map(d => d.value) 
+    : STATIC_BOOKED_TO;
+
+  const WAGON_TYPES = masterData.filter(d => d.category === "WAGON_TYPE" && d.isActive).map(d => d.value).length > 0 
+    ? masterData.filter(d => d.category === "WAGON_TYPE" && d.isActive).map(d => d.value) 
+    : STATIC_WAGON_TYPES;
 
   // Step 1: Memo Info
   const [memoNo, setMemoNo] = useState(`SICK-${Math.floor(Math.random() * 10000)}`);
@@ -41,9 +53,9 @@ export default function QuickBoard() {
       sno: wagons.length + 1, 
       position: String(wagons.length + 1), 
       wagonNo: "", 
-      type: "BOXN",
-      reason: "Wheel Alert", 
-      bookedTo: "HAPA SL", 
+      type: WAGON_TYPES[0],
+      reason: REASONS[0], 
+      bookedTo: BOOKED_TO[0], 
       defects: "",
       status: "SICK_LINE"
     } as any]);

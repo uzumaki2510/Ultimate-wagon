@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { WAGON_TYPES } from "@/types";
+import { WAGON_TYPES as STATIC_WAGON_TYPES } from "@/types";
 import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RakeManagement() {
   const store = useAppStore();
+  const { masterData } = store;
   const [form, setForm] = useState({ rakeId: "", rakeName: "", yard: "" });
   const [selectedRake, setSelectedRake] = useState<string | null>(store.rakes[0]?.id ?? null);
 
@@ -26,9 +28,13 @@ export default function RakeManagement() {
     toast.success("Rake created");
   };
 
-  const addWagon = () => {
+  const WAGON_TYPES = masterData.filter(d => d.category === "WAGON_TYPE" && d.isActive).map(d => d.value).length > 0 
+    ? masterData.filter(d => d.category === "WAGON_TYPE" && d.isActive).map(d => d.value) 
+    : STATIC_WAGON_TYPES;
+
+  const handleAddWagon = () => {
     if (!selectedRake) return;
-    const w = store.addWagon({ wagonNo: "", type: "BTPN", owner: "", builtYear: new Date().getFullYear(), status: "IN_SERVICE", rakeId: selectedRake });
+    const w = store.addWagon({ wagonNo: "", type: WAGON_TYPES[0], owner: "", builtYear: new Date().getFullYear(), status: "IN_SERVICE", rakeId: selectedRake });
     if (selectedRake) store.addWagonToRake(selectedRake, w.id);
   };
 
@@ -75,7 +81,7 @@ export default function RakeManagement() {
               <CardTitle>{rake.rakeName} · {rake.rakeId}</CardTitle>
               <div className="text-xs text-muted-foreground">{rake.yard}</div>
             </div>
-            <Button size="sm" onClick={addWagon}><Plus className="h-4 w-4 mr-1" /> Add Wagon</Button>
+            <Button size="sm" onClick={handleAddWagon}><Plus className="h-4 w-4 mr-2" /> Add Wagon</Button>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">

@@ -5,83 +5,107 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute, AdminRoute, SuperAdminRoute } from "@/components/RouteGuards";
-import AppLayout from "@/components/AppLayout";
-import Dashboard from "@/pages/Dashboard";
-import WagonRegister from "@/pages/WagonRegister";
-import WagonMaster from "@/pages/WagonMaster";
-import MemoList from "@/pages/MemoList";
-import MemoEditor from "@/pages/MemoEditor";
-import MemoPrint from "@/pages/MemoPrint";
-import QuickBoard from "@/pages/QuickBoard";
+import { lazy, Suspense } from "react";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
-import SickLine from "@/pages/SickLine";
-import Employees from "@/pages/Employees";
-import Archives from "@/pages/Archives";
-import Reports from "@/pages/Reports";
-import ReportGenerator from "@/pages/Reports/ReportGenerator";
-import Profile from "@/pages/Profile";
-import Deleted from "@/pages/Deleted";
+// Eager load layout/auth/core to prevent flicker
+import AppLayout from "@/components/AppLayout";
 import Auth from "@/pages/Auth";
-import AdminLog from "@/pages/AdminLog";
 import NotFound from "@/pages/NotFound";
 
-// Super Admin Pages
-import SuperAdminDashboard from "@/pages/SuperAdmin/Dashboard";
-import AdminManagement from "@/pages/SuperAdmin/AdminManagement";
-import EmployeeApprovals from "@/pages/SuperAdmin/EmployeeApprovals";
-import UserDirectory from "@/pages/SuperAdmin/UserDirectory";
-import AuditLogs from "@/pages/SuperAdmin/AuditLogs";
+// Lazy load everything else
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const WagonRegister = lazy(() => import("@/pages/WagonRegister"));
+const WagonMaster = lazy(() => import("@/pages/WagonMaster"));
+const WagonDetails = lazy(() => import("@/pages/WagonDetails"));
+const WorkshopLine = lazy(() => import("@/pages/WorkshopLine"));
+const MemoList = lazy(() => import("@/pages/MemoList"));
+const MemoEditor = lazy(() => import("@/pages/MemoEditor"));
+const MemoPrint = lazy(() => import("@/pages/MemoPrint"));
+const QuickBoard = lazy(() => import("@/pages/QuickBoard"));
+const SickLine = lazy(() => import("@/pages/SickLine"));
+const Employees = lazy(() => import("@/pages/Employees"));
+const Archives = lazy(() => import("@/pages/Archives"));
+const AuditLog = lazy(() => import("@/pages/AuditLog"));
+const Reports = lazy(() => import("@/pages/Reports"));
+const ReportGenerator = lazy(() => import("@/pages/Reports/ReportGenerator"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const Deleted = lazy(() => import("@/pages/Deleted"));
+const DeletedRegister = lazy(() => import("@/pages/DeletedRegister"));
+const AdminLog = lazy(() => import("@/pages/AdminLog"));
+const WagonDirectory = lazy(() => import("@/pages/WagonDirectory"));
+
+const SuperAdminDashboard = lazy(() => import("@/pages/SuperAdmin/Dashboard"));
+const AdminManagement = lazy(() => import("@/pages/SuperAdmin/AdminManagement"));
+const EmployeeApprovals = lazy(() => import("@/pages/SuperAdmin/EmployeeApprovals"));
+const UserDirectory = lazy(() => import("@/pages/SuperAdmin/UserDirectory"));
+const MasterData = lazy(() => import("@/pages/SuperAdmin/MasterData"));
+const AuditLogs = lazy(() => import("@/pages/SuperAdmin/AuditLogs"));
 
 const queryClient = new QueryClient();
 
+const LoadingFallback = () => (
+  <div className="flex h-[50vh] w-full items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+  </div>
+);
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
 
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/register" element={<WagonRegister />} />
-              <Route path="/wagon-directory" element={<WagonMaster />} />
-              <Route path="/memos" element={<MemoList />} />
-              <Route path="/memos/new" element={<MemoEditor />} />
-              <Route path="/memos/:id" element={<MemoEditor />} />
-              <Route path="/memos/:id/print" element={<MemoPrint />} />
-              <Route path="/sickline" element={<SickLine />} />
-              <Route path="/quick-board" element={<QuickBoard />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
+              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/register" element={<WagonRegister />} />
+                <Route path="/wagon-directory" element={<WagonMaster />} />
+                <Route path="/wagon/:id" element={<WagonDetails />} />
+                <Route path="/workshop/:lineId" element={<WorkshopLine />} />
+                <Route path="/memos" element={<MemoList />} />
+                <Route path="/memos/new" element={<MemoEditor />} />
+                <Route path="/memos/:id" element={<MemoEditor />} />
+                <Route path="/memos/:id/print" element={<MemoPrint />} />
+                <Route path="/sickline" element={<SickLine />} />
+                <Route path="/quick-board" element={<QuickBoard />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
 
-              {/* Super Admin Guarded Routes */}
-              <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
-              <Route path="/super-admin/admins" element={<SuperAdminRoute><AdminManagement /></SuperAdminRoute>} />
-              <Route path="/super-admin/approvals" element={<SuperAdminRoute><EmployeeApprovals /></SuperAdminRoute>} />
-              <Route path="/super-admin/users" element={<SuperAdminRoute><UserDirectory /></SuperAdminRoute>} />
-              <Route path="/super-admin/logs" element={<SuperAdminRoute><AuditLogs /></SuperAdminRoute>} />
+                {/* Super Admin Guarded Routes */}
+                <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
+                <Route path="/super-admin/admins" element={<SuperAdminRoute><AdminManagement /></SuperAdminRoute>} />
+                <Route path="/super-admin/approvals" element={<SuperAdminRoute><EmployeeApprovals /></SuperAdminRoute>} />
+                <Route path="/super-admin/users" element={<SuperAdminRoute><UserDirectory /></SuperAdminRoute>} />
+                <Route path="/super-admin/master-data" element={<SuperAdminRoute><MasterData /></SuperAdminRoute>} />
+                <Route path="/super-admin/logs" element={<SuperAdminRoute><AuditLogs /></SuperAdminRoute>} />
 
-              {/* Admin Guarded Routes */}
-              <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
-              <Route path="/archives" element={<AdminRoute><Archives /></AdminRoute>} />
-              <Route path="/admin-log" element={<AdminRoute><AdminLog /></AdminRoute>} />
+                {/* Admin Guarded Routes */}
+                <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
+                <Route path="/archives" element={<AdminRoute><Archives /></AdminRoute>} />
+                <Route path="/admin-log" element={<AdminRoute><AdminLog /></AdminRoute>} />
+                <Route path="/audit-logs" element={<AdminRoute><AuditLog /></AdminRoute>} />
 
-              {/* All authenticated users */}
-              <Route path="/deleted" element={<Deleted />} />
+                {/* All authenticated users */}
+                <Route path="/deleted" element={<Deleted />} />
 
-              {/* Profile Route */}
-              <Route path="/profile" element={<Profile />} />
-            </Route>
+                {/* Profile Route */}
+                <Route path="/profile" element={<Profile />} />
+              </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

@@ -1,12 +1,13 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown, ShieldAlert, ListFilter } from "lucide-react";
+import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown, ShieldAlert, ListFilter, Droplets, Wind, ClipboardCheck, Activity, CheckCircle, Database } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useTheme } from "next-themes";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -14,6 +15,7 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, isSuperAdmin, logout, listPendingEmployees } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export function AppSidebar() {
     { title: "Admin Management", url: "/super-admin/admins", icon: ShieldCheck },
     { title: "Employee Approvals", url: "/super-admin/approvals", icon: Users },
     { title: "User Directory", url: "/super-admin/users", icon: FileText },
+    { title: "Master Data", url: "/super-admin/master-data", icon: Database },
     { title: "Audit Logs", url: "/super-admin/logs", icon: ListFilter },
   ];
 
@@ -47,6 +50,16 @@ export function AppSidebar() {
     { title: "Archives", url: "/archives", icon: Archive },
     { title: "Deleted Register", url: "/deleted", icon: Trash2 },
     { title: "Admin Log", url: "/admin-log", icon: ShieldCheck },
+    { title: "Audit Trail", url: "/audit-logs", icon: ShieldCheck },
+  ];
+
+  const workshopItems = [
+    { title: "Steam Line", url: "/workshop/steam", icon: Droplets },
+    { title: "Degassing Line", url: "/workshop/degassing", icon: Wind },
+    { title: "Inspection Line", url: "/workshop/inspection", icon: ClipboardCheck },
+    { title: "Repair Line", url: "/workshop/repair", icon: Wrench },
+    { title: "Testing Line", url: "/workshop/testing", icon: Activity },
+    { title: "Fit Certificate", url: "/workshop/fit", icon: CheckCircle },
   ];
 
   const filteredItems = navItems.filter(item => {
@@ -133,6 +146,35 @@ export function AppSidebar() {
             <SidebarGroup className="pt-2">
               <SidebarGroupLabel asChild>
                 <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">
+                  Workshop Lines
+                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {workshopItems.map((n) => (
+                      <SidebarMenuItem key={n.url}>
+                        <SidebarMenuButton asChild isActive={isActive(n.url)}>
+                          <NavLink to={n.url} className="flex items-center gap-2">
+                            <n.icon className="h-4 w-4 shrink-0" />
+                            {!collapsed && <span>{n.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        )}
+
+        {isAdmin && (
+          <Collapsible defaultOpen className="group/collapsible">
+            <SidebarGroup className="pt-2">
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">
                   Admin / More
                   <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                 </CollapsibleTrigger>
@@ -160,6 +202,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="flex items-center gap-3 cursor-pointer text-muted-foreground hover:text-foreground">
+               <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                 {theme === "dark" ? <Wind className="h-3 w-3" /> : <Droplets className="h-3 w-3" />}
+               </div>
+               {!collapsed && <span>Toggle Theme</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive("/profile")}>
               <NavLink to="/profile" className="flex items-center gap-3">

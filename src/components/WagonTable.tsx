@@ -29,7 +29,7 @@ import {
 import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, DEFECT_LIBRARY, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
 import { EditWagonModal } from "@/components/EditWagonModal";
 import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
 
 interface WagonTableProps {
@@ -207,7 +207,9 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         />
                       </TableCell>
                       <TableCell className="font-mono font-medium">
-                        {wagon.wagonNumber}
+                        <Link to={`/wagon/${wagon.id}`} className="text-primary hover:underline font-bold">
+                          {wagon.wagonNumber}
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <div>

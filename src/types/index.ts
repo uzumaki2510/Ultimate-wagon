@@ -223,7 +223,7 @@ export interface Employee {
   empCode?: string;
 }
 
-export type WorkflowStageStatus = "Pending" | "In Progress" | "Done" | "Delayed" | "Skipped";
+export type WorkflowStageStatus = "Pending" | "In Progress" | "Done" | "Delayed" | "Skipped" | "Paused";
 
 export interface WorkflowStageRecord {
   stageName: string;
@@ -241,7 +241,7 @@ export interface WorkflowStageRecord {
 }
 
 export interface WorkflowActionHistory {
-  action: "START_STAGE" | "MARK_STAGE_DONE" | "ADVANCE_WORKFLOW" | "MARK_FIT";
+  action: "START_STAGE" | "MARK_STAGE_DONE" | "ADVANCE_WORKFLOW" | "MARK_FIT" | "PAUSE_STAGE" | "RESUME_STAGE";
   stageName: string;
   previousWorkflowSnapshot: string; // JSON stringified snapshot of the full WorkflowItem before action
   createdAt: string;
@@ -284,4 +284,24 @@ export interface LoginRecord {
   role: string;
   lastLogin: string;
   loginCount: number;
+}
+
+export type DocumentType = 
+  | 'Inspection Report' 
+  | 'Gas Free Certificate' 
+  | 'Repair Document' 
+  | 'Fit Certificate' 
+  | 'Wagon Image' 
+  | 'Damage Image';
+
+export interface WagonDocument {
+  id: string;
+  wagonId: string;
+  type: DocumentType | string;
+  name: string;
+  fileType: string;
+  size: number;
+  uploadedBy: string;
+  uploadedAt: string;
+  version: number;
 }

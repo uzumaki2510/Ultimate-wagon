@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { WagonTable } from "@/components/WagonTable";
-import { WagonInput } from "@/components/WagonInput";
+import { AddWagonModal } from "@/components/AddWagonModal";
+import { FloatingAddWagonButton } from "@/components/FloatingAddWagonButton";
 import { ExportButton } from "@/components/ExportButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { WagonRepair, WagonDetails } from "@/lib/wagonData";
@@ -24,6 +25,7 @@ export default function WagonRegister() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState(searchParams.get("filterStatus") || "all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const mappedWagons: WagonRepair[] = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -209,8 +211,6 @@ export default function WagonRegister() {
         ))}
       </div>
 
-      <WagonInput onWagonParsed={handleWagonParsed} />
-
       <WagonTable 
         wagons={filteredWagons}
         filter="all"
@@ -220,6 +220,15 @@ export default function WagonRegister() {
         onUpdateSickLine={(id, sl) => updateWagon(id, { sickLine: sl } as any)}
         onEdit={(id, up) => updateWagon(id, { defect: up.comments })}
         isAdmin={isAdmin}
+      />
+
+      {/* Floating Action Button + Modal */}
+      <FloatingAddWagonButton onClick={() => setAddModalOpen(true)} />
+      <AddWagonModal
+        open={addModalOpen}
+        onOpenChange={setAddModalOpen}
+        onSubmit={handleWagonParsed}
+        existingWagons={zustandWagons}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { nanoid } from "nanoid";
 import { useAppStore } from "@/store/useAppStore";
-import { BOOKED_TO, REASONS, UnitMemo, WagonMemoEntry, WAGON_TYPES } from "@/types";
+import { BOOKED_TO as STATIC_BOOKED_TO, REASONS as STATIC_REASONS, UnitMemo, WagonMemoEntry, WAGON_TYPES as STATIC_WAGON_TYPES } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ export default function MemoEditor() {
   const [searchParams] = useSearchParams();
   const nav = useNavigate();
   const { toast } = useToast();
+  const { masterData } = useAppStore();
   
   const isNew = id === "new" || !id;
   const store = useAppStore();
@@ -30,6 +31,18 @@ export default function MemoEditor() {
   const isSick = resolvedType === "sick";
   const defaultStatus = isSick ? "REPAIR_IN_PROGRESS" : "FIT_READY";
   const defaultBookedTo = isSick ? "HAPA SL" : "FIT_READY";
+
+  const REASONS = masterData.filter(d => d.category === "DEFECT" && d.isActive).map(d => d.value).length > 0 
+    ? masterData.filter(d => d.category === "DEFECT" && d.isActive).map(d => d.value) 
+    : STATIC_REASONS;
+
+  const BOOKED_TO = masterData.filter(d => d.category === "WORKSHOP_LINE" && d.isActive).map(d => d.value).length > 0 
+    ? masterData.filter(d => d.category === "WORKSHOP_LINE" && d.isActive).map(d => d.value) 
+    : STATIC_BOOKED_TO;
+
+  const WAGON_TYPES = masterData.filter(d => d.category === "WAGON_TYPE" && d.isActive).map(d => d.value).length > 0 
+    ? masterData.filter(d => d.category === "WAGON_TYPE" && d.isActive).map(d => d.value) 
+    : STATIC_WAGON_TYPES;
 
   const [activeTab, setActiveTab] = useState("info");
 
@@ -51,8 +64,8 @@ export default function MemoEditor() {
   const addEntry = () => {
     const entry: WagonMemoEntry & { _tempWagonNo?: string, _tempType?: string } = {
       id: nanoid(), sno: memo.entries.length + 1, position: String(memo.entries.length + 1), wagonId: nanoid(),
-      reason: "Wheel Alert", bookedTo: defaultBookedTo, defects: "", status: defaultStatus,
-      _tempWagonNo: "", _tempType: "BOXN"
+      reason: REASONS[0], bookedTo: BOOKED_TO[0], defects: "", status: defaultStatus,
+      _tempWagonNo: "", _tempType: WAGON_TYPES[0]
     };
     set({ entries: [...memo.entries, entry] });
   };

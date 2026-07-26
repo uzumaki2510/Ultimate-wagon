@@ -5,7 +5,7 @@ const workflowStageRecordSchema = new mongoose.Schema(
     stageName: String,
     status: {
       type: String,
-      enum: ['Pending', 'In Progress', 'Done', 'Delayed', 'Skipped'],
+      enum: ['Pending', 'In Progress', 'Done', 'Delayed', 'Skipped', 'Paused'],
       default: 'Pending',
     },
     startedAt: Date,
@@ -26,7 +26,7 @@ const workflowActionHistorySchema = new mongoose.Schema(
   {
     action: {
       type: String,
-      enum: ['START_STAGE', 'MARK_STAGE_DONE', 'ADVANCE_WORKFLOW', 'MARK_FIT'],
+      enum: ['START_STAGE', 'MARK_STAGE_DONE', 'ADVANCE_WORKFLOW', 'MARK_FIT', 'PAUSE_STAGE', 'RESUME_STAGE'],
     },
     stageName: String,
     previousWorkflowSnapshot: String,
