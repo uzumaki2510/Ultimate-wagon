@@ -3,35 +3,55 @@ import { adminApi } from "@/api/admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ShieldAlert, CheckCircle2, XCircle, Search, Users } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ShieldAlert, CheckCircle2, XCircle, Users, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { LoadingState } from "@/components/shared/LoadingState";
+import { useSearchParams, useNavigate } from "react-router-dom";
+
+type TabStatus = "pending" | "approved" | "rejected";
 
 export default function EmployeeApprovals() {
-  const [pending, setPending] = useState<any[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const initialTab = (searchParams.get("status") as TabStatus) || "pending";
+  
+  const [activeTab, setActiveTab] = useState<TabStatus>(initialTab);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { toast } = useToast();
 
-  const fetchPending = async () => {
+  const fetchData = async (status: TabStatus) => {
     try {
       setLoading(true);
-      const res = await adminApi.getPendingUsers();
-      if (res.success) setPending(res.data);
+      let res;
+      if (status === "pending") {
+        res = await adminApi.getPendingUsers();
+      } else {
+        res = await adminApi.getAllUsers({ status });
+      }
+      
+      if (res?.success) {
+        setUsers(res.data);
+      }
     } catch (error: any) {
       const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
-      toast({ title: "Failed to load pending approvals", description: errMsg, variant: "destructive" });
+      toast({ title: `Failed to load ${status} accounts`, description: errMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPending();
-  }, []);
+    fetchData(activeTab);
+    
+    // Update URL params without reloading
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("status", activeTab);
+    setSearchParams(newParams, { replace: true });
+  }, [activeTab]);
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
@@ -42,96 +62,115 @@ export default function EmployeeApprovals() {
         title: action === 'approve' ? "Approved" : "Rejected", 
         description: `User has been ${action}d.` 
       });
-      fetchPending();
+      fetchData(activeTab);
     } catch (error: any) {
       toast({ title: "Error", description: error.response?.data?.message || "Action failed", variant: "destructive" });
     }
   };
 
-  const filtered = pending.filter(u => 
+  const filtered = users.filter(u => 
     u.name.toLowerCase().includes(search.toLowerCase()) || 
     u.empCode?.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-4 animate-fade-in pb-12 max-w-[1400px] mx-auto">
       <PageHeader 
         title="Employee Approvals"
         description="Review and action new employee registration requests."
         icon={Users}
       />
 
-      <Card className="border-warning/30 shadow-sm overflow-hidden">
-        <CardHeader className="bg-warning/5 border-b border-warning/10 pb-4">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-warning-foreground">
-                <ShieldAlert className="h-5 w-5" /> Pending Accounts
+      <div className="flex gap-1 border-b border-border/50 pb-px">
+        {(["pending", "approved", "rejected"] as TabStatus[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-semibold capitalize transition-colors border-b-2 ${
+              activeTab === tab 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      <Card className="border-border shadow-sm overflow-hidden rounded-md">
+        <CardHeader className="bg-secondary/10 pb-3 pt-3 border-b border-border/50 px-4">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              {activeTab === 'pending' ? <ShieldAlert className="h-4 w-4 text-warning" /> : 
+               activeTab === 'approved' ? <CheckCircle2 className="h-4 w-4 text-success" /> : 
+               <XCircle className="h-4 w-4 text-destructive" />}
+              <CardTitle className="text-sm font-semibold tracking-wide capitalize">
+                {activeTab} Accounts ({filtered.length})
               </CardTitle>
-              <CardDescription className="text-warning-foreground/80 mt-1">All accounts awaiting admin approval.</CardDescription>
             </div>
             <SearchBar 
               value={search}
               onChange={setSearch}
-              placeholder="Search requests..."
-              className="w-full sm:w-[250px]"
+              placeholder="Search by name, email..."
+              className="w-full sm:w-[220px] h-8 text-sm"
             />
           </div>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <LoadingState text="Loading requests..." />
-          ) : pending.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground flex flex-col items-center">
-              <div className="h-16 w-16 bg-success/10 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle2 className="h-8 w-8 text-success" />
-              </div>
-              <p className="font-medium text-foreground">No pending requests — all caught up!</p>
+            <LoadingState text={`Loading ${activeTab} requests...`} />
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              {users.length === 0 ? `No ${activeTab} requests found.` : `No matches found for "${search}"`}
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-secondary/50">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="font-semibold">Requested</TableHead>
-                    <TableHead className="font-semibold">Name</TableHead>
-                    <TableHead className="font-semibold">Emp Code</TableHead>
-                    <TableHead className="font-semibold">Department</TableHead>
-                    <TableHead className="font-semibold">Designation</TableHead>
-                    <TableHead className="text-right font-semibold">Action</TableHead>
+              <Table className="min-w-[700px]">
+                <TableHeader className="bg-muted/50">
+                  <TableRow className="hover:bg-transparent h-10">
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground pl-4">Date</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground">Employee</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground">Department</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground">Requested Role</TableHead>
+                    <TableHead className="text-right font-semibold text-xs tracking-wider uppercase text-muted-foreground pr-4">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map(user => (
-                    <TableRow key={user._id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                    <TableRow key={user._id} className="h-12 hover:bg-muted/30 transition-colors">
+                      <TableCell className="text-xs text-muted-foreground font-mono pl-4 w-[100px]">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="font-medium tracking-tight">
-                        {user.name}
-                        <div className="text-xs text-muted-foreground font-normal">{user.email}</div>
+                      <TableCell>
+                        <div className="font-semibold tracking-tight text-sm">{user.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{user.email}</div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{user.empCode || "Not Assigned"}</TableCell>
-                      <TableCell className="text-sm">{user.department}</TableCell>
-                      <TableCell className="text-sm">{user.designation}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-sm">{user.department || "-"}</TableCell>
+                      <TableCell>
+                        <span className="text-[10px] px-1.5 py-0.5 border border-muted-foreground/30 text-muted-foreground bg-muted/30 rounded-sm uppercase tracking-wider font-bold">
+                          {user.role?.replace('_', ' ') || "Employee"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap pr-4">
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground h-8 gap-1 shadow-sm" onClick={() => handleAction(user._id, 'approve')}>
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Approve
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10 h-8 gap-1" onClick={() => handleAction(user._id, 'reject')}>
-                            <XCircle className="h-3.5 w-3.5" /> Reject
+                          {activeTab === 'pending' && (
+                            <>
+                              <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground h-7 text-xs px-2 shadow-none gap-1" onClick={() => handleAction(user._id, 'approve')}>
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                              </Button>
+                              <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10 h-7 text-xs px-2 shadow-none gap-1 bg-background" onClick={() => handleAction(user._id, 'reject')}>
+                                <XCircle className="h-3.5 w-3.5" /> Reject
+                              </Button>
+                            </>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground" onClick={() => navigate(`/super-admin/users?q=${user.email}`)}>
+                            <ExternalLink className="h-3.5 w-3.5" /> View Profile
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
-                  {filtered.length === 0 && pending.length > 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No matches found for "{search}"</TableCell>
-                    </TableRow>
-                  )}
                 </TableBody>
               </Table>
             </div>

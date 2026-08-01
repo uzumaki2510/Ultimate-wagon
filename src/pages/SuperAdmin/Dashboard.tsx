@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { adminApi } from "@/api/admin";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, ShieldCheck, Clock, UserX, CheckCircle, Activity, LayoutDashboard } from "lucide-react";
+import { Users, ShieldCheck, Clock, UserX, CheckCircle, Activity, LayoutDashboard, UserPlus, Shield, Database, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ActionCard } from "@/components/shared/ActionCard";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface DashboardMetrics {
   totalEmployees: number;
@@ -19,99 +21,143 @@ interface DashboardMetrics {
 
 export default function SuperAdminDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchMetrics = async () => {
+    const fetchData = async () => {
       try {
-        const res = await adminApi.getDashboardMetrics();
-        if (res.success) {
-          setMetrics(res.data);
-        }
+        const [metricsRes, logsRes] = await Promise.all([
+          adminApi.getDashboardMetrics(),
+          adminApi.getAuditLogs({ limit: 8 })
+        ]);
+        
+        if (metricsRes.success) setMetrics(metricsRes.data);
+        if (logsRes.success) setAuditLogs(logsRes.data || []);
       } catch (error: any) {
         const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
-        toast({ title: "Failed to load dashboard metrics", description: errMsg, variant: "destructive" });
+        toast({ title: "Failed to load dashboard data", description: errMsg, variant: "destructive" });
       } finally {
         setLoading(false);
       }
     };
-    fetchMetrics();
+    fetchData();
   }, [toast]);
 
   if (loading || !metrics) {
-    return <LoadingState text="Loading super admin dashboard..." />;
+    return <LoadingState text="Loading operational dashboard..." />;
   }
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in pb-12 max-w-[1400px] mx-auto">
       <PageHeader 
-        title="Super Admin Dashboard"
-        description="High-level overview of system users and registrations."
+        title="Super Admin Control Center"
+        description="Operational overview of system users and activities."
         icon={LayoutDashboard}
       />
 
-      <div className="space-y-4">
-        <h2 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">System Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="space-y-3">
+        <h2 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">System Overview</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <StatCard
             title="Total Employees"
             value={metrics.totalEmployees}
             icon={Users}
+            onClick={() => navigate('/super-admin/users?role=employee')}
           />
           <StatCard
             title="Total Admins"
             value={metrics.totalAdmins}
             icon={ShieldCheck}
+            onClick={() => navigate('/super-admin/users?role=admin')}
           />
           <StatCard
             title="Active Accounts"
             value={metrics.activeUsers}
             icon={CheckCircle}
+            onClick={() => navigate('/super-admin/users?status=approved')}
           />
           <StatCard
             title="Pending Approvals"
             value={metrics.pendingApprovals}
             icon={Clock}
-            className={metrics.pendingApprovals > 0 ? "border-amber-200 bg-amber-50/30" : ""}
+            className={metrics.pendingApprovals > 0 ? "border-warning/50 bg-warning/5" : ""}
+            onClick={() => navigate('/super-admin/approvals?status=pending')}
           />
           <StatCard
             title="Rejected"
             value={metrics.rejectedUsers}
             icon={UserX}
-            className="border-destructive/10"
+            className="border-destructive/30 bg-destructive/5"
+            onClick={() => navigate('/super-admin/users?status=rejected')}
           />
         </div>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">Recent Activity</h2>
-        <ActionCard
-          title="Recent Registrations"
-          icon={Activity}
-          className="bg-card"
-        >
-          <div className="space-y-4 mt-2">
-            {metrics.recentRegistrations.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent registrations.</p>
-            ) : (
-              metrics.recentRegistrations.map((user) => (
-                <div key={user._id} className="flex items-center justify-between border-b border-border/50 pb-4 last:border-0 last:pb-0">
-                  <div>
-                    <p className="font-semibold text-sm sm:text-base tracking-tight text-foreground">{user.name}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">{user.email}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5">
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{user.role}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${user.status === 'approved' ? 'bg-success/10 text-success' : user.status === 'pending' ? 'bg-warning/10 text-warning-foreground border border-warning/20' : 'bg-destructive/10 text-destructive'}`}>
-                      {user.status}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
+      <div className="space-y-3">
+        <h2 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">Operational Quick Actions</h2>
+        <Card className="p-1.5 shadow-none border-border/50 bg-secondary/10">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" className="h-8 gap-2 bg-background hover:bg-muted font-medium border border-border" disabled>
+              <UserPlus className="h-3.5 w-3.5" /> Add Employee
+            </Button>
+            <Button variant="secondary" size="sm" className="h-8 gap-2 bg-background hover:bg-muted font-medium border border-border" disabled>
+              <Shield className="h-3.5 w-3.5" /> Add Admin
+            </Button>
+            <Button variant="secondary" size="sm" className="h-8 gap-2 bg-background hover:bg-muted font-medium border border-border" onClick={() => navigate('/super-admin/approvals')}>
+              <CheckCircle className="h-3.5 w-3.5" /> Employee Approvals
+            </Button>
+            <Button variant="secondary" size="sm" className="h-8 gap-2 bg-background hover:bg-muted font-medium border border-border" onClick={() => navigate('/super-admin/users')}>
+              <Users className="h-3.5 w-3.5" /> User Directory
+            </Button>
+            <Button variant="secondary" size="sm" className="h-8 gap-2 bg-background hover:bg-muted font-medium border border-border" onClick={() => navigate('/super-admin/master-data')}>
+              <Database className="h-3.5 w-3.5" /> Master Data
+            </Button>
+            <Button variant="secondary" size="sm" className="h-8 gap-2 bg-background hover:bg-muted font-medium border border-border" onClick={() => navigate('/super-admin/logs')}>
+              <List className="h-3.5 w-3.5" /> Audit Logs
+            </Button>
           </div>
-        </ActionCard>
+        </Card>
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">Recent Activity</h2>
+        <Card className="shadow-none border-border/50">
+          <CardContent className="p-0">
+            {auditLogs.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">No recent activity found.</div>
+            ) : (
+              <div className="divide-y divide-border/50">
+                {auditLogs.map((log) => (
+                  <div 
+                    key={log._id || Math.random().toString()} 
+                    onClick={() => navigate(`/super-admin/logs?action=${log.action}`)}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 hover:bg-muted/50 cursor-pointer transition-colors group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-xs font-mono text-muted-foreground shrink-0 w-[120px]">
+                        {new Date(log.timestamp || log.createdAt).toLocaleString()}
+                      </div>
+                      <div className="text-sm font-medium tracking-tight">
+                        {log.actor?.name || log.user?.name || "System"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 sm:mt-0">
+                      <span className="text-xs font-semibold px-2 py-0.5 bg-secondary text-secondary-foreground rounded-sm uppercase tracking-wider">
+                        {log.action?.replace(/_/g, ' ') || "Action"}
+                      </span>
+                      <div className="text-xs text-muted-foreground max-w-[200px] truncate hidden md:block">
+                        {log.details || log.description || ""}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
