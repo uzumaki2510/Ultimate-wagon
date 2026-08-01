@@ -154,7 +154,15 @@ export function WagonTimeline({ workflow }: WagonTimelineProps) {
   }, [events, dateFilter, employeeFilter, stageFilter]);
 
   if (!workflow) {
-    return <div className="text-center p-8 text-muted-foreground border rounded-lg">No workflow data available.</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-muted/10 border-dashed">
+        <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
+        <h3 className="text-lg font-semibold text-foreground">No workflow created</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+          This wagon has not yet entered the workshop process, so there is no timeline history to display.
+        </p>
+      </div>
+    );
   }
 
   return (

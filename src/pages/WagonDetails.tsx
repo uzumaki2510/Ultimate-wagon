@@ -27,8 +27,8 @@ export default function WagonDetails() {
   
   const { wagons, workflows, startStage, markStageDone } = useAppStore();
   
-  const wagon = useMemo(() => wagons.find(w => w.id === id), [wagons, id]);
-  const workflow = useMemo(() => workflows.find(w => w.wagonId === id), [workflows, id]);
+  const wagon = useMemo(() => wagons.find(w => w.id === id || w.wagonNo === id), [wagons, id]);
+  const workflow = useMemo(() => wagon ? workflows.find(w => w.wagonId === wagon.id) : undefined, [workflows, wagon]);
   
   // States for interactive modules
   const [remarks, setRemarks] = useState("");
@@ -60,30 +60,30 @@ export default function WagonDetails() {
     }
   }, [workflow]);
 
-  if (!wagon || !workflow) {
+  if (!wagon) {
     return (
       <div className="p-8 text-center animate-fade-in">
         <Train className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
         <h2 className="text-xl font-bold">Wagon Not Found</h2>
-        <p className="text-muted-foreground mt-2 mb-6">The requested wagon could not be found or has no active workflow.</p>
+        <p className="text-muted-foreground mt-2 mb-6">The requested wagon could not be found in the registry.</p>
         <Button onClick={() => navigate(-1)} variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Go Back</Button>
       </div>
     );
   }
 
   const isTank = isTankWagonType(wagon.type);
-  const activeStageIndex = workflow.stages.findIndex(s => s.stageName === workflow.currentStage);
-  const activeStage = workflow.stages[activeStageIndex];
+  const activeStageIndex = workflow ? workflow.stages.findIndex(s => s.stageName === workflow.currentStage) : -1;
+  const activeStage = workflow && activeStageIndex >= 0 ? workflow.stages[activeStageIndex] : undefined;
   
   const handleStartStage = async () => {
-    if (!activeStage || isSubmitting) return;
+    if (!activeStage || isSubmitting || !workflow) return;
     setIsSubmitting(true);
     await startStage(workflow.id, activeStage.stageName, user?.name || "Unknown");
     setIsSubmitting(false);
   };
 
   const handleCompleteStage = async (extraRemarks = "") => {
-    if (!activeStage || isSubmitting) return;
+    if (!activeStage || isSubmitting || !workflow) return;
     setIsSubmitting(true);
     
     let finalRemarks = remarks;
@@ -101,6 +101,7 @@ export default function WagonDetails() {
 
   // Helper to check if a specific stage is completed
   const isStageCompleted = (stageNameMatch: string) => {
+    if (!workflow) return false;
     return workflow.stages.some(s => s.stageName.includes(stageNameMatch) && s.status === "Done");
   };
 
@@ -135,6 +136,11 @@ export default function WagonDetails() {
     </div>
   );
 
+  const handleCreateWorkflow = () => {
+    const { upsertWorkflowForWagon } = useAppStore.getState();
+    upsertWorkflowForWagon(wagon.id);
+  };
+
   return (
     <WorkspaceLayout header={passportHeader}>
       <Tabs defaultValue="overview" className="flex flex-col md:flex-row h-full gap-6 pb-12 animate-fade-in">
@@ -158,54 +164,78 @@ export default function WagonDetails() {
           
           {/* Quick Actions (only visible on desktop) */}
           <div className="hidden md:block mt-8 space-y-4">
-            <h3 className="text-xs font-bold uppercase text-muted-foreground tracking-wider px-2">Operator Actions</h3>
-            {/* Dynamic Action Modules based on current stage */}
-            {activeStage && activeStage.status !== "Skipped" && activeStage.status !== "Done" ? (
-              <Card className="shadow-sm border-primary/20 bg-primary/5">
-                <CardHeader className="p-4 pb-2 border-b border-primary/10">
-                  <CardTitle className="text-sm flex items-center gap-2 text-primary">
-                    <Activity className="h-4 w-4 shrink-0" />
-                    {activeStage.stageName}
+            {!workflow ? (
+              <Card className="shadow-sm border-warning/50 bg-warning/5">
+                <CardHeader className="p-4 pb-2 border-b border-warning/20">
+                  <CardTitle className="text-sm flex items-center gap-2 text-warning-foreground">
+                    Workflow Status
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 pt-3 space-y-3">
-                  
-                  {/* Shared Inputs (Operator & Remarks) */}
-                  {activeStage.status === "In Progress" && (
-                    <>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Operator Name</Label>
-                        <Input size={1} className="h-8 text-xs" value={operator} onChange={e => setOperator(e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Remarks</Label>
-                        <Textarea className="resize-none h-16 text-xs min-h-[4rem]" value={remarks} onChange={e => setRemarks(e.target.value)} />
-                      </div>
-                    </>
-                  )}
-
-                  {/* Actions */}
-                  <div className="pt-2">
-                    {activeStage.status === "Pending" ? (
-                      <Button onClick={handleStartStage} disabled={isSubmitting} size="sm" className="w-full text-xs h-8">
-                        Start Stage
-                      </Button>
-                    ) : (
-                      <Button 
-                        onClick={() => handleCompleteStage()}
-                        disabled={isSubmitting}
-                        size="sm"
-                        className="w-full text-xs h-8 bg-success hover:bg-success/90 text-success-foreground"
-                      >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Complete
-                      </Button>
-                    )}
+                <CardContent className="p-4 space-y-4">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    No active workflow found. This wagon has not yet entered the workshop process.
+                  </p>
+                  <div className="space-y-2">
+                    <Button onClick={handleCreateWorkflow} size="sm" className="w-full text-xs font-semibold">
+                      Create Workflow
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/super-admin/wagons')} className="w-full text-xs bg-background">
+                      Back to Register
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ) : (
-              <div className="text-xs text-muted-foreground px-2">No active stage awaiting action.</div>
+              <>
+                <h3 className="text-xs font-bold uppercase text-muted-foreground tracking-wider px-2">Operator Actions</h3>
+                {activeStage && activeStage.status !== "Skipped" && activeStage.status !== "Done" ? (
+                  <Card className="shadow-sm border-primary/20 bg-primary/5">
+                    <CardHeader className="p-4 pb-2 border-b border-primary/10">
+                      <CardTitle className="text-sm flex items-center gap-2 text-primary">
+                        <Activity className="h-4 w-4 shrink-0" />
+                        {activeStage.stageName}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-3 space-y-3">
+                      
+                      {/* Shared Inputs (Operator & Remarks) */}
+                      {activeStage.status === "In Progress" && (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Operator Name</Label>
+                            <Input size={1} className="h-8 text-xs" value={operator} onChange={e => setOperator(e.target.value)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Remarks</Label>
+                            <Textarea className="resize-none h-16 text-xs min-h-[4rem]" value={remarks} onChange={e => setRemarks(e.target.value)} />
+                          </div>
+                        </>
+                      )}
+    
+                      {/* Actions */}
+                      <div className="pt-2">
+                        {activeStage.status === "Pending" ? (
+                          <Button onClick={handleStartStage} disabled={isSubmitting} size="sm" className="w-full text-xs h-8">
+                            Start Stage
+                          </Button>
+                        ) : (
+                          <Button 
+                            onClick={() => handleCompleteStage()}
+                            disabled={isSubmitting}
+                            size="sm"
+                            className="w-full text-xs h-8 bg-success hover:bg-success/90 text-success-foreground"
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Complete
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="text-xs text-muted-foreground px-2">No active stage awaiting action.</div>
+                )}
+              </>
             )}
           </div>
         </div>
