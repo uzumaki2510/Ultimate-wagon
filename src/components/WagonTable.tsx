@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, DEFECT_LIBRARY, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
 import { EditWagonModal } from "@/components/EditWagonModal";
+import { ConditionSummary } from "@/components/ConditionSummary";
 import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
@@ -190,15 +191,14 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                     <TableHead className="font-semibold">Type</TableHead>
                     <TableHead className="font-semibold">Railway</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold">Main Defect</TableHead>
-                    <TableHead className="font-semibold">Repairs</TableHead>
+                    <TableHead className="font-semibold">Condition</TableHead>
                     <TableHead className="font-semibold">Workflow Status</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredWagons.map((wagon) => (
-                    <TableRow key={wagon.id} className="hover:bg-secondary/30 transition-colors">
+                    <TableRow key={wagon.id} className="hover:bg-secondary/30 transition-colors h-[72px] overflow-hidden">
                       <TableCell>
                         <Checkbox
                           checked={selectedIds.has(wagon.id)}
@@ -262,55 +262,8 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                           }
                         })()}
                       </TableCell>
-                      <TableCell>
-                        {wagon.comments ? (
-                          <Badge variant="outline" className={`font-medium ${wagon.comments.includes('Fit') || wagon.comments.includes('completed') ? 'bg-green-100 text-green-800 border-green-300' : 
-                            (wagon.comments.toLowerCase().includes('crack') || wagon.comments.toLowerCase().includes('leak') || wagon.comments.toLowerCase().includes('fail') ? 'bg-red-100 text-red-800 border-red-300 font-bold' : 
-                            (wagon.comments.toLowerCase().includes('alert') || wagon.comments.toLowerCase().includes('bind') ? 'bg-orange-100 text-orange-800 border-orange-300 font-semibold' : 'bg-blue-100 text-blue-800 border-blue-300'))}`}>
-                            {wagon.comments}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1.5">
-                          {(() => {
-                            const getSeverityColor = (defectName: string) => {
-                              for (const group of DEFECT_LIBRARY) {
-                                const def = group.defects.find(d => d.name === defectName);
-                                if (def) {
-                                  if (def.severity === "Safety Critical") return "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400";
-                                  if (def.severity === "Urgent") return "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400";
-                                  return "bg-primary/10 text-primary border-primary/20";
-                                }
-                              }
-                              return "bg-primary/10 text-primary border-primary/20";
-                            };
-
-                            return (
-                              <>
-                                {wagon.primaryRepair && (
-                                  <span className={`inline-flex w-fit items-center px-2 py-0.5 rounded text-xs font-bold border ${getSeverityColor(wagon.primaryRepair)}`}>
-                                    {wagon.primaryRepair}
-                                  </span>
-                                )}
-                                {wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0 && (
-                                  <div className="text-xs text-muted-foreground mt-0.5 flex flex-col gap-1">
-                                    {wagon.secondaryRepairs.map((r, i) => (
-                                      <span key={i} className={`inline-flex w-fit items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getSeverityColor(r)}`}>
-                                        {r}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                {!wagon.primaryRepair && (!wagon.secondaryRepairs || wagon.secondaryRepairs.length === 0) && (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
+                      <TableCell className="max-w-[250px] align-top py-2">
+                        <ConditionSummary wagon={wagon} />
                       </TableCell>
                       <TableCell>
                         {(() => {

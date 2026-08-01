@@ -56,6 +56,17 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 222 35% 18%;
     --sidebar-ring: 354 70% 45%;
+    
+    /* Phase 1 Design Tokens */
+    --color-status-critical: var(--destructive);
+    --color-status-warning: var(--warning);
+    --color-status-inprogress: var(--primary);
+    --color-status-assigned: var(--info);
+    --color-status-completed: var(--success);
+    --color-status-inactive: var(--muted-foreground);
+
+    --sidebar-width: 280px;
+    --sidebar-width-icon: 72px;
   }
 
   .dark {
@@ -85,6 +96,38 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground antialiased; font-family: 'Inter', system-ui, sans-serif; }
   h1,h2,h3,h4 { font-family: 'Inter', system-ui, sans-serif; }
+}
+
+@layer utilities {
+  .text-h1 { @apply text-[32px] leading-tight font-bold tracking-tight; }
+  .text-h2 { @apply text-[24px] leading-snug font-semibold tracking-tight; }
+  .text-h3 { @apply text-[20px] leading-snug font-semibold tracking-tight; }
+  
+  /* Density Mode Overrides */
+  .density-compact {
+    --density-spacing-sm: 0.25rem;
+    --density-spacing-md: 0.5rem;
+    --density-spacing-lg: 1rem;
+    --density-row-height: 48px;
+    --density-padding-x: 0.75rem;
+    --density-padding-y: 0.25rem;
+  }
+  .density-comfortable {
+    --density-spacing-sm: 0.5rem;
+    --density-spacing-md: 1rem;
+    --density-spacing-lg: 1.5rem;
+    --density-row-height: 64px;
+    --density-padding-x: 1rem;
+    --density-padding-y: 0.5rem;
+  }
+  .density-touch {
+    --density-spacing-sm: 0.75rem;
+    --density-spacing-md: 1.5rem;
+    --density-spacing-lg: 2rem;
+    --density-row-height: 80px;
+    --density-padding-x: 1.25rem;
+    --density-padding-y: 0.75rem;
+  }
 }
 
 @layer utilities {

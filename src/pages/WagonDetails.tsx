@@ -14,8 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Train, ArrowLeft, Clock, Info, ShieldCheck, Droplets, Wind, Wrench, CheckCircle2, FileStack } from "lucide-react";
+import { Train, ArrowLeft, Clock, Info, ShieldCheck, Droplets, Wind, Wrench, CheckCircle2, FileStack, Printer, QrCode } from "lucide-react";
 import { DocumentManager } from "@/components/documents/DocumentManager";
+import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
+import { PassportOverview } from "@/components/passport/PassportOverview";
+import { DefectCentre } from "@/components/passport/DefectCentre";
 
 export default function WagonDetails() {
   const { id } = useParams<{ id: string }>();
@@ -101,235 +104,148 @@ export default function WagonDetails() {
     return workflow.stages.some(s => s.stageName.includes(stageNameMatch) && s.status === "Done");
   };
 
-  return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex items-center justify-between gap-4 mb-2">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full hover:bg-muted">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <PageHeader 
-            title={`Wagon ${wagon.wagonNo}`} 
-            description="Complete wagon details, chronological timeline, and active workflow."
-            icon={Train}
-            actions={
-              <Badge variant="outline" className={`px-3 py-1 text-sm font-semibold uppercase tracking-wider
-                ${wagon.status === 'SICK_LINE' || wagon.status === 'REPAIR_IN_PROGRESS' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-success/10 text-success border-success/20'}
-              `}>
-                {wagon.status.replace(/_/g, ' ')}
-              </Badge>
-            }
-          />
-        </div>
-        <div className="bg-white p-2 rounded-lg shadow-sm border">
-          <QRCodeSVG value={window.location.href} size={64} level="L" includeMargin={false} />
+  const passportHeader = (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-[var(--density-spacing-lg,1.5rem)] animate-fade-in border-b pb-4">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full hover:bg-muted">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-h1 font-bold tracking-tight flex items-center gap-2 text-foreground">
+              {wagon.wagonNo}
+            </h1>
+            <Badge variant="outline" className={`px-2 py-0.5 text-xs font-semibold uppercase tracking-wider
+              ${wagon.status === 'SICK_LINE' || wagon.status === 'REPAIR_IN_PROGRESS' ? 'bg-destructive/10 text-destructive border-destructive/20' : 'bg-success/10 text-success border-success/20'}
+            `}>
+              {wagon.status.replace(/_/g, ' ')}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">Digital Passport & Operational History</p>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT PANEL: Details & Active Modules */}
-        <div className="lg:col-span-1 space-y-6">
-          
-          {/* Wagon Information Card */}
-          <Card className="shadow-sm border-border/50">
-            <CardHeader className="pb-3 border-b bg-muted/20">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Info className="h-5 w-5 text-primary" />
-                Wagon Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-2 gap-x-4 gap-y-4">
-              <InfoItem label="Type" value={wagon.type} />
-              <InfoItem label="Owner" value={wagon.owner} />
-              <InfoItem label="Location" value={wagon.bookedTo ? String(wagon.bookedTo).toUpperCase() : "Yard"} />
-              <InfoItem label="Built Year" value={wagon.builtYear?.toString() || "Unknown"} />
-              <div className="col-span-2 pt-2 border-t">
-                <InfoItem label="Current Stage" value={workflow.currentStage} valueClassName="text-primary font-bold" />
-              </div>
-              <InfoItem label="Assigned To" value={activeStage?.staffName || activeStage?.sscJeName || "Unassigned"} />
-              <InfoItem label="Check Number" value={wagon.rakeId || "N/A"} />
-              <div className="col-span-2 pt-2 border-t">
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 tracking-wider">Defects</p>
-                <p className="text-sm font-medium text-destructive">{wagon.defect || "None recorded"}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Workflow Progress Bar Mobile/Tablet */}
-          <Card className="shadow-sm border-border/50 lg:hidden">
-            <CardHeader className="pb-3 border-b bg-muted/20">
-              <CardTitle className="text-lg">Workflow Progress</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <WorkflowProgressBar workflow={workflow} wagonType={wagon.type || ""} />
-            </CardContent>
-          </Card>
-
-          {/* Dynamic Action Modules based on current stage */}
-          {activeStage && activeStage.status !== "Skipped" && activeStage.status !== "Done" && (
-            <Card className="shadow-sm border-primary/20 bg-primary/5">
-              <CardHeader className="pb-3 border-b border-primary/10">
-                <CardTitle className="text-lg flex items-center gap-2 text-primary">
-                  {activeStage.stageName.includes("Steam") && <Droplets className="h-5 w-5" />}
-                  {activeStage.stageName.includes("Degass") && <Wind className="h-5 w-5" />}
-                  {activeStage.stageName.includes("Gas Free") && <ShieldCheck className="h-5 w-5" />}
-                  {activeStage.stageName.includes("Repair") && <Wrench className="h-5 w-5" />}
-                  {(!activeStage.stageName.includes("Steam") && !activeStage.stageName.includes("Degass") && !activeStage.stageName.includes("Gas Free") && !activeStage.stageName.includes("Repair")) && <Clock className="h-5 w-5" />}
-                  Action: {activeStage.stageName}
-                </CardTitle>
-                <CardDescription>Update the status of the current workflow stage.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                
-                {/* Duration Tracker (if in progress) */}
-                {activeStage.status === "In Progress" && (
-                  <div className="flex items-center justify-between bg-background border rounded-md p-3 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-blue-500 animate-pulse" />
-                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">In Progress</span>
-                    </div>
-                    <div className="text-sm font-mono font-medium">
-                      {Math.floor(elapsedMinutes / 60)}h {elapsedMinutes % 60}m
-                    </div>
-                  </div>
-                )}
-
-                {/* Module: Gas Free Certification specific inputs */}
-                {activeStage.stageName.includes("Gas Free") && activeStage.status === "In Progress" && (
-                  <div className="space-y-2 pb-2">
-                    <Label className="text-sm font-semibold">Certificate Number <span className="text-destructive">*</span></Label>
-                    <Input 
-                      placeholder="e.g. GFC-2026-081" 
-                      value={certNumber} 
-                      onChange={e => setCertNumber(e.target.value)} 
-                    />
-                  </div>
-                )}
-
-                {/* Shared Inputs (Operator & Remarks) */}
-                {activeStage.status === "In Progress" && (
-                  <>
-                    <div className="space-y-2 pb-2">
-                      <Label className="text-sm font-semibold">Operator / Staff Name</Label>
-                      <Input 
-                        value={operator} 
-                        onChange={e => setOperator(e.target.value)} 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Remarks</Label>
-                      <Textarea 
-                        placeholder="Enter bay number, observations, or constraints..." 
-                        value={remarks} 
-                        onChange={e => setRemarks(e.target.value)}
-                        className="resize-none h-20"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* Actions */}
-                <div className="pt-2 flex justify-end">
-                  {activeStage.status === "Pending" ? (
-                    <Button 
-                      onClick={handleStartStage} 
-                      disabled={isSubmitting}
-                      className="w-full sm:w-auto"
-                    >
-                      Start {activeStage.stageName}
-                    </Button>
-                  ) : (
-                    <Button 
-                      onClick={() => {
-                        let extra = "";
-                        if (activeStage.stageName.includes("Gas Free") && certNumber) {
-                          extra = `Cert: ${certNumber}`;
-                        }
-                        handleCompleteStage(extra);
-                      }}
-                      disabled={isSubmitting || (activeStage.stageName.includes("Gas Free") && !certNumber.trim())}
-                      className="w-full sm:w-auto bg-success hover:bg-success/90 text-success-foreground"
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Complete Stage
-                    </Button>
-                  )}
-                </div>
-
-                {/* Rules & Warnings */}
-                {activeStage.stageName.includes("Gas Free") && activeStage.status === "In Progress" && (
-                  <div className="text-xs text-muted-foreground bg-background/50 border rounded p-2 mt-2">
-                    <strong>Rule:</strong> Mechanical Inspection cannot begin until Gas Free Certification is passed.
-                  </div>
-                )}
-                {activeStage.stageName.includes("Mechanical Inspection") && isTank && !isStageCompleted("Gas Free") && (
-                  <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded p-2 mt-2">
-                    <strong>Warning:</strong> Gas Free Certification appears incomplete.
-                  </div>
-                )}
-
-              </CardContent>
-            </Card>
-          )}
-
-          {activeStage && activeStage.status === "Done" && (
-            <Card className="shadow-sm border-success/20 bg-success/5 text-center py-6">
-              <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-2 opacity-80" />
-              <h3 className="font-bold text-lg text-success-foreground">Workflow Completed</h3>
-              <p className="text-sm text-success-foreground/70">All required stages have been finished.</p>
-            </Card>
-          )}
-
-        </div>
-
-        {/* RIGHT PANEL: Progress, Timeline & Documents */}
-        <div className="lg:col-span-2 space-y-6">
-          <Tabs defaultValue="workflow" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/50">
-              <TabsTrigger value="workflow" className="text-sm">
-                <Clock className="h-4 w-4 mr-2" /> Workflow & Timeline
-              </TabsTrigger>
-              <TabsTrigger value="documents" className="text-sm">
-                <FileStack className="h-4 w-4 mr-2" /> Documents & Gallery
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="workflow" className="space-y-6 mt-0 animate-fade-in">
-              {/* Workflow Progress Bar Desktop */}
-              <Card className="hidden lg:block shadow-sm border-border/50">
-            <CardHeader className="pb-0 border-b bg-muted/20">
-              <CardTitle className="text-lg py-2">Workflow Progress</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <WorkflowProgressBar workflow={workflow} wagonType={wagon.type || ""} />
-            </CardContent>
-          </Card>
-
-          {/* Timeline */}
-          <Card className="shadow-sm border-border/50">
-            <CardHeader className="pb-3 border-b bg-muted/20">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                Chronological Timeline
-              </CardTitle>
-              <CardDescription>Complete audit trail of all workflow transitions and actions.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <WagonTimeline workflow={workflow} />
-            </CardContent>
-          </Card>
-            </TabsContent>
-
-            <TabsContent value="documents" className="mt-0 animate-fade-in">
-              <DocumentManager wagonId={wagon.id} />
-            </TabsContent>
-          </Tabs>
-
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" className="hidden sm:flex h-9">
+          <Printer className="h-4 w-4 mr-2" /> Print Passport
+        </Button>
+        <div className="bg-white p-1 rounded-sm shadow-sm border cursor-pointer hover:scale-105 transition-transform" title="Scan to open passport">
+          <QRCodeSVG value={window.location.href} size={36} level="L" includeMargin={false} />
         </div>
       </div>
     </div>
   );
+
+  return (
+    <WorkspaceLayout header={passportHeader}>
+      <Tabs defaultValue="overview" className="flex flex-col md:flex-row h-full gap-6 pb-12 animate-fade-in">
+        
+        {/* Vertical Navigation Sidebar */}
+        <div className="w-full md:w-56 shrink-0">
+          <TabsList className="flex flex-row md:flex-col h-auto w-full justify-start bg-transparent space-y-0 md:space-y-2 space-x-2 md:space-x-0 overflow-x-auto p-0">
+            <TabsTrigger value="overview" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
+              <Info className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="defects" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
+              <Wrench className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Defect Centre</span>
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
+              <Clock className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Audit Timeline</span>
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
+              <FileStack className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Documents & Gallery</span>
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Quick Actions (only visible on desktop) */}
+          <div className="hidden md:block mt-8 space-y-4">
+            <h3 className="text-xs font-bold uppercase text-muted-foreground tracking-wider px-2">Operator Actions</h3>
+            {/* Dynamic Action Modules based on current stage */}
+            {activeStage && activeStage.status !== "Skipped" && activeStage.status !== "Done" ? (
+              <Card className="shadow-sm border-primary/20 bg-primary/5">
+                <CardHeader className="p-4 pb-2 border-b border-primary/10">
+                  <CardTitle className="text-sm flex items-center gap-2 text-primary">
+                    <Activity className="h-4 w-4 shrink-0" />
+                    {activeStage.stageName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-3 space-y-3">
+                  
+                  {/* Shared Inputs (Operator & Remarks) */}
+                  {activeStage.status === "In Progress" && (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Operator Name</Label>
+                        <Input size={1} className="h-8 text-xs" value={operator} onChange={e => setOperator(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Remarks</Label>
+                        <Textarea className="resize-none h-16 text-xs min-h-[4rem]" value={remarks} onChange={e => setRemarks(e.target.value)} />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Actions */}
+                  <div className="pt-2">
+                    {activeStage.status === "Pending" ? (
+                      <Button onClick={handleStartStage} disabled={isSubmitting} size="sm" className="w-full text-xs h-8">
+                        Start Stage
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={() => handleCompleteStage()}
+                        disabled={isSubmitting}
+                        size="sm"
+                        className="w-full text-xs h-8 bg-success hover:bg-success/90 text-success-foreground"
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Complete
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="text-xs text-muted-foreground px-2">No active stage awaiting action.</div>
+            )}
+          </div>
+        </div>
+
+        {/* Main Workspace Area */}
+        <div className="flex-1 min-w-0">
+          <TabsContent value="overview" className="h-full m-0">
+            <PassportOverview wagon={wagon} activeStage={workflow.currentStage} defectCount={wagon.repairTasks?.length} />
+          </TabsContent>
+          
+          <TabsContent value="defects" className="h-full m-0">
+            <DefectCentre wagon={wagon} />
+          </TabsContent>
+
+          <TabsContent value="timeline" className="h-full m-0">
+            <Card className="shadow-sm border-border/50 h-full">
+              <CardHeader className="pb-3 border-b bg-muted/20">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  Chronological Audit Timeline
+                </CardTitle>
+                <CardDescription>Immutable history of all workflow transitions and actions.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <WagonTimeline workflow={workflow} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="documents" className="h-full m-0">
+            <DocumentManager wagonId={wagon.id} />
+          </TabsContent>
+        </div>
+
+      </Tabs>
+    </WorkspaceLayout>
+  );
 }
+
+
 
 function InfoItem({ label, value, valueClassName = "" }: { label: string, value: string, valueClassName?: string }) {
   return (

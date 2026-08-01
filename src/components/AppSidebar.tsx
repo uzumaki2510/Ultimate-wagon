@@ -1,6 +1,6 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown, ShieldAlert, ListFilter, Droplets, Wind, ClipboardCheck, Activity, CheckCircle, Database } from "lucide-react";
+import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown, ShieldAlert, ListFilter, Droplets, Wind, ClipboardCheck, Activity, CheckCircle, Database, Workflow } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useTheme } from "next-themes";
+import { useDensity } from "@/contexts/DensityContext";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -16,6 +17,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { user, isAdmin, isSuperAdmin, logout, listPendingEmployees } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { density, setDensity } = useDensity();
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export function AppSidebar() {
     { title: "Deleted Register", url: "/deleted", icon: Trash2 },
     { title: "Admin Log", url: "/admin-log", icon: ShieldCheck },
     { title: "Audit Trail", url: "/audit-logs", icon: ShieldCheck },
+    { title: "Workflow Engine", url: "/workflow-builder", icon: Workflow },
   ];
 
   const workshopItems = [
@@ -208,6 +211,20 @@ export function AppSidebar() {
                  {theme === "dark" ? <Wind className="h-3 w-3" /> : <Droplets className="h-3 w-3" />}
                </div>
                {!collapsed && <span>Toggle Theme</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={() => {
+                const next = density === 'compact' ? 'comfortable' : density === 'comfortable' ? 'touch' : 'compact';
+                setDensity(next);
+              }} 
+              className="flex items-center gap-3 cursor-pointer text-muted-foreground hover:text-foreground"
+            >
+               <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                 <LayoutDashboard className="h-3 w-3" />
+               </div>
+               {!collapsed && <span className="capitalize">{density} Mode</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

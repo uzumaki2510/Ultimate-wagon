@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { FilterBar } from "@/components/shared/FilterBar";
 import { StatCard } from "@/components/shared/StatCard";
@@ -165,43 +166,49 @@ export default function WagonRegister() {
     { label: "Hopper Wagon", value: "Hopper Wagon" },
   ];
 
-  return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <PageHeader
-        title="Wagon Register"
-        description="Comprehensive search, filter, and management of all wagons."
-        icon={Train}
-        actions={<ExportButton wagons={filteredWagons} selectedWagons={[]} />}
-      />
-
-      <Card className="border-border/50 shadow-sm overflow-hidden">
-        <CardContent className="p-4 bg-muted/30">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <SearchBar 
-              value={search} 
-              onChange={setSearch} 
-              placeholder="Search wagon number, type, owner..." 
-              className="flex-1" 
+  const filterBar = (
+    <Card className="border-border/50 shadow-sm overflow-hidden mb-[var(--density-spacing-md,1rem)]">
+      <CardContent className="p-4 bg-muted/30">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <SearchBar 
+            value={search} 
+            onChange={setSearch} 
+            placeholder="Search wagon number, type, owner..." 
+            className="flex-1" 
+          />
+          <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            <FilterBar 
+              value={filterStatus} 
+              onChange={setFilterStatus} 
+              options={statusOptions} 
+              placeholder="Status" 
             />
-            <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-              <FilterBar 
-                value={filterStatus} 
-                onChange={setFilterStatus} 
-                options={statusOptions} 
-                placeholder="Status" 
-              />
-              <FilterBar 
-                value={filterCategory} 
-                onChange={setFilterCategory} 
-                options={categoryOptions} 
-                placeholder="Category" 
-              />
-            </div>
+            <FilterBar 
+              value={filterCategory} 
+              onChange={setFilterCategory} 
+              options={categoryOptions} 
+              placeholder="Category" 
+            />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+  return (
+    <WorkspaceLayout 
+      header={
+        <PageHeader
+          title="Wagon Register"
+          description="Comprehensive search, filter, and management of all wagons."
+          icon={Train}
+          actions={<ExportButton wagons={filteredWagons} selectedWagons={[]} />}
+        />
+      }
+      filterBar={filterBar}
+    >
+      <div className="space-y-[var(--density-spacing-md,1rem)] animate-fade-in pb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-[var(--density-spacing-sm,0.5rem)]">
         <StatCard title="Total" value={stats.total} className="bg-slate-50/50" />
         <StatCard title="In Repair" value={stats.sick} className="bg-red-50/50 text-red-700" />
         <StatCard title="Completed" value={stats.fit} className="bg-green-50/50 text-green-700" />
@@ -230,6 +237,7 @@ export default function WagonRegister() {
         onSubmit={handleWagonParsed}
         existingWagons={zustandWagons}
       />
-    </div>
+      </div>
+    </WorkspaceLayout>
   );
 }

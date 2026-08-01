@@ -7,11 +7,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute, AdminRoute, SuperAdminRoute } from "@/components/RouteGuards";
 import { lazy, Suspense } from "react";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { DensityProvider } from "@/contexts/DensityContext";
 
 // Eager load layout/auth/core to prevent flicker
 import AppLayout from "@/components/AppLayout";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
+import WorkflowBuilder from "@/pages/WorkflowBuilder";
 
 // Lazy load everything else
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -52,6 +54,7 @@ const LoadingFallback = () => (
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <DensityProvider>
     <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -76,6 +79,7 @@ const App = () => (
                 <Route path="/quick-board" element={<QuickBoard />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
+                <Route path="/workflow-builder" element={<AdminRoute><WorkflowBuilder /></AdminRoute>} />
 
                 {/* Super Admin Guarded Routes */}
                 <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
@@ -105,6 +109,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
     </QueryClientProvider>
+    </DensityProvider>
   </ThemeProvider>
 );
 
