@@ -29,7 +29,7 @@ import {
 import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, DEFECT_LIBRARY, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
 import { EditWagonModal } from "@/components/EditWagonModal";
 import { ConditionSummary } from "@/components/ConditionSummary";
-import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame } from "lucide-react";
+import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame, ArrowRight, Archive, X } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -51,6 +51,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   const nav = useNavigate();
   const memos = useAppStore((s) => s.memos);
   const zustandWagons = useAppStore((s) => s.wagons);
+  const updateWagon = useAppStore((s) => s.updateWagon);
 
   // Build a map: wagonNumber -> linked memo count
   const linkedMemoCount = useMemo(() => {
@@ -68,6 +69,46 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   const [searchQuery, setSearchQuery] = useState("");
   const [editingWagon, setEditingWagon] = useState<WagonRepair | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+  const [moveDestination, setMoveDestination] = useState<string>("");
+
+  const handleBulkDelete = async () => {
+    setIsProcessingBulk(true);
+    for (const id of selectedIds) {
+      onDelete(id);
+    }
+    setSelectedIds(new Set());
+    onSelectionChange?.([]);
+    setIsProcessingBulk(false);
+    setIsDeleteDialogOpen(false);
+  };
+
+  const handleBulkArchive = async () => {
+    setIsProcessingBulk(true);
+    for (const id of selectedIds) {
+      updateWagon(id, { status: "ARCHIVED" as any });
+    }
+    setSelectedIds(new Set());
+    onSelectionChange?.([]);
+    setIsProcessingBulk(false);
+    setIsArchiveDialogOpen(false);
+  };
+
+  const handleBulkMove = async () => {
+    setIsProcessingBulk(true);
+    for (const id of selectedIds) {
+      onUpdateSickLine(id, moveDestination as SickLine);
+    }
+    setSelectedIds(new Set());
+    onSelectionChange?.([]);
+    setIsProcessingBulk(false);
+    setIsMoveDialogOpen(false);
+    setMoveDestination("");
+  };
 
   const filteredWagons = useMemo(() => {
     let result = wagons;
@@ -145,15 +186,16 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
       <Card className="glass animate-fade-in">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <CardTitle className="flex items-center gap-2 text-xl">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
               <FileSpreadsheet className="h-5 w-5 text-info" />
               Wagon Register
-              <Badge variant="secondary" className="ml-2">
-                {filteredWagons.length} wagon{filteredWagons.length !== 1 ? "s" : ""}
-              </Badge>
-              {selectedIds.size > 0 && (
-                <Badge variant="outline" className="ml-2">
-                  {selectedIds.size} selected
+              {selectedIds.size > 0 ? (
+                <Badge className="ml-2 bg-primary text-primary-foreground">
+                  ✓ {selectedIds.size} Selected
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="ml-2">
+                  {filteredWagons.length} Wagon{filteredWagons.length !== 1 ? "s" : ""}
                 </Badge>
               )}
             </CardTitle>
@@ -168,6 +210,23 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
             </div>
           </div>
         </CardHeader>
+        {selectedIds.size > 0 && (
+          <div className="hidden sm:flex sticky top-0 z-10 items-center gap-3 bg-white border border-border/50 shadow-sm rounded-xl py-3 px-4 mx-6 mb-4 animate-in fade-in slide-in-from-top-4">
+            <Button size="sm" onClick={() => setIsMoveDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+              <ArrowRight className="h-4 w-4" /> Move Wagons
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setIsArchiveDialogOpen(true)} className="gap-2 text-secondary-foreground">
+              <Archive className="h-4 w-4" /> Archive Wagons
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} className="gap-2">
+              <Trash2 className="h-4 w-4" /> Delete Wagons
+            </Button>
+            <div className="flex-1" />
+            <Button size="sm" variant="ghost" onClick={() => { setSelectedIds(new Set()); onSelectionChange?.([]); }} className="gap-2 text-muted-foreground hover:bg-muted/50">
+              <X className="h-4 w-4" /> Clear Selection
+            </Button>
+          </div>
+        )}
         <CardContent>
           {filteredWagons.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -181,7 +240,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                   <TableRow className="bg-secondary/50">
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={isAllSelected}
+                        checked={isAllSelected || (isSomeSelected ? "indeterminate" : false)}
                         onCheckedChange={handleSelectAll}
                         aria-label="Select all"
                         className={isSomeSelected && !isAllSelected ? "opacity-50" : ""}
@@ -395,6 +454,79 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
           onOpenChange={(open) => !open && setEditingWagon(null)} 
         />
       )}
+
+      {/* Mobile Bottom Action Sheet */}
+      {selectedIds.size > 0 && (
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t p-4 shadow-[0_-4px_10px_rgba(0,0,0,0.1)] pb-[calc(env(safe-area-inset-bottom)+1rem)] animate-in slide-in-from-bottom-full">
+          <div className="text-center text-sm font-medium mb-3">{selectedIds.size} Selected</div>
+          <div className="grid grid-cols-1 gap-2">
+            <Button onClick={() => setIsMoveDialogOpen(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white">Move</Button>
+            <Button variant="secondary" onClick={() => setIsArchiveDialogOpen(true)} className="w-full">Archive</Button>
+            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} className="w-full">Delete</Button>
+            <Button variant="outline" onClick={() => { setSelectedIds(new Set()); onSelectionChange?.([]); }} className="w-full">Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} Wagons?</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">This action cannot be undone.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={isProcessingBulk}>
+              {isProcessingBulk ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Archive Dialog */}
+      <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive {selectedIds.size} Wagons?</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">Archived wagons will be hidden from the default register but remain available in Archive.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsArchiveDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkArchive} disabled={isProcessingBulk}>
+              {isProcessingBulk ? "Archiving..." : "Archive"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Move Dialog */}
+      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move {selectedIds.size} Wagons</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Destination</label>
+            <Select value={moveDestination} onValueChange={setMoveDestination}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select destination" />
+              </SelectTrigger>
+              <SelectContent>
+                {["Steam Line", "Degassing Line", "Inspection", "Repair", "Testing", "Fit Line"].map((dest) => (
+                  <SelectItem key={dest} value={dest}>{dest}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMoveDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleBulkMove} disabled={!moveDestination || isProcessingBulk} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {isProcessingBulk ? "Moving..." : "Move Wagons"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
