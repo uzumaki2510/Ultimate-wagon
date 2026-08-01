@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Train, ArrowLeft, Clock, Info, ShieldCheck, Droplets, Wind, Wrench, CheckCircle2, FileStack, Printer, QrCode } from "lucide-react";
+import { Train, ArrowLeft, Clock, Info, ShieldCheck, Droplets, Wind, Wrench, CheckCircle2, FileStack, Printer, QrCode, Activity } from "lucide-react";
 import { DocumentManager } from "@/components/documents/DocumentManager";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { PassportOverview } from "@/components/passport/PassportOverview";
@@ -213,11 +213,11 @@ export default function WagonDetails() {
         {/* Main Workspace Area */}
         <div className="flex-1 min-w-0">
           <TabsContent value="overview" className="h-full m-0">
-            <PassportOverview wagon={wagon} activeStage={workflow.currentStage} defectCount={wagon.repairTasks?.length} />
+            <PassportOverview wagon={wagon as any} activeStage={workflow.currentStage} defectCount={wagon.repairTasks?.length} />
           </TabsContent>
           
           <TabsContent value="defects" className="h-full m-0">
-            <DefectCentre wagon={wagon} />
+            <DefectCentre wagon={wagon as any} />
           </TabsContent>
 
           <TabsContent value="timeline" className="h-full m-0">

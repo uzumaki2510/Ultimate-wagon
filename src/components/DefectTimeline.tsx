@@ -36,7 +36,7 @@ export function DefectTimeline({ wagon }: DefectTimelineProps) {
       user: "Fitter Team A",
       icon: Clock,
       color: "bg-orange-500",
-      active: wagon.status === "in-repair" || wagon.status === "REPAIR_IN_PROGRESS" || wagon.status === "FIT_READY" || wagon.status === "fit" || wagon.status === "completed"
+      active: wagon.status === "in-repair" || (wagon.status as any) === "REPAIR_IN_PROGRESS" || (wagon.status as any) === "FIT_READY" || (wagon.status as string) === "fit" || wagon.status === "completed"
     },
     {
       id: "4",
@@ -46,7 +46,7 @@ export function DefectTimeline({ wagon }: DefectTimelineProps) {
       user: "Fitter Team A",
       icon: Wrench,
       color: "bg-amber-500",
-      active: wagon.status === "in-repair" || wagon.status === "REPAIR_IN_PROGRESS" || wagon.status === "FIT_READY" || wagon.status === "fit" || wagon.status === "completed"
+      active: wagon.status === "in-repair" || (wagon.status as any) === "REPAIR_IN_PROGRESS" || (wagon.status as any) === "FIT_READY" || (wagon.status as string) === "fit" || wagon.status === "completed"
     },
     {
       id: "5",
@@ -56,7 +56,7 @@ export function DefectTimeline({ wagon }: DefectTimelineProps) {
       user: "Fitter Team A",
       icon: CheckCircle2,
       color: "bg-green-500",
-      active: wagon.status === "FIT_READY" || wagon.status === "fit" || wagon.status === "completed"
+      active: (wagon.status as any) === "FIT_READY" || (wagon.status as string) === "fit" || wagon.status === "completed"
     },
     {
       id: "6",
@@ -66,7 +66,7 @@ export function DefectTimeline({ wagon }: DefectTimelineProps) {
       user: "SSE Mahesh",
       icon: Lock,
       color: "bg-slate-500",
-      active: wagon.status === "FIT_READY" || wagon.status === "fit" || wagon.status === "completed"
+      active: (wagon.status as any) === "FIT_READY" || (wagon.status as string) === "fit" || wagon.status === "completed"
     }
   ];
 

@@ -35,14 +35,14 @@ export function ConditionSummary({ wagon }: ConditionSummaryProps) {
       }
     }
 
-    if (wagon.status === "FIT_READY" || wagon.status === "RELEASED" || wagon.status === "completed" || (wagon.status as string) === "fit") {
+    if ((wagon.status as any) === "FIT_READY" || (wagon.status as any) === "RELEASED" || wagon.status === "completed" || (wagon.status as string) === "fit") {
       return { level: "Resolved", color: "border-green-500", text: "text-green-700 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950", icon: CheckCircle };
     }
 
     if (hasCritical || wagon.status === "sick" || (wagon.status as string) === "SICK_LINE") {
       return { level: "Critical", color: "border-red-500", text: "text-red-700 dark:text-red-400", bg: "bg-red-50 dark:bg-red-950", icon: AlertCircle };
     }
-    if (hasUrgent || wagon.status === "in-repair" || (wagon.status as string) === "REPAIR_IN_PROGRESS") {
+    if (hasUrgent || wagon.status === "in-repair" || (wagon.status as any) === "REPAIR_IN_PROGRESS") {
       return { level: "Major", color: "border-orange-500", text: "text-orange-700 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950", icon: AlertTriangle };
     }
     
@@ -54,7 +54,7 @@ export function ConditionSummary({ wagon }: ConditionSummaryProps) {
   
   // Calculate mock repair progress based on workflow status
   const total = defects.length || 1;
-  const repaired = (wagon.status === "completed" || (wagon.status as string) === "fit" || wagon.status === "FIT_READY") ? total : 0;
+  const repaired = (wagon.status === "completed" || (wagon.status as string) === "fit" || (wagon.status as any) === "FIT_READY") ? total : 0;
   const pending = total - repaired;
 
   const getCategoryIcon = (defectName: string) => {

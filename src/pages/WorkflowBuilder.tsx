@@ -14,7 +14,7 @@ export default function WorkflowBuilder() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
   // Restrict to admins/managers only
-  if (user?.role !== "Admin" && user?.role !== "Manager") {
+  if (user?.role !== "admin" && (user?.role as any) !== "manager") {
     return <Navigate to="/dashboard" replace />;
   }
 

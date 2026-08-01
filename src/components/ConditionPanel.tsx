@@ -32,7 +32,7 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects, severityInf
   const [activeTab, setActiveTab] = useState("overview");
 
   const total = defects.length || 1;
-  const repaired = (wagon.status === "completed" || (wagon.status as string) === "fit" || wagon.status === "FIT_READY") ? total : 0;
+  const repaired = (wagon.status === "completed" || (wagon.status as string) === "fit" || (wagon.status as any) === "FIT_READY") ? total : 0;
   const pending = total - repaired;
 
   const groupedDefects = React.useMemo(() => {
@@ -73,7 +73,7 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects, severityInf
     return { level: "Minor", color: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400" };
   };
 
-  const defectStatus = (wagon.status === "FIT_READY" || wagon.status === "completed" || (wagon.status as string) === "fit") ? "Completed" : "Pending";
+  const defectStatus = ((wagon.status as any) === "FIT_READY" || wagon.status === "completed" || (wagon.status as string) === "fit") ? "Completed" : "Pending";
   const defectStatusColor = defectStatus === "Completed" ? "text-green-600 bg-green-100" : "text-amber-600 bg-amber-100";
 
   const Content = () => (

@@ -50,9 +50,9 @@ export function PassportOverview({ wagon, activeStage, defectCount = 0 }: Passpo
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-            <InfoItem label="Wagon Type" value={wagon.type} />
-            <InfoItem label="Owner" value={wagon.owner} />
-            <InfoItem label="Built Year" value={wagon.builtYear?.toString() || "Unknown"} />
+            <InfoItem label="Wagon Type" value={(wagon as any).type} />
+            <InfoItem label="Owner" value={(wagon as any).owner} />
+            <InfoItem label="Built Year" value={(wagon as any).builtYear?.toString() || "Unknown"} />
             <InfoItem label="Capacity" value="70.5T" />
             <InfoItem label="Last POH" value="12-Mar-2023" />
             <InfoItem label="Next POH Due" value="12-Mar-2027" />
@@ -80,7 +80,7 @@ export function PassportOverview({ wagon, activeStage, defectCount = 0 }: Passpo
               </div>
               <div className="text-right hidden sm:block">
                 <div className="text-4xl font-black text-primary/10 select-none">
-                  #{wagon.wagonNo.slice(-4)}
+                  #{(wagon as any).wagonNo?.slice(-4) || wagon.wagonNumber?.slice(-4)}
                 </div>
               </div>
             </div>

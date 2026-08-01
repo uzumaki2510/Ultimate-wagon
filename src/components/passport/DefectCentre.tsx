@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { WagonRepair, RepairTask } from '@/lib/wagonData';
+import { WagonRepair } from '@/lib/wagonData';
+import { RepairTask } from '@/types';
 import { AlertTriangle, Wrench, Clock, CheckCircle } from 'lucide-react';
 import { WagonDiagram } from '@/components/WagonDiagram';
 
@@ -11,7 +12,7 @@ interface DefectCentreProps {
 
 export function DefectCentre({ wagon }: DefectCentreProps) {
   const [selectedLocation, setSelectedLocation] = useState<string | undefined>();
-  const defects = wagon.repairTasks || [];
+  const defects = (wagon as any).repairTasks || [];
 
   const filteredDefects = selectedLocation 
     ? defects.filter(d => {
