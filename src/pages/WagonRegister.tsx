@@ -67,6 +67,7 @@ export default function WagonRegister() {
         repairTypes: w.repairTypes || [],
         primaryRepair: w.repairTypes?.[0] || "",
         secondaryRepairs: w.repairTypes?.slice(1) || [],
+        repairTasks: w.repairTasks || [],
         arrivalDate: w.updatedAt || new Date().toISOString(),
         arrivalTime: "00:00",
         trainNumber: w.rakeId || "",

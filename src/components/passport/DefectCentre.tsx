@@ -17,7 +17,7 @@ export function DefectCentre({ wagon }: DefectCentreProps) {
   const filteredDefects = selectedLocation 
     ? defects.filter(d => {
         // Very rudimentary filter logic matching the WagonDiagram dummy logic
-        const text = (d.repairType + " " + d.subRepair).toLowerCase();
+        const text = (d.category + " " + d.subRepair).toLowerCase();
         if (selectedLocation === "bogie-a") return text.includes("bogie a") || text.includes("wheel a");
         if (selectedLocation === "bogie-b") return text.includes("bogie b") || text.includes("wheel b");
         if (selectedLocation === "roof") return text.includes("roof");
@@ -70,19 +70,19 @@ export function DefectCentre({ wagon }: DefectCentreProps) {
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">{d.repairType}</span>
+                        <span className="font-semibold">{d.category}</span>
                         <Badge variant="outline" className={
-                          d.priority === 'Critical' ? "border-destructive text-destructive bg-destructive/10" : 
-                          d.priority === 'High' ? "border-warning text-warning bg-warning/10" : "bg-muted"
+                          d.severity === 'Safety Critical' ? "border-destructive text-destructive bg-destructive/10" : 
+                          d.severity === 'Urgent' ? "border-warning text-warning bg-warning/10" : "bg-muted"
                         }>
-                          {d.priority}
+                          {d.severity}
                         </Badge>
                       </div>
                       <p className="text-sm text-foreground/80">{d.subRepair}</p>
                       
                       <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3"/> Est. Time: {d.estimatedMinutes}m</span>
-                        <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Parts: {d.partsRequired.length ? d.partsRequired.join(", ") : "None"}</span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3"/> Est. Time: —</span>
+                        <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Parts: TBD</span>
                       </div>
                     </div>
                   </div>

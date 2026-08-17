@@ -14,12 +14,16 @@ export function ConditionSummary({ wagon }: ConditionSummaryProps) {
 
   const defects = useMemo(() => {
     const list: string[] = [];
-    if (wagon.primaryRepair) list.push(wagon.primaryRepair);
-    if (wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0) {
-      list.push(...wagon.secondaryRepairs);
+    if ((wagon as any).repairTasks && (wagon as any).repairTasks.length > 0) {
+      list.push(...(wagon as any).repairTasks.map((rt: any) => rt.subRepair));
+    } else {
+      if (wagon.primaryRepair) list.push(wagon.primaryRepair);
+      if (wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0) {
+        list.push(...wagon.secondaryRepairs);
+      }
     }
     return list;
-  }, [wagon.primaryRepair, wagon.secondaryRepairs]);
+  }, [wagon]);
 
   const severityInfo = useMemo(() => {
     let hasCritical = false;

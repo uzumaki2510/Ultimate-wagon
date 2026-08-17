@@ -26,14 +26,14 @@ export function WagonDiagram({ wagon, selectedLocation, onSelectLocation, defect
   defects.forEach(d => {
     // Very rudimentary location mapping based on defect text for demo purposes
     let loc = "center";
-    const text = ((d as any).repairType + " " + (d as any).subRepair).toLowerCase();
+    const text = (d.category + " " + d.subRepair).toLowerCase();
     
     if (text.includes("bogie") || text.includes("wheel") || text.includes("brake")) loc = text.includes("a") ? "bogie-a" : "bogie-b";
     else if (text.includes("roof")) loc = "roof";
     else if (text.includes("door") || text.includes("side")) loc = text.includes("left") ? "left" : "right";
     else if (text.includes("under") || text.includes("frame")) loc = "underframe";
 
-    const isCritical = (d as any).priority === "Critical" || (d as any).priority === "High";
+    const isCritical = d.severity === "Safety Critical" || d.severity === "Urgent";
     
     if (isCritical) {
       locationSeverities[loc] = "critical";

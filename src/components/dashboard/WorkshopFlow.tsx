@@ -1,27 +1,45 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ArrowRight, Train, Droplets, Wind, ClipboardCheck, Wrench, Activity, CheckCircle } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { useAppStore } from '@/store/useAppStore';
 
 interface FlowStage {
   id: string;
   name: string;
   icon: React.ElementType;
-  currentCount: number;
   capacity: number;
-  avgWaitMins: number;
 }
 
 export function WorkshopFlow() {
-  const stages: FlowStage[] = [
-    { id: 'reg', name: 'Register', icon: Train, currentCount: 5, capacity: 20, avgWaitMins: 10 },
-    { id: 'insp', name: 'Inspection', icon: ClipboardCheck, currentCount: 15, capacity: 20, avgWaitMins: 45 },
-    { id: 'steam', name: 'Steam', icon: Droplets, currentCount: 4, capacity: 5, avgWaitMins: 120 },
-    { id: 'degas', name: 'Degassing', icon: Wind, currentCount: 2, capacity: 5, avgWaitMins: 90 },
-    { id: 'rep', name: 'Repair', icon: Wrench, currentCount: 19, capacity: 20, avgWaitMins: 180 },
-    { id: 'test', name: 'Testing', icon: Activity, currentCount: 8, capacity: 15, avgWaitMins: 30 },
-    { id: 'rel', name: 'Release', icon: CheckCircle, currentCount: 12, capacity: 50, avgWaitMins: 5 },
+  const { workflows } = useAppStore();
+
+  const baseStages: FlowStage[] = [
+    { id: 'reg', name: 'Register', icon: Train, capacity: 50 },
+    { id: 'insp', name: 'Inspection', icon: ClipboardCheck, capacity: 30 },
+    { id: 'steam', name: 'Steam', icon: Droplets, capacity: 10 },
+    { id: 'degas', name: 'Degassing', icon: Wind, capacity: 10 },
+    { id: 'rep', name: 'Repair', icon: Wrench, capacity: 40 },
+    { id: 'test', name: 'Testing', icon: Activity, capacity: 20 },
+    { id: 'rel', name: 'Release', icon: CheckCircle, capacity: 100 },
   ];
+
+  const stagesWithCounts = useMemo(() => {
+    return baseStages.map(stage => {
+      let count = 0;
+      workflows.forEach(wf => {
+        // Map currentStage from workflow to our display stages
+        const s = wf.currentStage.toLowerCase();
+        if (stage.id === 'reg' && s.includes('register')) count++;
+        if (stage.id === 'insp' && s.includes('inspection')) count++;
+        if (stage.id === 'steam' && s.includes('steam')) count++;
+        if (stage.id === 'degas' && (s.includes('degas') || s.includes('purge'))) count++;
+        if (stage.id === 'rep' && s.includes('repair')) count++;
+        if (stage.id === 'test' && s.includes('test')) count++;
+        if (stage.id === 'rel' && s.includes('fit')) count++;
+      });
+      return { ...stage, currentCount: count, avgWaitMins: "—" };
+    });
+  }, [workflows]);
 
   return (
     <Card className="shadow-sm border-border/50">
@@ -32,7 +50,7 @@ export function WorkshopFlow() {
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between gap-2 overflow-x-auto pb-4 pt-2 no-scrollbar">
-          {stages.map((stage, idx) => {
+          {stagesWithCounts.map((stage, idx) => {
             const utilization = Math.round((stage.currentCount / stage.capacity) * 100);
             
             // Determine capacity color
@@ -58,7 +76,7 @@ export function WorkshopFlow() {
                   {/* Utilization Metric */}
                   <div className="w-full flex items-center justify-between text-xs mb-1">
                     <span className="text-muted-foreground">{stage.currentCount}/{stage.capacity}</span>
-                    <span className={`font-bold ${textColor}`}>{utilization}%</span>
+                    <span className={`font-bold ${textColor}`}>{Math.min(utilization, 100)}%</span>
                   </div>
                   
                   {/* Progress Bar */}
@@ -71,12 +89,12 @@ export function WorkshopFlow() {
 
                   {/* Wait Time */}
                   <div className="mt-2 text-[10px] text-muted-foreground">
-                    Avg Wait: {stage.avgWaitMins}m
+                    Avg Wait: {stage.avgWaitMins}
                   </div>
                 </div>
 
                 {/* Connector */}
-                {idx < stages.length - 1 && (
+                {idx < stagesWithCounts.length - 1 && (
                   <div className="flex-shrink-0 text-muted-foreground/30 px-1">
                     <ArrowRight className="h-5 w-5" />
                   </div>
