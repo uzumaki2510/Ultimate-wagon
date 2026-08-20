@@ -32,6 +32,10 @@ import { ConditionSummary } from "@/components/ConditionSummary";
 import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame, ArrowRight, Archive, X } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
+import { WagonWorkflowStatus } from "@/components/WagonWorkflowStatus";
+import { WagonWorkflowModal } from "@/components/WagonWorkflowModal";
+import { getWorkflowForWagonType } from "@/lib/wagonWorkflows";
+import { getWagonSubtypeDisplay, getRailwayShortName } from "@/lib/wagonDisplay";
 
 interface WagonTableProps {
   wagons: WagonRepair[];
@@ -68,6 +72,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   }, [memos, zustandWagons]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingWagon, setEditingWagon] = useState<WagonRepair | null>(null);
+  const [viewingWorkflowWagon, setViewingWorkflowWagon] = useState<WagonRepair | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -248,7 +253,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                     </TableHead>
                     <TableHead className="font-semibold">Wagon No.</TableHead>
                     <TableHead className="font-semibold">Type</TableHead>
-                    <TableHead className="font-semibold">Railway</TableHead>
+                    <TableHead className="font-semibold w-[80px]">Railway</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
                     <TableHead className="font-semibold">Condition</TableHead>
                     <TableHead className="font-semibold">Workflow Status</TableHead>
@@ -275,21 +280,40 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{wagon.details.typeName}</span>
                             {wagon.details.typeName === "BTPGLN" && (
-                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900 font-semibold">
-                                {wagon.isDegassed ? "DG" : "NON-DG"}
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900 font-semibold whitespace-nowrap">
+                                {wagon.isDegassed ? "[DG]" : "[NDG]"}
                               </Badge>
                             )}
-                            {wagon.details.typeName === "BTPN" && (
-                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900 font-semibold">
-                                {wagon.isSteamed ? "Steam" : "without Steam"}
-                              </Badge>
-                            )}
+                            {wagon.details.typeName === "BTPN" && (() => {
+                              const subtype = getWagonSubtypeDisplay(wagon.isSteamed);
+                              return (
+                                <Badge 
+                                  variant="outline" 
+                                  title={subtype.full}
+                                  aria-label={subtype.full}
+                                  className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900 font-semibold whitespace-nowrap"
+                                >
+                                  {subtype.short}
+                                </Badge>
+                              );
+                            })()}
                           </div>
                           <p className="text-xs text-muted-foreground">{wagon.details.category}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-[150px] truncate">
-                        {wagon.details.railwayName}
+                      <TableCell className="max-w-[80px]">
+                        {(() => {
+                          const rwy = getRailwayShortName(wagon.details.railwayName);
+                          return (
+                            <span 
+                              className="truncate block" 
+                              title={rwy.full} 
+                              aria-label={rwy.full}
+                            >
+                              {rwy.short}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {(() => {
@@ -325,42 +349,18 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         <ConditionSummary wagon={wagon} />
                       </TableCell>
                       <TableCell>
-                        {(() => {
-                          const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
-                          const wStatus = wagon.status as string;
-                          const isRepair = wStatus === "REPAIR_IN_PROGRESS" || wStatus === "in-repair" || wStatus === "REPAIR_IN_PROGRESS" || wStatus === "SICK_LINE" || wStatus === "sick";
-                          if (!wf || !isRepair) return <span className="text-muted-foreground text-xs">-</span>;
-                          return (
-                            <div className="flex gap-1 items-center overflow-x-auto max-w-[200px] no-scrollbar">
-                              {wf.stages.map((st, i) => {
-                                let bg = "bg-gray-200 dark:bg-gray-700";
-                                if (st.status === "Done") bg = "bg-green-500";
-                                else if (st.status === "In Progress") bg = "bg-blue-500";
-                                else if (st.status === "Delayed") bg = "bg-red-500";
-                                return <div key={i} className={`w-3 h-3 rounded-full flex-shrink-0 ${bg}`} title={st.stageName + " - " + st.status} />;
-                              })}
-                            </div>
-                          );
-                        })()}
+                        <WagonWorkflowStatus 
+                          wagon={wagon} 
+                          onClick={() => {
+                            if (getWorkflowForWagonType(wagon.details.typeName).supported) {
+                              setViewingWorkflowWagon(wagon);
+                            }
+                          }} 
+                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {(() => {
-                            const wStatus = wagon.status as string;
-                            const isRepair = wStatus === "REPAIR_IN_PROGRESS" || wStatus === "in-repair" || wStatus === "REPAIR_IN_PROGRESS" || wStatus === "SICK_LINE" || wStatus === "sick" || wStatus === "INSPECTION_PENDING" || wStatus === "INSPECTION_COMPLETE";
-                            if (!isRepair) return null;
-                            return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-primary hover:text-primary hover:bg-primary/10"
-                                onClick={() => setEditingWagon(wagon)}
-                                title="Open Workflow Timeline"
-                              >
-                                <ArrowRightCircle className="h-4 w-4" />
-                              </Button>
-                            );
-                          })()}
+                          {/* Old Workflow Timeline button removed as part of Step 3 updates */}
                           {isAdmin && (
                             <Button
                               size="sm"
@@ -452,6 +452,14 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
           wagonId={editingWagon.id} 
           open={!!editingWagon} 
           onOpenChange={(open) => !open && setEditingWagon(null)} 
+        />
+      )}
+
+      {/* Detailed Workflow Modal (Step 3) */}
+      {viewingWorkflowWagon && (
+        <WagonWorkflowModal
+          wagon={viewingWorkflowWagon}
+          onClose={() => setViewingWorkflowWagon(null)}
         />
       )}
 
