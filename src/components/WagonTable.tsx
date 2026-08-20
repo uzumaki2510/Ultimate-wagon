@@ -293,7 +293,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                                   aria-label={subtype.full}
                                   className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900 font-semibold whitespace-nowrap"
                                 >
-                                  {subtype.short}
+                                  {wagon.isSteamed ? "Steam" : "without Steam"}
                                 </Badge>
                               );
                             })()}

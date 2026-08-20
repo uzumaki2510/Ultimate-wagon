@@ -32,7 +32,9 @@ export function WagonWorkflowStatus({ wagon, onClick }: Props) {
   const path = getApplicableWorkflowPath(wagon);
 
   const activeIndex = activeStageKey ? path.indexOf(activeStageKey) : -1;
-  const safeActiveIndex = activeIndex >= 0 ? activeIndex : 0;
+  // If activeIndex is -1, it means not started (0 / total).
+  // If activeIndex >= 0, it means it's progressed (activeIndex + 1 / total).
+  const currentProgressCount = activeIndex >= 0 ? activeIndex + 1 : 0;
   const totalStages = path.length;
 
   return (
@@ -50,20 +52,22 @@ export function WagonWorkflowStatus({ wagon, onClick }: Props) {
         </span>
       </div>
       <div className="font-medium text-sm text-foreground truncate">
-        {activeStage?.label || "Unknown Stage"}
+        {activeStage?.label || "Not Started"}
       </div>
       <div className="text-xs text-muted-foreground mt-0.5">
-        {safeActiveIndex + 1} / {totalStages} stages
+        {currentProgressCount} / {totalStages} stages
       </div>
       
       <div className="flex items-center gap-1 mt-2 w-full pr-4 relative">
         {path.map((stageKey, idx) => {
           let dotClass = "bg-gray-200 dark:bg-gray-700"; // Upcoming
           
-          if (idx < safeActiveIndex) {
-            dotClass = "bg-green-500"; // Completed
-          } else if (idx === safeActiveIndex) {
-            dotClass = "bg-blue-500"; // Current
+          if (activeIndex >= 0) {
+            if (idx < activeIndex) {
+              dotClass = "bg-green-500"; // Completed
+            } else if (idx === activeIndex) {
+              dotClass = "bg-blue-500"; // Current
+            }
           }
 
           const stageInfo = workflow.stages[stageKey];
@@ -72,7 +76,7 @@ export function WagonWorkflowStatus({ wagon, onClick }: Props) {
             <div 
               key={`${stageKey}-${idx}`} 
               className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass} transition-all`}
-              title={`${stageInfo?.label} ${idx < safeActiveIndex ? "(Completed)" : idx === safeActiveIndex ? "(Current)" : "(Upcoming)"}`}
+              title={`${stageInfo?.label} ${activeIndex >= 0 && idx < activeIndex ? "(Completed)" : activeIndex >= 0 && idx === activeIndex ? "(Current)" : "(Upcoming)"}`}
             />
           );
         })}
