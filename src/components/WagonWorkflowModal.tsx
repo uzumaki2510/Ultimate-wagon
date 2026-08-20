@@ -19,8 +19,10 @@ import {
   BTPGLN_REVERSE_MAP
 } from "@/lib/wagonWorkflows";
 import { 
-  CheckCircle2, PlayCircle, Clock, Ban, AlertCircle, ChevronDown, ChevronUp, MapPin
+  CheckCircle2, PlayCircle, Clock, Ban, AlertCircle, ChevronDown, ChevronUp, MapPin, Pencil, Train, Info, FileText
 } from "lucide-react";
+import { getWagonSubtypeDisplay, getRailwayShortName } from "@/lib/wagonDisplay";
+import { getApplicableWorkflowPath } from "@/lib/wagonWorkflows";
 
 interface Props {
   wagon: WagonRepair;
@@ -40,6 +42,10 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
   
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
   const [editingStageKey, setEditingStageKey] = useState<string | null>(null);
+
+  const path = useMemo(() => def ? getApplicableWorkflowPath(wagon) : [], [def, wagon]);
+  const completedCount = path.filter(key => getWorkflowStageState(wagon, key) === "COMPLETED").length;
+  const totalApplicableCount = path.length;
 
   if (!def) {
     return (
@@ -205,95 +211,138 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
           <div className="flex justify-between items-start">
             <div>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <Train className="h-5 w-5 text-muted-foreground" />
                 {wagon.wagonNumber}
                 <Badge variant="outline">{wagon.details.typeName}</Badge>
+                {wagon.details.category && (
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {wagon.details.category}
+                  </Badge>
+                )}
               </DialogTitle>
-              <DialogDescription className="mt-1">
-                Workflow Configuration: {def.name}
+              <DialogDescription className="mt-1 flex items-center gap-2 text-sm">
+                <span>{wagon.details.typeName} Tank Wagon</span>
+                <span>•</span>
+                <span>{getRailwayShortName(wagon.details.railwayName).full}</span>
               </DialogDescription>
             </div>
             <div className="text-right text-sm space-y-1">
               <div className="text-muted-foreground flex items-center justify-end gap-1">
                 <MapPin className="h-3 w-3" /> Location: {(wagon as any).bookedTo || (wagon as any).sickLine || "Unknown"}
               </div>
-              <div className="text-destructive font-medium">
-                Defect: {(wagon as any).defect || wagon.btpglnWorkflow?.sickReason || "Routine"}
-              </div>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[19px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-          {Object.values(def.stages).map((stage) => {
-            const state = getWorkflowStageState(wagon, stage.key);
-            
-            // Do not show skipped branches as pending normal steps
-            if (state === "SKIPPED") return null;
+        {/* Top Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="p-3 border rounded-lg bg-card shadow-sm flex flex-col justify-center">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Defect Summary</div>
+            <div className="text-destructive font-semibold text-sm">
+              {(wagon as any).defect || wagon.btpglnWorkflow?.sickReason || "Routine"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {wagon.status === "completed" ? "0 Pending" : "1 Pending"}
+            </div>
+          </div>
+          <div className="p-3 border rounded-lg bg-card shadow-sm flex flex-col justify-center">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Current Stage</div>
+            <div className="font-semibold text-blue-600 dark:text-blue-400 text-sm truncate">
+              {currentStageKey ? def.stages[currentStageKey].label : "Completed"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {completedCount} / {totalApplicableCount} stages completed
+            </div>
+          </div>
+        </div>
 
-            const isCurrent = state === "CURRENT";
-            const isCompleted = state === "COMPLETED";
-            const isPending = state === "PENDING";
-            const isEditing = editingStageKey === stage.key;
-            
-            let StateIcon = Clock;
-            let stateColor = "text-muted-foreground bg-secondary";
-            if (isCompleted) {
-              StateIcon = CheckCircle2;
-              stateColor = "text-success bg-success/10 border-success/30";
-            } else if (isCurrent) {
-              StateIcon = PlayCircle;
-              stateColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
-            } else if (state === "BLOCKED") {
-              StateIcon = Ban;
-              stateColor = "text-destructive bg-destructive/10 border-destructive/30";
-            }
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Left Column: Workflow Checklist */}
+          <div className="flex-1 md:w-2/3">
+            <h3 className="text-sm font-bold text-muted-foreground mb-4 uppercase tracking-wider">Workflow Checklist</h3>
 
-            // Find completed historical data if available
-            let historyEntry: any = null;
-            if (isCompleted) {
-               if (def.id === "BTPN_BTPFLN_WORKFLOW" && wagon.btpnWorkflow) {
-                 const legacyKey = BTPN_REVERSE_MAP[stage.key];
-                 historyEntry = wagon.btpnWorkflow.stageHistory.find(h => h.stage === legacyKey);
-               } else if (def.id === "BTPGLN_BTPGN_WORKFLOW" && wagon.btpglnWorkflow) {
-                 const legacyKey = BTPGLN_REVERSE_MAP[stage.key];
-                 historyEntry = wagon.btpglnWorkflow.stageHistory.find(h => h.stage === legacyKey);
-               }
-            }
-
-            return (
-              <div 
-                key={stage.key} 
-                className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active"
-                data-testid={`workflow-stage-${stage.key}`}
-                data-stage-state={state.toLowerCase()}
-              >
-                {/* Icon Marker */}
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-background shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10 ${stateColor}`}>
-                  <StateIcon className="h-5 w-5" />
-                </div>
+            <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[19px] before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-border before:to-transparent">
+              {Object.values(def.stages).map((stage, index) => {
+                const state = getWorkflowStageState(wagon, stage.key);
+                const isSkipped = state === "SKIPPED";
                 
-                {/* Card */}
-                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border bg-card shadow-sm transition-all hover:shadow-md">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className={`font-semibold ${isCurrent ? 'text-blue-600 dark:text-blue-400' : ''}`}>
-                        {stage.label}
-                      </h4>
-                      {stage.description && (
-                        <p className="text-xs text-muted-foreground mt-1">{stage.description}</p>
-                      )}
+                // Render SKIPPED steps differently
+                if (isSkipped) {
+                  return (
+                    <div key={stage.key} className="relative flex items-center group is-active opacity-60" data-testid={`workflow-stage-${stage.key}`} data-stage-state="skipped">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-background shrink-0 shadow-sm z-10 text-muted-foreground bg-secondary/50">
+                        <Ban className="h-4 w-4" />
+                      </div>
+                      <div className="w-[calc(100%-3rem)] ml-2 p-3 rounded-xl border border-dashed bg-secondary/20 flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{index + 1}. {stage.label}</span>
+                        <span className="text-xs text-muted-foreground italic">Not Applicable (Branch)</span>
+                      </div>
                     </div>
-                    {isCompleted && !isEditing && (
-                      <Badge variant="outline" className="bg-success/5 text-success border-success/20">
-                        Done
-                      </Badge>
-                    )}
-                    {isCurrent && (
-                      <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30" data-testid="workflow-current-stage">
-                        Current
-                      </Badge>
-                    )}
-                  </div>
+                  );
+                }
+
+                const isCurrent = state === "CURRENT";
+                const isCompleted = state === "COMPLETED";
+                const isPending = state === "PENDING" || state === "BLOCKED";
+                const isEditing = editingStageKey === stage.key;
+                
+                let StateIcon = Clock;
+                let stateColor = "text-muted-foreground bg-secondary";
+                if (isCompleted) {
+                  StateIcon = CheckCircle2;
+                  stateColor = "text-success bg-success/10 border-success/30";
+                } else if (isCurrent) {
+                  StateIcon = PlayCircle;
+                  stateColor = "text-blue-500 bg-blue-500/10 border-blue-500/30";
+                }
+
+                // Find completed historical data if available
+                let historyEntry: any = null;
+                if (isCompleted) {
+                   if (def.id === "BTPN_BTPFLN_WORKFLOW" && wagon.btpnWorkflow) {
+                     const legacyKey = BTPN_REVERSE_MAP[stage.key];
+                     historyEntry = wagon.btpnWorkflow.stageHistory.find(h => h.stage === legacyKey);
+                   } else if (def.id === "BTPGLN_BTPGN_WORKFLOW" && wagon.btpglnWorkflow) {
+                     const legacyKey = BTPGLN_REVERSE_MAP[stage.key];
+                     historyEntry = wagon.btpglnWorkflow.stageHistory.find(h => h.stage === legacyKey);
+                   }
+                }
+
+                return (
+                  <div 
+                    key={stage.key} 
+                    className="relative flex items-center group is-active"
+                    data-testid={`workflow-stage-${stage.key}`}
+                    data-stage-state={state.toLowerCase()}
+                  >
+                    {/* Icon Marker */}
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-background shrink-0 shadow-sm z-10 ${stateColor}`}>
+                      <StateIcon className="h-5 w-5" />
+                    </div>
+                    
+                    {/* Card */}
+                    <div className={`w-[calc(100%-3rem)] ml-2 p-4 rounded-xl border shadow-sm transition-all ${isCurrent ? 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' : 'bg-card'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className={`font-semibold text-sm ${isCurrent ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                            {index + 1}. {stage.label}
+                          </h4>
+                          {isPending && <p className="text-xs text-muted-foreground mt-1">Pending</p>}
+                        </div>
+                        {isCompleted && !isEditing && (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-success/5 text-success border-success/20">Done</Badge>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => handleStartEdit(stage.key, historyEntry)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                        {isCurrent && (
+                          <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30" data-testid="workflow-current-stage">
+                            Current
+                          </Badge>
+                        )}
+                      </div>
 
                   {/* Edit Form for COMPLETED stage */}
                   {isEditing && (
@@ -403,46 +452,56 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
 
                   {/* Details for COMPLETED stages */}
                   {isCompleted && historyEntry && !isEditing && (
-                    <div className="mt-3 flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-7 text-xs px-2 flex-1 justify-between"
-                        onClick={() => toggleExpand(stage.key)}
-                      >
-                        View Details
-                        {expandedStages.has(stage.key) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs px-2"
-                        onClick={() => handleStartEdit(stage.key, historyEntry)}
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  )}
-                  {isCompleted && historyEntry && !isEditing && expandedStages.has(stage.key) && (
-                    <div className="mt-2 text-xs bg-secondary/30 p-2 rounded-md space-y-1">
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Completed:</span>
-                        <span className="font-medium text-foreground">
-                          {new Date(historyEntry.completedAt).toLocaleString()}
-                        </span>
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {historyEntry.notes && <span className="font-medium">Remarks: {historyEntry.notes} •</span>}
+                        <span>{new Date(historyEntry.completedAt).toLocaleString()}</span>
                       </div>
-                      {historyEntry.notes && (
-                        <div className="mt-2 pt-2 border-t">
-                          <span className="text-muted-foreground block mb-1">Remarks:</span>
-                          <span className="font-medium">{historyEntry.notes}</span>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
               </div>
             );
           })}
+            </div>
+          </div>
+          
+          {/* Right Column: Branch Summary */}
+          <div className="md:w-1/3 space-y-4" data-testid="workflow-branch-summary">
+            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Branch Summary</h3>
+            
+            <div className="border rounded-xl p-4 bg-card shadow-sm">
+              <div className="text-xs font-semibold text-muted-foreground uppercase mb-2">Active Path</div>
+              <div className="text-sm font-medium">
+                {def.id === "BTPGLN_BTPGN_WORKFLOW" && (btpglnReason ? btpglnReason.replace(/_/g, ' ') : wagon.btpglnWorkflow?.sickReason?.replace(/_/g, ' ') || "Pending Selection")}
+                {def.id === "BTPN_BTPFLN_WORKFLOW" && (btpnPlacement ? btpnPlacement.replace(/_/g, ' ') : wagon.btpnWorkflow?.placementType?.replace(/_/g, ' ') || "Standard Workflow")}
+                {!btpglnReason && !btpnPlacement && !wagon.btpglnWorkflow?.sickReason && !wagon.btpnWorkflow?.placementType && "Default Workflow Path"}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Currently tracking {totalApplicableCount} applicable stages based on selected repair criteria.
+              </p>
+            </div>
+            
+            <div className="border rounded-xl p-4 bg-card shadow-sm">
+              <div className="text-xs font-semibold text-muted-foreground uppercase mb-2">Alternative Branches</div>
+              <div className="space-y-2">
+                {Object.values(def.stages).filter(s => getWorkflowStageState(wagon, s.key) === "SKIPPED").map(skippedStage => (
+                  <div key={skippedStage.key} className="p-2 bg-secondary/30 rounded border border-dashed flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground truncate mr-2" title={skippedStage.label}>{skippedStage.label}</span>
+                    <Badge variant="secondary" className="font-normal text-[10px] whitespace-nowrap">Not Applicable</Badge>
+                  </div>
+                ))}
+                {Object.values(def.stages).filter(s => getWorkflowStageState(wagon, s.key) === "SKIPPED").length === 0 && (
+                  <div className="text-xs text-muted-foreground italic">No alternative branches skipped yet.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-100 dark:border-blue-900 text-xs">
+              <Info className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>Stages marked as Not Applicable are skipped based on the selected branch.</p>
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="mt-6 pt-4 border-t">
