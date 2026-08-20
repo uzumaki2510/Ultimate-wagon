@@ -34,6 +34,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
 import { WagonWorkflowStatus } from "@/components/WagonWorkflowStatus";
 import { WagonWorkflowModal } from "@/components/WagonWorkflowModal";
+import { ConditionPanel } from "@/components/ConditionPanel";
 import { getWorkflowForWagonType } from "@/lib/wagonWorkflows";
 import { getWagonSubtypeDisplay, getRailwayShortName } from "@/lib/wagonDisplay";
 
@@ -72,8 +73,12 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   }, [memos, zustandWagons]);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingWagon, setEditingWagon] = useState<WagonRepair | null>(null);
-  const [viewingWorkflowWagon, setViewingWorkflowWagon] = useState<WagonRepair | null>(null);
+  const [viewingWorkflowWagonId, setViewingWorkflowWagonId] = useState<string | null>(null);
+  const [viewingDetailWagonId, setViewingDetailWagonId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const viewingWorkflowWagon = wagons.find((w) => w.id === viewingWorkflowWagonId) ?? null;
+  const viewingDetailWagon = wagons.find((w) => w.id === viewingDetailWagonId) ?? null;
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
@@ -271,9 +276,12 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         />
                       </TableCell>
                       <TableCell className="font-mono font-medium">
-                        <Link to={`/wagon/${wagon.id}`} className="text-primary hover:underline font-bold">
+                        <button 
+                          onClick={() => setViewingDetailWagonId(wagon.id)} 
+                          className="text-primary hover:underline font-bold text-left focus:outline-none"
+                        >
                           {wagon.wagonNumber}
-                        </Link>
+                        </button>
                       </TableCell>
                       <TableCell>
                         <div>
@@ -353,7 +361,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                           wagon={wagon} 
                           onClick={() => {
                             if (getWorkflowForWagonType(wagon.details.typeName).supported) {
-                              setViewingWorkflowWagon(wagon);
+                              setViewingWorkflowWagonId(wagon.id);
                             }
                           }} 
                         />
@@ -372,41 +380,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          {(() => {
-                            const wStatus = wagon.status as string;
-                            const isFit = wStatus === "FIT_READY" || wStatus === "RELEASED" || wStatus === "FIT_CERTIFICATE_PENDING" || wStatus === "FIT_READY" || wStatus === "completed" || wStatus === "FIT_READY" || wStatus === "fit";
-                            if (isFit) return null;
-                            const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
-                            const allDone = wf ? wf.stages.every(st => st.status === "Done") : true;
-                            if (!allDone) return null;
-                            return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-success hover:text-success hover:bg-success/10"
-                                onClick={() => onComplete(wagon.id)}
-                                title="Mark as Fit"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                            );
-                          })()}
-                          {(() => {
-                            const wStatus = wagon.status as string;
-                            const isFit = wStatus === "FIT_READY" || wStatus === "RELEASED" || wStatus === "FIT_CERTIFICATE_PENDING" || wStatus === "FIT_READY" || wStatus === "completed" || wStatus === "FIT_READY" || wStatus === "fit";
-                            if (!isFit) return null;
-                            return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-warning hover:text-warning hover:bg-warning/10"
-                                onClick={() => onUndoComplete(wagon.id)}
-                                title="Undo - Mark as Sick"
-                              >
-                                <Undo2 className="h-4 w-4" />
-                              </Button>
-                            );
-                          })()}
+
                           {isAdmin && (
                             <Button
                               size="sm"
@@ -459,7 +433,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
       {viewingWorkflowWagon && (
         <WagonWorkflowModal
           wagon={viewingWorkflowWagon}
-          onClose={() => setViewingWorkflowWagon(null)}
+          onClose={() => setViewingWorkflowWagonId(null)}
         />
       )}
 
@@ -535,6 +509,15 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Wagon Detail Drawer (replaces full page navigation) */}
+      {viewingDetailWagon && (
+        <ConditionPanel
+          key={viewingDetailWagon.id}
+          wagon={viewingDetailWagon}
+          open={!!viewingDetailWagon}
+          onOpenChange={(open) => !open && setViewingDetailWagonId(null)}
+        />
+      )}
     </>
   );
 }

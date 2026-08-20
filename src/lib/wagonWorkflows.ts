@@ -354,3 +354,46 @@ export function getNextValidStage(wagon: WagonRepair): string | null {
   return null;
 }
 
+export function getLatestCompletionTimestamp(wagon: WagonRepair): string | null {
+  const workflow = getWorkflowDefinitionForWagon(wagon);
+  if (!workflow) return null;
+
+  let history: { completedAt?: string }[] = [];
+  if (workflow.id === "BTPN_BTPFLN_WORKFLOW" && wagon.btpnWorkflow) {
+    history = wagon.btpnWorkflow.stageHistory;
+  } else if (workflow.id === "BTPGLN_BTPGN_WORKFLOW" && wagon.btpglnWorkflow) {
+    history = wagon.btpglnWorkflow.stageHistory;
+  }
+
+  let latestTimestamp: string | null = null;
+  for (const entry of history) {
+    if (entry.completedAt) {
+      if (!latestTimestamp || new Date(entry.completedAt) > new Date(latestTimestamp)) {
+        latestTimestamp = entry.completedAt;
+      }
+    }
+  }
+
+  return latestTimestamp;
+}
+
+export function formatWorkflowTimestamp(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "";
+    
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const year = d.getFullYear();
+    const time = d.toLocaleString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: true 
+    });
+    
+    return `${day} ${month} ${year} · ${time}`;
+  } catch {
+    return "";
+  }
+}
+

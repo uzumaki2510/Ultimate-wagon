@@ -1,6 +1,12 @@
 import React, { useMemo } from "react";
 import { WagonRepair } from "@/lib/wagonData";
-import { getWorkflowDefinitionForWagon, getCurrentWorkflowStage, getApplicableWorkflowPath } from "@/lib/wagonWorkflows";
+import { 
+  getWorkflowDefinitionForWagon, 
+  getCurrentWorkflowStage, 
+  getApplicableWorkflowPath,
+  getLatestCompletionTimestamp,
+  formatWorkflowTimestamp
+} from "@/lib/wagonWorkflows";
 import { ChevronRight } from "lucide-react";
 
 interface Props {
@@ -84,6 +90,21 @@ export function WagonWorkflowStatus({ wagon, onClick }: Props) {
           <ChevronRight className="h-4 w-4" />
         </div>
       </div>
+
+      {(() => {
+        const latestTimestamp = getLatestCompletionTimestamp(wagon);
+        if (!latestTimestamp) return null;
+        const formatted = formatWorkflowTimestamp(latestTimestamp);
+        if (!formatted) return null;
+        return (
+          <div 
+            className="text-[10px] text-muted-foreground mt-1.5"
+            data-testid="workflow-last-completed"
+          >
+            Last: {formatted}
+          </div>
+        );
+      })()}
     </div>
   );
 }

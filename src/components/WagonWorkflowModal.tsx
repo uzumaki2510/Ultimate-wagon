@@ -22,7 +22,7 @@ import {
   CheckCircle2, PlayCircle, Clock, Ban, AlertCircle, ChevronDown, ChevronUp, MapPin, Pencil, Train, Info, FileText
 } from "lucide-react";
 import { getWagonSubtypeDisplay, getRailwayShortName } from "@/lib/wagonDisplay";
-import { getApplicableWorkflowPath } from "@/lib/wagonWorkflows";
+import { getApplicableWorkflowPath, formatWorkflowTimestamp } from "@/lib/wagonWorkflows";
 
 interface Props {
   wagon: WagonRepair;
@@ -42,6 +42,7 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
   
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
   const [editingStageKey, setEditingStageKey] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const path = useMemo(() => def ? getApplicableWorkflowPath(wagon) : [], [def, wagon]);
   const completedCount = path.filter(key => getWorkflowStageState(wagon, key) === "COMPLETED").length;
@@ -68,8 +69,8 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
     });
   };
 
-  const handleCompleteCurrent = () => {
-    if (!currentStageKey) return;
+  const handleCompleteCurrent = async () => {
+    if (!currentStageKey || isSubmitting) return;
     const stageConfig = def.stages[currentStageKey];
     
     // Ensure branching variables are selected if required
@@ -87,6 +88,9 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
     }
 
     const nextGenericKey = getNextValidStage(wagon);
+
+    setIsSubmitting(true);
+    try {
 
     if (def.id === "BTPN_BTPFLN_WORKFLOW") {
       const legacyKey = BTPN_REVERSE_MAP[currentStageKey] || currentStageKey;
@@ -115,7 +119,7 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
         placementType: (btpnPlacement as any) || (existingData as any).placementType,
       };
 
-      updateWagon(wagon.id, { btpnWorkflow: newData } as any, "System");
+      await updateWagon(wagon.id, { btpnWorkflow: newData } as any, "System");
     } else if (def.id === "BTPGLN_BTPGN_WORKFLOW") {
       const legacyKey = BTPGLN_REVERSE_MAP[currentStageKey] || currentStageKey;
       const nextLegacyKey = nextGenericKey ? (BTPGLN_REVERSE_MAP[nextGenericKey] || nextGenericKey) : "fit_for_loading";
@@ -144,7 +148,7 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
         sickReason: (btpglnReason as any) || (existingData as any).sickReason,
       };
 
-      updateWagon(wagon.id, { btpglnWorkflow: newData } as any, "System");
+      await updateWagon(wagon.id, { btpglnWorkflow: newData } as any, "System");
     }
 
     // Reset local state
@@ -152,6 +156,12 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
     setBtpnPlacement("");
     setBtpglnReason("");
     setBtpglnPurgingOutcome("");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update workflow stage.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUpdateCompletedStage = (stageKey: string) => {
@@ -442,10 +452,11 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
                       <Button 
                         className="w-full" 
                         onClick={handleCompleteCurrent}
+                        disabled={isSubmitting}
                         data-testid={`workflow-stage-action-${stage.key}`}
                       >
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Mark Complete & Continue
+                        {isSubmitting ? "Saving..." : "Mark Complete & Continue"}
                       </Button>
                     </div>
                   )}
@@ -454,9 +465,16 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
                   {isCompleted && historyEntry && !isEditing && (
                     <div className="mt-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {historyEntry.notes && <span className="font-medium">Remarks: {historyEntry.notes} •</span>}
-                        <span>{new Date(historyEntry.completedAt).toLocaleString()}</span>
+                        <span>Completed: {formatWorkflowTimestamp(historyEntry.completedAt)}</span>
                       </div>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        <span className="font-medium">By:</span> SSE Mechanical
+                      </div>
+                      {historyEntry.notes && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium">Remarks:</span> {historyEntry.notes}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

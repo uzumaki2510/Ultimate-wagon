@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { WagonRepair, DEFECT_LIBRARY } from "@/lib/wagonData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DefectTimeline } from "./DefectTimeline";
-import { WagonDiagram } from "./WagonDiagram";
 import { 
   AlertCircle, AlertTriangle, CheckCircle, Info, Search, 
   Filter, Calendar, Clock, MapPin, User, FileText, 
@@ -21,15 +18,56 @@ interface ConditionPanelProps {
   wagon: WagonRepair;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defects: string[];
-  severityInfo: { level: string, color: string, text: string, bg: string, icon: any };
+  defects?: string[];
+  severityInfo?: { level: string, color: string, text: string, bg: string, icon: any };
 }
 
-export function ConditionPanel({ wagon, open, onOpenChange, defects, severityInfo }: ConditionPanelProps) {
-  const isMobile = useIsMobile();
+export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefects, severityInfo: initialSeverityInfo }: ConditionPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState<string | undefined>();
   const [activeTab, setActiveTab] = useState("overview");
+
+  const defects = React.useMemo(() => {
+    if (initialDefects) return initialDefects;
+    const list: string[] = [];
+    if ((wagon as any).repairTasks && (wagon as any).repairTasks.length > 0) {
+      list.push(...(wagon as any).repairTasks.map((rt: any) => rt.subRepair));
+    } else {
+      if (wagon.primaryRepair) list.push(wagon.primaryRepair);
+      if (wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0) {
+        list.push(...wagon.secondaryRepairs);
+      }
+    }
+    return list;
+  }, [wagon, initialDefects]);
+
+  const severityInfo = React.useMemo(() => {
+    if (initialSeverityInfo) return initialSeverityInfo;
+    let hasCritical = false;
+    let hasUrgent = false;
+
+    for (const defectName of defects) {
+      for (const group of DEFECT_LIBRARY) {
+        const def = group.defects.find(d => d.name === defectName);
+        if (def) {
+          if (def.severity === "Safety Critical") hasCritical = true;
+          if (def.severity === "Urgent") hasUrgent = true;
+        }
+      }
+    }
+
+    if ((wagon.status as any) === "FIT_READY" || (wagon.status as any) === "RELEASED" || wagon.status === "completed" || (wagon.status as string) === "fit") {
+      return { level: "Resolved", color: "border-green-500", text: "text-green-700 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950", icon: CheckCircle };
+    }
+
+    if (hasCritical || wagon.status === "sick" || (wagon.status as string) === "SICK_LINE") {
+      return { level: "Critical", color: "border-red-500", text: "text-red-700 dark:text-red-400", bg: "bg-red-50 dark:bg-red-950", icon: AlertCircle };
+    }
+    if (hasUrgent || wagon.status === "in-repair" || (wagon.status as any) === "REPAIR_IN_PROGRESS") {
+      return { level: "Major", color: "border-orange-500", text: "text-orange-700 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950", icon: AlertTriangle };
+    }
+    
+    return { level: "Minor", color: "border-blue-500", text: "text-blue-700 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950", icon: Info };
+  }, [defects, wagon.status, initialSeverityInfo]);
 
   const total = defects.length || 1;
   const repaired = (wagon.status === "completed" || (wagon.status as string) === "fit" || (wagon.status as any) === "FIT_READY") ? total : 0;
@@ -98,7 +136,7 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects, severityInf
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           <div className="p-2 rounded-md bg-background border flex flex-col gap-1">
             <span className="text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Inspection Date</span>
             <span className="font-semibold">{wagon.arrivalDate ? new Date(wagon.arrivalDate).toLocaleDateString() : 'N/A'}</span>
@@ -136,7 +174,7 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects, severityInf
         <ScrollArea className="flex-1 p-4 md:p-6 bg-slate-50/50 dark:bg-slate-900/20">
           <TabsContent value="overview" className="m-0 space-y-6 animate-in fade-in-50 duration-300">
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-card border rounded-lg p-3 shadow-sm flex flex-col justify-between">
                 <span className="text-xs text-muted-foreground font-semibold">Total Defects</span>
                 <span className="text-2xl font-bold mt-1">{total}</span>
@@ -176,18 +214,8 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects, severityInf
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-card border rounded-lg p-4 shadow-sm">
-                <h3 className="text-sm font-semibold mb-4">Wagon Diagram</h3>
-                <WagonDiagram 
-                  wagon={wagon} 
-                  selectedLocation={selectedLocation}
-                  onSelectLocation={setSelectedLocation} 
-                />
-              </div>
-              <div className="bg-card border rounded-lg p-4 shadow-sm">
-                <DefectTimeline wagon={wagon} />
-              </div>
+            <div className="bg-card border rounded-lg p-4 shadow-sm">
+              <DefectTimeline wagon={wagon} />
             </div>
           </TabsContent>
 
@@ -332,22 +360,9 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects, severityInf
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="h-[90vh] max-h-[90vh] p-0 flex flex-col">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>Condition Panel for {wagon.wagonNumber}</DrawerTitle>
-          </DrawerHeader>
-          <Content />
-        </DrawerContent>
-      </Drawer>
-    );
-  }
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[100vw] sm:max-w-[600px] md:max-w-[700px] p-0 flex flex-col gap-0 border-l-0 sm:border-l shadow-2xl">
+      <SheetContent side="right" className="w-[100vw] sm:max-w-[600px] md:max-w-[700px] p-0 flex flex-col gap-0 border-l-0 sm:border-l shadow-2xl h-[100dvh]">
         <SheetHeader className="sr-only">
           <SheetTitle>Condition Panel for {wagon.wagonNumber}</SheetTitle>
         </SheetHeader>
