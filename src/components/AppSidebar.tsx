@@ -46,6 +46,7 @@ export function AppSidebar() {
 
   const adminItems = [
     { title: "SICK_LINE", url: "/sickline", icon: Wrench },
+    { title: "Live Board", url: "/live-sick-line", icon: LayoutDashboard },
     { title: "Quick Entry", url: "/quick-board", icon: Zap },
     { title: "Unit Memos", url: "/memos", icon: FileText },
     { title: "Reports", url: "/reports", icon: FileText },

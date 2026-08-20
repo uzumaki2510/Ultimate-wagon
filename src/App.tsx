@@ -26,6 +26,7 @@ const MemoEditor = lazy(() => import("@/pages/MemoEditor"));
 const MemoPrint = lazy(() => import("@/pages/MemoPrint"));
 const QuickBoard = lazy(() => import("@/pages/QuickBoard"));
 const SickLine = lazy(() => import("@/pages/SickLine"));
+const LiveSickLineBoard = lazy(() => import("@/pages/LiveSickLineBoard"));
 const Employees = lazy(() => import("@/pages/Employees"));
 const Archives = lazy(() => import("@/pages/Archives"));
 const AuditLog = lazy(() => import("@/pages/AuditLog"));
@@ -76,6 +77,7 @@ const App = () => (
                 <Route path="/memos/:id" element={<MemoEditor />} />
                 <Route path="/memos/:id/print" element={<MemoPrint />} />
                 <Route path="/sickline" element={<SickLine />} />
+                <Route path="/live-sick-line" element={<LiveSickLineBoard />} />
                 <Route path="/quick-board" element={<QuickBoard />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />

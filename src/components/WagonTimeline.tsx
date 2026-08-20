@@ -1,161 +1,193 @@
 import { useState, useMemo } from "react";
-import { WorkflowItem } from "@/types";
+import { WorkflowItem, AuditEvent } from "@/types";
+import { useAppStore } from "@/store/useAppStore";
+import { Clock } from "lucide-react";
+import { ActivityTimelineItem, TimelineEvent } from "@/components/activity-timeline/ActivityTimelineItem";
+import { ActivityTimelineFilters } from "@/components/activity-timeline/ActivityTimelineFilters";
+import {
+  EventCategory,
+  inferCategoryFromStageName,
+  inferCategoryFromAuditAction,
+} from "@/components/activity-timeline/activityTimelineMapping";
 import { getStageDisplayConfig } from "@/lib/workflowConfig";
-import { 
-  Search, Filter, Calendar as CalendarIcon, User, 
-  CheckCircle2, PlayCircle, Clock, ArrowRightCircle
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 
 interface WagonTimelineProps {
   workflow: WorkflowItem;
+  wagonId?: string;
 }
 
-export function WagonTimeline({ workflow }: WagonTimelineProps) {
-  const [dateFilter, setDateFilter] = useState("all");
-  const [employeeFilter, setEmployeeFilter] = useState("all");
-  const [stageFilter, setStageFilter] = useState("all");
+export function WagonTimeline({ workflow, wagonId }: WagonTimelineProps) {
+  const audit = useAppStore((s) => s.audit);
 
-  // Build a chronological list of events from the workflow stages and action history
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<EventCategory | "all">("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+
+  // Build unified event list from 3 sources
   const events = useMemo(() => {
     if (!workflow) return [];
 
-    const timelineEvents: any[] = [];
+    const timelineEvents: TimelineEvent[] = [];
+    const resolvedWagonId = wagonId || workflow.wagonId;
 
-    // Add wagon registration event (simulated as the workflow creation time, which is usually the wagon creation time)
-    const createdAtStr = (workflow as any).createdAt || (workflow.stages[0]?.startedAt) || new Date().toISOString();
+    // 1. Registration event
+    const createdAtStr = (workflow as any).createdAt || workflow.stages[0]?.startedAt || new Date().toISOString();
     timelineEvents.push({
       id: "registered",
       type: "registered",
+      category: "arrival",
       timestamp: new Date(createdAtStr),
       title: "Wagon Registered",
-      stageName: "Registration",
       employee: "System",
       department: "Operations",
       remarks: "Wagon entered into the register.",
-      status: "Done",
-      Icon: CheckCircle2,
-      color: "text-blue-500",
-      bgColor: "bg-blue-100 dark:bg-blue-900/30",
     });
 
-    // Add stage events
+    // 2. Stage events (start + end)
     workflow.stages.forEach((stage, idx) => {
-      const config = getStageDisplayConfig(stage.stageName);
-      
-      // Determine department loosely based on stage
-      let department = "Operations";
-      if (stage.stageName.includes("Inspection") || stage.stageName.includes("Mechanic") || stage.stageName.includes("Checklist") || stage.stageName.includes("Exam")) department = "Inspection (C&W)";
-      if (stage.stageName.includes("Repair")) department = "Repair / Mechanical";
-      if (stage.stageName.includes("Steam") || stage.stageName.includes("Degass") || stage.stageName.includes("Purging") || stage.stageName.includes("Gas")) department = "Special Operations";
-      
-      // Stage Started Event
+      const category = inferCategoryFromStageName(stage.stageName);
+
       if (stage.startedAt && stage.status !== "Skipped") {
         timelineEvents.push({
           id: `start-${idx}`,
-          type: "start",
+          type: "stage_start",
+          category,
           timestamp: new Date(stage.startedAt),
           title: `${stage.stageName} Started`,
-          stageName: stage.stageName,
-          employee: stage.staffName || "Unknown",
-          department,
-          remarks: stage.remarks || "",
-          status: "In Progress",
-          Icon: PlayCircle,
-          color: "text-blue-500",
-          bgColor: "bg-blue-50 dark:bg-blue-950/30",
-          // Special data
+          employee: stage.staffName,
           operator: stage.steamPointOperationName,
           inspector: stage.inspectorName,
+          remarks: stage.remarks,
         });
       }
 
-      // Stage Completed Event
       if (stage.completedAt && stage.status === "Done") {
         timelineEvents.push({
           id: `end-${idx}`,
-          type: "end",
+          type: "stage_end",
+          category,
           timestamp: new Date(stage.completedAt),
           title: `${stage.stageName} Completed`,
-          stageName: stage.stageName,
-          employee: stage.inspectorName || stage.staffName || "Unknown",
-          department,
-          remarks: stage.remarks || "",
-          status: "Done",
-          Icon: config.icon,
-          color: config.color,
-          bgColor: "bg-muted/30",
+          employee: stage.inspectorName || stage.staffName,
           operator: stage.steamPointOperationName,
           inspector: stage.inspectorName,
-          duration: stage.durationHours ? `${stage.durationHours.toFixed(1)} hrs` : null,
+          remarks: stage.remarks,
+          duration: stage.durationHours ? `${stage.durationHours.toFixed(1)} hrs` : undefined,
         });
       }
     });
 
-    // Sort chronologically (descending for timeline view)
-    return timelineEvents.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  }, [workflow]);
+    // 3. WorkflowActionHistory (e.g. PAUSE_STAGE, RESUME_STAGE, MARK_FIT)
+    if (workflow.actionHistory) {
+      workflow.actionHistory.forEach((ah, idx) => {
+        let category: EventCategory = "workflow";
+        const action = ah.action;
+        if (action === "MARK_FIT") category = "fit";
+        else if (action === "ADVANCE_WORKFLOW") category = "status_transition";
+        else if (action === "PAUSE_STAGE" || action === "RESUME_STAGE") category = "workflow";
 
-  // Derived filter options
-  const employees = useMemo(() => {
-    const emps = new Set<string>();
-    events.forEach(e => {
-      if (e.employee && e.employee !== "System") emps.add(e.employee);
-      if (e.operator) emps.add(e.operator);
-      if (e.inspector) emps.add(e.inspector);
-    });
-    return Array.from(emps).sort();
-  }, [events]);
+        timelineEvents.push({
+          id: `ah-${idx}`,
+          type: "action_history",
+          category,
+          timestamp: new Date(ah.createdAt),
+          title: formatActionLabel(ah.action, ah.stageName),
+          employee: ah.userName,
+          remarks: ah.reason,
+        });
+      });
+    }
 
-  const stages = useMemo(() => {
-    const stgs = new Set<string>();
-    events.forEach(e => stgs.add(e.stageName));
-    return Array.from(stgs).sort();
-  }, [events]);
+    // 4. Audit events for this wagon (status transitions from board, etc.)
+    if (resolvedWagonId) {
+      const wagonAuditEvents = audit.filter(
+        (a) => a.wagonId === resolvedWagonId
+      );
+      wagonAuditEvents.forEach((ae) => {
+        // Avoid duplicating events already captured by workflow stages/actionHistory
+        const isDuplicate = timelineEvents.some(
+          (e) =>
+            Math.abs(e.timestamp.getTime() - new Date(ae.at).getTime()) < 2000 &&
+            (e.title.toLowerCase().includes(ae.action.toLowerCase().substring(0, 10)) ||
+             ae.action.toLowerCase().includes(e.title.toLowerCase().substring(0, 10)))
+        );
+        if (isDuplicate) return;
+
+        const category = inferCategoryFromAuditAction(ae.action);
+        timelineEvents.push({
+          id: `audit-${ae.id}`,
+          type: "audit",
+          category,
+          timestamp: new Date(ae.at),
+          title: ae.action,
+          employee: ae.actor || ae.userName,
+          details: ae.details,
+        });
+      });
+    }
+
+    return timelineEvents;
+  }, [workflow, audit, wagonId]);
 
   // Apply filters
   const filteredEvents = useMemo(() => {
     let result = events;
 
-    const now = new Date();
-    if (dateFilter === "today") {
-      result = result.filter(e => e.timestamp.toDateString() === now.toDateString());
-    } else if (dateFilter === "yesterday") {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      result = result.filter(e => e.timestamp.toDateString() === yesterday.toDateString());
-    } else if (dateFilter === "week") {
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      result = result.filter(e => e.timestamp >= weekAgo);
-    } else if (dateFilter === "month") {
-      const monthAgo = new Date(now);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      result = result.filter(e => e.timestamp >= monthAgo);
+    if (categoryFilter !== "all") {
+      result = result.filter((e) => e.category === categoryFilter);
     }
 
-    if (employeeFilter !== "all") {
-      result = result.filter(e => 
-        e.employee === employeeFilter || 
-        e.operator === employeeFilter || 
-        e.inspector === employeeFilter
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          (e.remarks && e.remarks.toLowerCase().includes(q)) ||
+          (e.employee && e.employee.toLowerCase().includes(q)) ||
+          (e.details && e.details.toLowerCase().includes(q))
       );
     }
 
-    if (stageFilter !== "all") {
-      result = result.filter(e => e.stageName === stageFilter);
-    }
+    result.sort((a, b) =>
+      sortOrder === "newest"
+        ? b.timestamp.getTime() - a.timestamp.getTime()
+        : a.timestamp.getTime() - b.timestamp.getTime()
+    );
 
     return result;
-  }, [events, dateFilter, employeeFilter, stageFilter]);
+  }, [events, categoryFilter, search, sortOrder]);
+
+  // Group by date
+  const groupedByDate = useMemo(() => {
+    const groups: { date: string; events: TimelineEvent[] }[] = [];
+    const map = new Map<string, TimelineEvent[]>();
+
+    filteredEvents.forEach((event) => {
+      const dateKey = event.timestamp.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      map.get(dateKey)!.push(event);
+    });
+
+    map.forEach((events, date) => groups.push({ date, events }));
+    return groups;
+  }, [filteredEvents]);
+
+  const onClear = () => {
+    setSearch("");
+    setCategoryFilter("all");
+    setSortOrder("newest");
+  };
 
   if (!workflow) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-muted/10 border-dashed">
+      <div
+        className="flex flex-col items-center justify-center py-16 text-center border rounded-lg bg-muted/10 border-dashed"
+        data-testid="activity-timeline-empty"
+      >
         <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
         <h3 className="text-lg font-semibold text-foreground">No workflow created</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-sm">
@@ -166,132 +198,70 @@ export function WagonTimeline({ workflow }: WagonTimelineProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="activity-timeline">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <CalendarIcon className="w-4 h-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Date" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="yesterday">Yesterday</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <User className="w-4 h-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Employee" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Employees</SelectItem>
-            {employees.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        <Select value={stageFilter} onValueChange={setStageFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Stage" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Stages</SelectItem>
-            {stages.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      <ActivityTimelineFilters
+        search={search}
+        setSearch={setSearch}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        onClear={onClear}
+      />
 
       {/* Timeline */}
       <div className="relative pl-6 sm:pl-8 py-2">
         {/* Vertical Line */}
         <div className="absolute left-[15px] sm:left-[23px] top-4 bottom-4 w-0.5 bg-border z-0" />
-        
+
         {filteredEvents.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            No timeline events match your filters.
+          <div
+            className="text-center py-8 text-muted-foreground text-sm"
+            data-testid="activity-timeline-empty"
+          >
+            {events.length === 0
+              ? "No activity recorded for this wagon yet."
+              : "No timeline events match your filters."}
           </div>
         ) : (
           <div className="space-y-6">
-            {filteredEvents.map(event => (
-              <div key={event.id} className="relative z-10 animate-in slide-in-from-bottom-2 fade-in duration-300">
-                {/* Node */}
-                <div className={`absolute -left-[30px] sm:-left-[30px] top-1 h-7 w-7 rounded-full border-2 bg-background flex items-center justify-center ${event.color.replace('text-', 'border-')}`}>
-                  <event.Icon className={`h-3.5 w-3.5 ${event.color}`} />
+            {groupedByDate.map((group) => (
+              <div key={group.date}>
+                {/* Date header */}
+                <div className="flex items-center gap-2 mb-4 -ml-2 sm:ml-0">
+                  <span className="text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">
+                    {group.date}
+                  </span>
+                  <div className="flex-1 border-t border-border/50" />
                 </div>
-                
-                {/* Content Card */}
-                <Card className={`ml-2 sm:ml-4 overflow-hidden border-l-4 ${event.color.replace('text-', 'border-l-')}`}>
-                  <div className={`px-4 py-3 ${event.bgColor}`}>
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h4 className="font-semibold text-sm">{event.title}</h4>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          <Badge variant="outline" className="text-[10px] font-medium bg-background">{event.department}</Badge>
-                          {event.status === "In Progress" && (
-                            <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 border-none">In Progress</Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:items-end text-xs text-muted-foreground shrink-0">
-                        <span className="font-medium text-foreground">{event.timestamp.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                        <span>{event.timestamp.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-3 border-t border-border/50 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-muted-foreground/70" />
-                        <span className="text-muted-foreground">By:</span>
-                        <span className="font-medium">{event.employee}</span>
-                      </div>
-                      
-                      {event.duration && (
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-muted-foreground/70" />
-                          <span className="text-muted-foreground">Duration:</span>
-                          <span className="font-medium">{event.duration}</span>
-                        </div>
-                      )}
-                      
-                      {event.operator && event.operator !== event.employee && (
-                        <div className="flex items-center gap-1.5">
-                          <Wrench className="h-3.5 w-3.5 text-muted-foreground/70" />
-                          <span className="text-muted-foreground">Operator:</span>
-                          <span className="font-medium">{event.operator}</span>
-                        </div>
-                      )}
-                      
-                      {event.inspector && event.inspector !== event.employee && (
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/70" />
-                          <span className="text-muted-foreground">Inspector:</span>
-                          <span className="font-medium">{event.inspector}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {event.remarks && (
-                      <div className="mt-3 bg-background/50 rounded-md p-2.5 text-xs text-foreground/80 border whitespace-pre-wrap">
-                        <span className="font-semibold text-muted-foreground mr-1">Remarks:</span>
-                        {event.remarks}
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                <div className="space-y-4">
+                  {group.events.map((event) => (
+                    <ActivityTimelineItem key={event.id} event={event} />
+                  ))}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <div className="text-center text-[10px] text-muted-foreground pt-2">
+        {filteredEvents.length} event{filteredEvents.length !== 1 ? "s" : ""} shown
+        {filteredEvents.length < events.length && ` of ${events.length} total`}
+      </div>
     </div>
   );
 }
 
-function Wrench(props: any) {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+function formatActionLabel(action: string, stageName: string): string {
+  switch (action) {
+    case "START_STAGE": return `${stageName} Started`;
+    case "MARK_STAGE_DONE": return `${stageName} Marked Done`;
+    case "ADVANCE_WORKFLOW": return `Workflow Advanced to ${stageName}`;
+    case "MARK_FIT": return "Wagon Declared FIT";
+    case "PAUSE_STAGE": return `${stageName} Paused`;
+    case "RESUME_STAGE": return `${stageName} Resumed`;
+    default: return `${action} — ${stageName}`;
+  }
 }

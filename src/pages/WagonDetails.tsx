@@ -16,6 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Train, ArrowLeft, Clock, Info, ShieldCheck, Droplets, Wind, Wrench, CheckCircle2, FileStack, Printer, QrCode, Activity } from "lucide-react";
 import { DocumentManager } from "@/components/documents/DocumentManager";
+import { MaintenanceChecklist } from "@/components/maintenance/MaintenanceChecklist";
+import { MaintenanceProgressSummary } from "@/components/maintenance/MaintenanceProgressSummary";
+import { evaluateWagonAlerts } from "@/features/wagon-alerts/wagonAlertRules";
+import { WagonAlerts } from "@/features/wagon-alerts/WagonAlerts";
+import { WagonAlert } from "@/features/wagon-alerts/wagonAlertTypes";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import { PassportOverview } from "@/components/passport/PassportOverview";
 import { DefectCentre } from "@/components/passport/DefectCentre";
@@ -31,7 +36,19 @@ export default function WagonDetails() {
   const workflow = useMemo(() => wagon ? workflows.find(w => w.wagonId === wagon.id) : undefined, [workflows, wagon]);
   
   // States for interactive modules
+  const [activeTab, setActiveTab] = useState("overview");
   const [remarks, setRemarks] = useState("");
+  
+  const alerts = useMemo(() => {
+    if (!wagon || !workflow) return [];
+    return evaluateWagonAlerts({ wagon, workflow, now: new Date() });
+  }, [wagon, workflow]);
+
+  const handleAlertAction = (actionType: NonNullable<WagonAlert["actionType"]>) => {
+    if (actionType === "VIEW_MAINTENANCE") setActiveTab("maintenance");
+    if (actionType === "VIEW_INSPECTION") setActiveTab("defects"); // Or another relevant tab
+    if (actionType === "VIEW_WORKFLOW") setActiveTab("overview");
+  };
   const [operator, setOperator] = useState(user?.name || "");
   const [certNumber, setCertNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,7 +160,7 @@ export default function WagonDetails() {
 
   return (
     <WorkspaceLayout header={passportHeader}>
-      <Tabs defaultValue="overview" className="flex flex-col md:flex-row h-full gap-6 pb-12 animate-fade-in">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col md:flex-row h-full gap-6 pb-12 animate-fade-in">
         
         {/* Vertical Navigation Sidebar */}
         <div className="w-full md:w-56 shrink-0">
@@ -156,6 +173,9 @@ export default function WagonDetails() {
             </TabsTrigger>
             <TabsTrigger value="timeline" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
               <Clock className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Audit Timeline</span>
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
+              <CheckCircle2 className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Maintenance</span>
             </TabsTrigger>
             <TabsTrigger value="documents" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
               <FileStack className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Documents & Gallery</span>
@@ -242,7 +262,8 @@ export default function WagonDetails() {
 
         {/* Main Workspace Area */}
         <div className="flex-1 min-w-0">
-          <TabsContent value="overview" className="h-full m-0">
+          <TabsContent value="overview" className="h-full m-0 space-y-4">
+            <WagonAlerts alerts={alerts} onAction={handleAlertAction} />
             <PassportOverview wagon={wagon as any} activeStage={workflow.currentStage} defectCount={wagon.repairTasks?.length} />
           </TabsContent>
           
@@ -260,9 +281,16 @@ export default function WagonDetails() {
                 <CardDescription>Immutable history of all workflow transitions and actions.</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
-                <WagonTimeline workflow={workflow} />
+                <WagonTimeline workflow={workflow} wagonId={wagon.id} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="maintenance" className="h-full m-0">
+            <div className="space-y-4">
+              <MaintenanceProgressSummary wagon={wagon} workflow={workflow} />
+              <MaintenanceChecklist wagon={wagon} />
+            </div>
           </TabsContent>
 
           <TabsContent value="documents" className="h-full m-0">
