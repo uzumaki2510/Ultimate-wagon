@@ -21,22 +21,7 @@ export function evaluateWagonAlerts({ wagon, workflow, now }: AlertContext): Wag
   const isTank = isTankWagonType(wagon.type);
   const maintProgress = calculateMaintenanceProgress(wagon, workflow, isTank);
 
-  // 1. Rule - Stage Delay
-  // We use `updatedAt` to check time in current status
-  if (wagon.updatedAt && (wagon.status === "SICK_LINE" || wagon.status === "REPAIR_IN_PROGRESS" || wagon.status === "INSPECTION_PENDING" || wagon.status === "INSPECTION_COMPLETE")) {
-    const statusDate = new Date(wagon.updatedAt);
-    const diffHours = (now.getTime() - statusDate.getTime()) / (1000 * 60 * 60);
-    if (diffHours > THRESHOLDS.STAGE_DELAY_HOURS) {
-      alerts.push({
-        id: "delay-stage",
-        severity: "WARNING",
-        category: "DELAY",
-        title: "Work Delayed",
-        description: `Wagon in ${wagon.status.replace(/_/g, " ")} for over ${Math.floor(diffHours)} hours.`,
-        actionType: "VIEW_WORKFLOW",
-      });
-    }
-  }
+  // 1. Rule - Stage Delay (Removed pending verified SLA rule from user)
 
   // 2. Rule - Material Pending
   if (wagon.defect && wagon.defect.toLowerCase().includes("material")) {
@@ -90,35 +75,39 @@ export function evaluateWagonAlerts({ wagon, workflow, now }: AlertContext): Wag
   }
 
   // 6. Rule - Ready For Next Action
-  const validTargets = getValidTargetColumns(wagon.status);
+  const validTargets = getValidTargetColumns();
   
-  if (wagon.status === "REPAIR_COMPLETE" && validTargets.includes("INSPECTION")) {
+  if (maintProgress.overallPercentage > 80 && wagon.status !== "FIT_READY" && wagon.status !== "RELEASED") {
     alerts.push({
-      id: "ready-insp",
+      id: "ready-soon",
       severity: "INFO",
       category: "READY",
-      title: "Ready for Inspection",
-      description: "Maintenance completed.",
+      title: "Almost Ready",
+      description: "Maintenance is nearing completion.",
+      actionType: "VIEW_WORKFLOW",
     });
   }
 
-  if (wagon.status === "FIT_CERTIFICATE_PENDING" && wagon.fitConfirmation?.inspectorVerified && validTargets.includes("READY")) {
+  // 5. Rule - Fit for Loading
+  if (wagon.status === "FIT_READY") {
     alerts.push({
-      id: "ready-fit",
+      id: "fit-ready",
       severity: "INFO",
       category: "READY",
-      title: "Ready for Fit Certification",
-      description: "Inspection passed successfully.",
+      title: "Fit For Loading",
+      description: "Wagon is ready to be released.",
+      actionType: "VIEW_WORKFLOW",
     });
   }
-  
-  if (wagon.status === "FIT_READY" && validTargets.includes("RELEASED")) {
+
+  // 6. Rule - Released
+  if (wagon.status === "RELEASED" || wagon.status === "IN_SERVICE") {
     alerts.push({
-      id: "ready-release",
+      id: "released",
       severity: "INFO",
       category: "READY",
-      title: "Ready for Release",
-      description: "All conditions met for release.",
+      title: "Released",
+      description: "Wagon is back in service.",
     });
   }
 

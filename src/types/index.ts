@@ -145,6 +145,18 @@ export interface FitConfirmation {
   confirmedBy: string;
 }
 
+export const SICK_LINE_LOCATIONS = [
+  "Yard",
+  "Steam Point",
+  "De-Gassing",
+  "MV Shed",
+  "New ROH Shed",
+  "Old Sick Line",
+  "Booked for Purging",
+] as const;
+
+export type SickLineLocation = typeof SICK_LINE_LOCATIONS[number];
+
 export interface Wagon {
   id: string;
   wagonNo: string;
@@ -169,6 +181,7 @@ export interface Wagon {
   fitConfirmation?: FitConfirmation;
   isSteamed?: boolean;
   isDegassed?: boolean;
+  currentLocation?: SickLineLocation | string;
 }
 
 export interface Rake {

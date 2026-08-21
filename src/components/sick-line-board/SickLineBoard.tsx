@@ -21,7 +21,7 @@ export function SickLineBoard() {
   const [alertFilter, setAlertFilter] = useState("all");
 
   const [draggedWagonId, setDraggedWagonId] = useState<string | null>(null);
-  const [transitionConfirm, setTransitionConfirm] = useState<{ wagon: Wagon, targetColumn: BoardColumn, targetStatus: WagonStatus } | null>(null);
+  const [transitionConfirm, setTransitionConfirm] = useState<{ wagon: Wagon, targetColumn: BoardColumn } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const draggedWagon = useMemo(() => wagons.find(w => w.id === draggedWagonId), [wagons, draggedWagonId]);
@@ -67,29 +67,26 @@ export function SickLineBoard() {
       toast({ title: "Permission Denied", description: "You don't have permission to move wagons.", variant: "destructive" });
       return;
     }
-    const currentStatus = wagon.status;
-    const targetStatus = getTargetStatusForColumn(currentStatus, targetColumn);
-    
-    if (!targetStatus) {
-      toast({ title: "Invalid Transition", description: "This wagon cannot be moved to this stage.", variant: "destructive" });
+    const currentLoc = getBoardColumn(wagon.currentLocation);
+    if (currentLoc === targetColumn) {
+      toast({ title: "Invalid Transition", description: "This wagon is already in this stage.", variant: "destructive" });
       return;
     }
 
     // Check concurrency
     const latestWagon = wagons.find(w => w.id === wagon.id);
-    if (latestWagon?.status !== currentStatus) {
+    if (latestWagon?.currentLocation !== wagon.currentLocation) {
       toast({ title: "Stale Data", description: "The wagon has been updated by another user. Board refreshed.", variant: "destructive" });
       return;
     }
 
-    setTransitionConfirm({ wagon, targetColumn, targetStatus });
+    setTransitionConfirm({ wagon, targetColumn });
   };
 
   const handleDrop = (targetColumn: BoardColumn) => {
     if (!draggedWagon) return;
     
-    const currentStatus = draggedWagon.status;
-    if (getBoardColumn(currentStatus) === targetColumn) {
+    if (getBoardColumn(draggedWagon.currentLocation) === targetColumn) {
       setDraggedWagonId(null);
       return; // Dropped in same column
     }
@@ -103,15 +100,15 @@ export function SickLineBoard() {
     setIsTransitioning(true);
     
     try {
-      const { wagon, targetStatus, targetColumn } = transitionConfirm;
+      const { wagon, targetColumn } = transitionConfirm;
       
       // Request transition via existing mechanism
-      updateWagon(wagon.id, { status: targetStatus }, user?.name || "system");
+      updateWagon(wagon.id, { currentLocation: targetColumn }, user?.name || "system");
       
       log({ 
         actor: user?.name || "system", 
         action: `Moved wagon ${wagon.wagonNo} to ${targetColumn}`, 
-        details: `Status changed from ${wagon.status} to ${targetStatus}` 
+        details: `Location changed from ${getBoardColumn(wagon.currentLocation)} to ${targetColumn}` 
       });
       
       toast({ title: "Transition Successful", description: `Wagon ${wagon.wagonNo} moved to ${targetColumn}.` });
@@ -144,9 +141,9 @@ export function SickLineBoard() {
               key={col.id} 
               id={col.id}
               title={col.title} 
-              wagons={filteredWagons.filter(w => getBoardColumn(w.status) === col.id)} 
+              wagons={filteredWagons.filter(w => getBoardColumn(w.currentLocation) === col.id)} 
               isDragActive={!!draggedWagonId}
-              isValidTarget={draggedWagon ? !!getTargetStatusForColumn(draggedWagon.status, col.id) : false}
+              isValidTarget={draggedWagon ? true : false}
               onDropColumn={handleDrop}
               onDragStartCard={handleDragStart}
               onDragEndCard={handleDragEnd}
@@ -160,15 +157,15 @@ export function SickLineBoard() {
       <Dialog open={!!transitionConfirm} onOpenChange={(open) => !open && !isTransitioning && setTransitionConfirm(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Workflow Transition</DialogTitle>
+            <DialogTitle>Confirm Location Move</DialogTitle>
             <DialogDescription>
-              Are you sure you want to move Wagon <strong>{transitionConfirm?.wagon.wagonNo}</strong> from <strong>{getBoardColumn(transitionConfirm?.wagon.status || "ARRIVED")}</strong> to <strong>{transitionConfirm?.targetColumn}</strong>?
+              Are you sure you want to move Wagon <strong>{transitionConfirm?.wagon.wagonNo}</strong> from <strong>{getBoardColumn(transitionConfirm?.wagon.currentLocation)}</strong> to <strong>{transitionConfirm?.targetColumn}</strong>?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransitionConfirm(null)} disabled={isTransitioning}>Cancel</Button>
             <Button onClick={confirmTransition} disabled={isTransitioning}>
-              {isTransitioning ? "Moving..." : "Confirm Transition"}
+              {isTransitioning ? "Moving..." : "Confirm Move"}
             </Button>
           </DialogFooter>
         </DialogContent>

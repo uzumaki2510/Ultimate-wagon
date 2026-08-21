@@ -8,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DefectMultiSelect } from "@/components/DefectMultiSelect";
-import { parseWagonNumber, WagonDetails, SICK_LINES } from "@/lib/wagonData";
-import { PriorityLevel, RepairTask, Wagon } from "@/types/index";
+import { parseWagonNumber, WagonDetails } from "@/lib/wagonData";
+import { PriorityLevel, RepairTask, Wagon, SICK_LINE_LOCATIONS } from "@/types/index";
 import {
   Search, Train, Calendar, Clock, Wrench, MessageSquare,
   ArrowRight, ArrowLeft, CheckCircle, AlertTriangle,
@@ -376,8 +376,8 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
                         <SelectValue placeholder="Select location" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SICK_LINES.map(line => (
-                          <SelectItem key={line.id} value={line.id}>{line.name}</SelectItem>
+                        {SICK_LINE_LOCATIONS.map(loc => (
+                          <SelectItem key={loc} value={loc}>{loc}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -480,7 +480,7 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
                     <DetailItem label="Built Year" value={parsedDetails?.yearOfManufacture || ""} />
                     <DetailItem label="Train No" value={trainNumber} />
                     <DetailItem label="Priority" value={priority} />
-                    <DetailItem label="Sick Line" value={SICK_LINES.find(l => l.id === sickLine)?.name || sickLine} />
+                    <DetailItem label="Sick Line" value={sickLine} />
                   </div>
                 </div>
 

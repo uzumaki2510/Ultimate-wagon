@@ -119,7 +119,7 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
         </div>
 
         <div>
-          <Label className="text-sm font-semibold mb-3 block">Assign Repair Tasks</Label>
+          <Label className="text-sm font-semibold mb-3 block">Pending / Repair Tasks</Label>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
             {DEFECT_LIBRARY.map((group) => (
               <div key={group.groupName} className="space-y-2 border p-3 rounded-md bg-card">
@@ -154,6 +154,38 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="border-t pt-6 mt-6">
+        <Label className="text-sm font-semibold mb-3 block text-emerald-600">Work Done</Label>
+        <div className="space-y-2 p-4 border border-emerald-100 rounded-md bg-emerald-50/50">
+          {(() => {
+            const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
+            const doneStages = wf?.stages.filter(s => s.status === "Done") || [];
+            const doneTasks = wagon.repairTasks?.filter(t => t.status === "repaired" || (t as any).status === "completed") || [];
+            
+            if (doneStages.length === 0 && doneTasks.length === 0) {
+              return <div className="text-sm text-muted-foreground italic">No work recorded as completed yet.</div>;
+            }
+
+            return (
+              <ul className="space-y-2">
+                {doneTasks.map((t, idx) => (
+                  <li key={`task-${idx}`} className="flex items-center text-sm">
+                    <span className="text-emerald-500 mr-2">✓</span>
+                    <span>{t.subRepair} <span className="text-muted-foreground text-xs">(Repair)</span></span>
+                  </li>
+                ))}
+                {doneStages.map((s, i) => (
+                  <li key={`stage-${i}`} className="flex items-center text-sm">
+                    <span className="text-emerald-500 mr-2">✓</span>
+                    <span>{s.stageName} <span className="text-muted-foreground text-xs">(Workflow)</span></span>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
         </div>
       </div>
 

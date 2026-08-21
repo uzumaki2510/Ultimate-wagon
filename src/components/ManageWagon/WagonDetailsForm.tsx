@@ -23,11 +23,23 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
   const [comments, setComments] = useState("");
   const [isSteamed, setIsSteamed] = useState(false);
   const [isDegassed, setIsDegassed] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(wagon.currentLocation || "Yard");
+  const [builtYear, setBuiltYear] = useState(wagon.builtYear?.toString() || "");
+  const [pohDate, setPohDate] = useState(wagon.pohDate || "");
+  const [rohDate, setRohDate] = useState(wagon.rohDate || "");
+  const [bookedTo, setBookedTo] = useState(wagon.bookedTo || "");
+  const [defect, setDefect] = useState(wagon.defect || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (wagon) {
       setComments(wagon.comments || "");
+      setCurrentLocation(wagon.currentLocation || "Yard");
+      setBuiltYear(wagon.builtYear?.toString() || "");
+      setPohDate(wagon.pohDate || "");
+      setRohDate(wagon.rohDate || "");
+      setBookedTo(wagon.bookedTo || "");
+      setDefect(wagon.defect || "");
       if (wagon.type === "BTPGLN") {
         setIsDegassed(wagon.defect?.includes("DG") || wagon.isDegassed || false);
       }
@@ -42,7 +54,15 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
   const handleSave = () => {
     setIsSubmitting(true);
     try {
-      const patch: any = { comments };
+      const patch: any = { 
+        comments,
+        currentLocation,
+        builtYear: builtYear ? parseInt(builtYear, 10) : undefined,
+        pohDate,
+        rohDate,
+        bookedTo,
+        defect
+      };
       if (wagon.type?.includes("BTPN")) patch.isSteamed = isSteamed;
       if (wagon.type === "BTPGLN") patch.isDegassed = isDegassed;
 
@@ -74,13 +94,42 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
           <Input value={wagon.owner} disabled className="bg-muted" />
         </div>
         <div className="space-y-2">
-          <Label>Pool Type</Label>
-          <Input value={(wagon as any).poolType || "N/A"} disabled className="bg-muted" />
+          <Label>Built Year</Label>
+          <Input type="number" placeholder="YYYY" value={builtYear} onChange={e => setBuiltYear(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label>Inspection Date</Label>
-          <Input value={(wagon as any).date ? new Date((wagon as any).date).toLocaleDateString() : ""} disabled className="bg-muted" />
+          <Label>POH Date</Label>
+          <Input type="date" value={pohDate} onChange={e => setPohDate(e.target.value)} />
         </div>
+        <div className="space-y-2">
+          <Label>ROH Date</Label>
+          <Input type="date" value={rohDate} onChange={e => setRohDate(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Return Station / Booked To</Label>
+          <Input placeholder="Destination" value={bookedTo} onChange={e => setBookedTo(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Sick Reason</Label>
+          <Input placeholder="Defect/Reason" value={defect} onChange={e => setDefect(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="space-y-2 border-t pt-4">
+        <Label>Current Location (Sick Line)</Label>
+        <select 
+          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          value={currentLocation}
+          onChange={(e) => setCurrentLocation(e.target.value)}
+        >
+          <option value="Yard">Yard</option>
+          <option value="Steam Point">Steam Point</option>
+          <option value="De-Gassing">De-Gassing</option>
+          <option value="MV Shed">MV Shed</option>
+          <option value="New ROH Shed">New ROH Shed</option>
+          <option value="Old Sick Line">Old Sick Line</option>
+          <option value="Booked for Purging">Booked for Purging</option>
+        </select>
       </div>
 
       <div className="space-y-2 border-t pt-4">
@@ -115,6 +164,29 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
               <Label htmlFor="edit-degassed" className="cursor-pointer">Mark as De-gassed</Label>
             </div>
           )}
+        </div>
+      )}
+
+      {wagon.fitConfirmation && (
+        <div className="border-t pt-4 space-y-2">
+          <Label className="text-emerald-600 font-semibold">Fitness Information</Label>
+          <div className="text-sm bg-emerald-50 p-3 rounded-md text-emerald-800">
+            {(() => {
+              const employees = useAppStore.getState().employees;
+              const fitByRaw = wagon.fitConfirmation.confirmedBy;
+              const emp = employees.find(e => e.id === fitByRaw || e.name === fitByRaw);
+              const displayName = emp ? emp.name : fitByRaw;
+              const designation = emp ? emp.designation : (wagon.fitConfirmation as any).designation || "Unknown";
+              return (
+                <>
+                  <div><strong>Fit By:</strong> {displayName}</div>
+                  <div><strong>Designation:</strong> {designation}</div>
+                  <div><strong>Fit At:</strong> {new Date(wagon.fitConfirmation.confirmedAt).toLocaleString()}</div>
+                  {wagon.fitConfirmation.remarks && <div><strong>Remarks:</strong> {wagon.fitConfirmation.remarks}</div>}
+                </>
+              );
+            })()}
+          </div>
         </div>
       )}
 

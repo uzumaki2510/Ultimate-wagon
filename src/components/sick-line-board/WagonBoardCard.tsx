@@ -34,7 +34,7 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
   const priorityColor = wagon.priority === "Urgent" ? "bg-red-500" :
                         wagon.priority === "Safety Critical" ? "bg-purple-500" : "bg-blue-500";
 
-  const validTargets = getValidTargetColumns(wagon.status);
+  const validTargets = getValidTargetColumns();
   const checklistProgress = useMemo(() => getChecklistProgress(wagon.inspectionChecklist), [wagon.inspectionChecklist]);
 
   const alerts = useMemo(() => {
@@ -42,11 +42,17 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
     return evaluateWagonAlerts({ wagon, workflow: wf, now: new Date() });
   }, [wagon]);
 
+  const wf = useAppStore(s => s.workflows.find(w => w.wagonId === wagon.id));
+  const currentStageName = wf?.stages.find(s => s.status === "In Progress")?.stageName || "Not Started";
+  const completedStages = wf?.stages.filter(s => s.status === "Done").length || 0;
+  const totalStages = wf?.stages.length || 0;
+
   return (
     <Card 
       data-testid={`wagon-card-${wagon.wagonNo}`}
       className={`p-3 relative group transition-colors text-sm ${draggable ? "cursor-grab active:cursor-grabbing hover:border-primary" : "cursor-pointer"}`}
       draggable={draggable}
+      onClick={() => navigate(`/wagon/${wagon.id}`)}
       onDragStart={(e) => {
         if (!draggable) return;
         e.dataTransfer.setData("wagonId", wagon.id);
@@ -57,13 +63,13 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
       }}
     >
       <div className="flex justify-between items-start mb-2">
-        <span className="font-bold cursor-pointer" onClick={() => navigate(`/wagon/${wagon.id}`)}>{wagon.wagonNo}</span>
+        <span className="font-bold text-primary">{wagon.wagonNo}</span>
         <div className="flex items-center gap-2">
-          <Badge variant="outline">{wagon.type}</Badge>
+          <span className="text-xs text-muted-foreground uppercase">{wagon.type}</span>
           {draggable && validTargets.length > 0 && onMoveRequest && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Open menu">
+                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()} aria-label="Open menu">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -71,7 +77,7 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
                 {validTargets.map(targetId => {
                   const targetCol = COLUMNS.find(c => c.id === targetId);
                   return (
-                    <DropdownMenuItem key={targetId} onClick={() => onMoveRequest(wagon, targetId)}>
+                    <DropdownMenuItem key={targetId} onClick={(e) => { e.stopPropagation(); onMoveRequest(wagon, targetId as BoardColumn); }}>
                       Move to {targetCol?.title || targetId}
                     </DropdownMenuItem>
                   );
@@ -81,28 +87,22 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
           )}
         </div>
       </div>
+      
       {wagon.defect && (
-        <div className="text-xs text-muted-foreground mb-2 line-clamp-2">
-          Defect: {wagon.defect}
+        <div className="text-xs text-foreground mb-2 line-clamp-2">
+          {wagon.defect}
         </div>
       )}
-      <WagonAlertBadge alerts={alerts} />
-      {checklistProgress.total > 0 && (
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2">
-          <div className="flex-1 bg-muted h-1.5 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-500 rounded-full transition-all"
-              style={{ width: `${checklistProgress.total > 0 ? (checklistProgress.completed / checklistProgress.total) * 100 : 0}%` }}
-            />
-          </div>
-          <span className="shrink-0">{checklistProgress.completed}/{checklistProgress.total}</span>
-        </div>
-      )}
-      <div className="flex justify-between items-center text-xs mt-2">
+
+      <div className="text-[11px] text-muted-foreground mb-2 flex items-center justify-between">
+        <span className="truncate">Workflow: {currentStageName}</span>
+      </div>
+
+      <div className="flex justify-between items-center mt-2">
         <Badge className={priorityColor}>{wagon.priority || "Normal"}</Badge>
-        {wagon.updatedAt && (
-          <span className="text-muted-foreground text-[10px]">
-            {formatDistanceToNow(new Date(wagon.updatedAt), { addSuffix: true })}
+        {totalStages > 0 && (
+          <span className="text-[10px] text-muted-foreground">
+            {completedStages} / {totalStages}
           </span>
         )}
       </div>
