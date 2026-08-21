@@ -66,7 +66,7 @@ interface AppState {
   approveMemo: (id: string, role: string, name: string, designation: string, signature: string, status: "Approved" | "Rejected") => void;
 
   // workflows
-  upsertWorkflowForWagon: (wagonId: string, memoId?: string) => void;
+  upsertWorkflowForWagon: (wagonId: string, memoId?: string) => Promise<WorkflowItem>;
   advanceWorkflow: (id: string, toStage: string) => void;
   startStage: (id: string, stageName: string, staffName?: string) => void;
   pauseStage: (id: string, stageName: string, staffName: string, reason?: string) => void;
@@ -93,6 +93,9 @@ interface AppState {
   updateMasterData: (id: string, patch: Partial<MasterDataRecord>) => Promise<void>;
   deleteMasterData: (id: string) => Promise<void>;
 }
+
+// In-flight guard for workflow initialization
+const initPromises: Record<string, Promise<WorkflowItem>> = {};
 
 export const useAppStore = create<AppState>()(
   (set, get) => ({
@@ -286,26 +289,63 @@ export const useAppStore = create<AppState>()(
         get().log({ actor: name || "user", action: `Approval ${status}`, memoId: id, details: role });
       },
 
-      upsertWorkflowForWagon: (wagonId, memoId) => {
-        const wagon = get().wagons.find((w) => w.id === wagonId);
-        if (!wagon) return;
-        const existing = get().workflows.find((wf) => wf.wagonId === wagonId);
-        if (existing) return;
-        
-        const template = getWorkflowTemplate(wagon.type as string);
-        const stageRecords: WorkflowStageRecord[] = template.stages.map((st) => ({
-          stageName: st.name,
-          targetDurationHours: st.targetDurationHours,
-          status: "Pending"
-        }));
+      upsertWorkflowForWagon: async (wagonId, memoId) => {
+        // In-flight guard
+        if (initPromises[wagonId]) {
+          return initPromises[wagonId];
+        }
 
-        const item: WorkflowItem = {
-          id: nanoid(), wagonId, memoId, wagonNo: wagon.wagonNo, wagonType: wagon.type as string,
-          currentStage: stageRecords[0].stageName, stages: stageRecords, updatedAt: new Date().toISOString(),
-        };
-        
-        set((s) => ({ workflows: [...s.workflows, item] }));
-        workflowApi.createWorkflow(item).catch(console.error);
+        const promise = (async () => {
+          const wagon = get().wagons.find((w) => w.id === wagonId);
+          if (!wagon) throw new Error("Wagon not found");
+          
+          const existing = get().workflows.find((wf) => wf.wagonId === wagonId);
+          if (existing) return existing;
+          
+          const def = getWorkflowDefinitionForWagon(wagon.details?.typeName || wagon.type);
+          if (!def) throw new Error("Workflow not configured for this wagon type");
+
+          const stageRecords = Object.values(def.stages).map((st) => ({
+            stageName: st.key,
+            targetDurationHours: st.targetDurationHours || 0,
+            status: "Pending" as const
+          }));
+
+          const provisionalItem: WorkflowItem = {
+            id: `temp_${nanoid()}`, 
+            wagonId, 
+            memoId, 
+            wagonNo: wagon.wagonNo, 
+            wagonType: wagon.details?.typeName || wagon.type,
+            currentStage: def.initialStage, 
+            stages: stageRecords, 
+            updatedAt: new Date().toISOString(),
+          };
+          
+          // Optimistic update
+          set((s) => ({ workflows: [...s.workflows, provisionalItem] }));
+          
+          try {
+            const result = await workflowApi.createWorkflow(provisionalItem);
+            const serverItem = result?.data || provisionalItem;
+            
+            // Replace provisional with server authoritative object
+            set((s) => ({
+              workflows: s.workflows.map(w => w.id === provisionalItem.id ? serverItem : w)
+            }));
+            
+            return serverItem;
+          } catch (error) {
+            // Rollback optimistic state
+            set((s) => ({ workflows: s.workflows.filter(w => w.id !== provisionalItem.id) }));
+            throw new Error("Unable to initialize workflow. Please try again.");
+          } finally {
+            delete initPromises[wagonId];
+          }
+        })();
+
+        initPromises[wagonId] = promise;
+        return promise;
       },
 
       startStage: (id, stageName, staffName = "User") => {

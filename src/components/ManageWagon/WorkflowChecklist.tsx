@@ -16,8 +16,28 @@ interface Props {
 
 export function WorkflowChecklist({ wagon }: Props) {
   const { user } = useAuth();
-  const { workflows, markStageDone, advanceWorkflow } = useAppStore();
+  const { workflows, markStageDone, advanceWorkflow, upsertWorkflowForWagon } = useAppStore();
+  
+  // Safe initialization
   const workflowRecord = workflows.find((w) => w.wagonId === wagon.id);
+  const def = getWorkflowDefinitionForWagon(wagon.details?.typeName || wagon.type);
+  
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [initError, setInitError] = useState("");
+
+  useEffect(() => {
+    // Only attempt initialization if definition is supported and no record exists
+    if (!workflowRecord && def) {
+      setIsInitializing(true);
+      setInitError("");
+      
+      // In-flight guard inside useAppStore ensures idempotency even in StrictMode
+      upsertWorkflowForWagon(wagon.id)
+        .catch((e: any) => setInitError(e.message || "Unable to initialize workflow. Please try again."))
+        .finally(() => setIsInitializing(false));
+    }
+  }, [wagon.id, workflowRecord, def, upsertWorkflowForWagon]);
+
   const resolved = getResolvedWorkflowForWagon(wagon, workflowRecord);
   const loggedInUserName = user?.name || user?.email || "Current User";
 
@@ -25,8 +45,38 @@ export function WorkflowChecklist({ wagon }: Props) {
   const [selectedBranch, setSelectedBranch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  if (!def) {
+    return <div className="p-8 text-center text-muted-foreground font-medium">Workflow not configured for this wagon type.</div>;
+  }
+
+  if (isInitializing) {
+    return (
+      <div className="p-12 flex flex-col items-center justify-center gap-4 text-muted-foreground">
+        <div className="w-8 h-8 rounded-full border-4 border-primary border-r-transparent animate-spin"></div>
+        <p>Initializing workflow...</p>
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="p-12 flex flex-col items-center justify-center gap-4 text-destructive">
+        <p className="font-semibold text-lg">{initError}</p>
+        <Button variant="outline" onClick={() => {
+          setIsInitializing(true);
+          setInitError("");
+          upsertWorkflowForWagon(wagon.id)
+            .catch((e: any) => setInitError(e.message || "Unable to initialize workflow. Please try again."))
+            .finally(() => setIsInitializing(false));
+        }}>
+          Retry Initialization
+        </Button>
+      </div>
+    );
+  }
+
   if (!resolved || !workflowRecord) {
-    return <div className="p-4 text-muted-foreground text-center">Workflow not configured or initialized.</div>;
+    return <div className="p-4 text-muted-foreground text-center">Workflow configuration missing.</div>;
   }
 
   const {

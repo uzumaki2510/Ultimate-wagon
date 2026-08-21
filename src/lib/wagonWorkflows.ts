@@ -289,7 +289,34 @@ export function getResolvedWorkflowForWagon(wagon: Wagon | any, workflowRecord?:
   }
 
   // 5. Total Count and Completed Count
-  const totalCount = def.expectedTotalStages;
+  
+  // Calculate applicable total stages by finding the maximum path length from the end of the resolved path.
+  let totalCount = resolvedPath.length;
+  const lastResolvedKey = resolvedPath.length > 0 ? resolvedPath[resolvedPath.length - 1] : def.initialStage;
+  const nextStages = def.stages[lastResolvedKey]?.nextStages || [];
+  
+  if (nextStages.length > 0) {
+    let maxExtra = 0;
+    const pathVisited = new Set<string>();
+    
+    const traverse = (key: string, depth: number) => {
+      if (pathVisited.has(key)) return;
+      pathVisited.add(key);
+      maxExtra = Math.max(maxExtra, depth);
+      
+      const futureStages = def.stages[key]?.nextStages || [];
+      for (const next of futureStages) {
+        traverse(next, depth + 1);
+      }
+      pathVisited.delete(key);
+    };
+
+    for (const next of nextStages) {
+      traverse(next, 1);
+    }
+    totalCount = resolvedPath.length + maxExtra;
+  }
+
   const completedCount = completedStageKeys.filter(k => resolvedPath.includes(k)).length;
 
   return {
