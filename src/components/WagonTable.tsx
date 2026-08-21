@@ -351,7 +351,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         <WagonWorkflowStatus 
                           wagon={wagon} 
                           onClick={() => {
-                            if (getWorkflowForWagonType((wagon as any).type).supported) {
+                            if (getWorkflowForWagonType((wagon as any).details?.typeName).supported) {
                               setManageWagonTab("workflow");
                               setManageWagonId(wagon.id);
                             }
