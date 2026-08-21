@@ -27,16 +27,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { WagonRepair, SICK_LINES, SickLine, RepairType, REPAIR_TYPES, DEFECT_LIBRARY, BTPGLNWorkflowData, BTPNWorkflowData } from "@/lib/wagonData";
-import { EditWagonModal } from "@/components/EditWagonModal";
 import { ConditionSummary } from "@/components/ConditionSummary";
-import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame, ArrowRight, Archive, X } from "lucide-react";
+import { CheckCircle, Clock, Trash2, FileSpreadsheet, Search, Undo2, Pencil, Train, FileText, ArrowRightCircle, AlertTriangle, Droplets, Flame, ArrowRight, Archive, X, MoreVertical } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
 import { WagonWorkflowStatus } from "@/components/WagonWorkflowStatus";
-import { WagonWorkflowModal } from "@/components/WagonWorkflowModal";
+import { ManageWagonPanel } from "@/components/ManageWagon/ManageWagonPanel";
 import { ConditionPanel } from "@/components/ConditionPanel";
 import { getWorkflowForWagonType } from "@/lib/wagonWorkflows";
 import { getWagonSubtypeDisplay, getRailwayShortName } from "@/lib/wagonDisplay";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface WagonTableProps {
   wagons: WagonRepair[];
@@ -72,13 +72,11 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
     return map;
   }, [memos, zustandWagons]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingWagon, setEditingWagon] = useState<WagonRepair | null>(null);
-  const [viewingWorkflowWagonId, setViewingWorkflowWagonId] = useState<string | null>(null);
-  const [viewingDetailWagonId, setViewingDetailWagonId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  const viewingWorkflowWagon = wagons.find((w) => w.id === viewingWorkflowWagonId) ?? null;
-  const viewingDetailWagon = wagons.find((w) => w.id === viewingDetailWagonId) ?? null;
+  
+  // Unified Manage Wagon Panel State
+  const [manageWagonId, setManageWagonId] = useState<string | null>(null);
+  const [manageWagonTab, setManageWagonTab] = useState<"workflow" | "details" | "repairs">("workflow");
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
@@ -360,37 +358,15 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         <WagonWorkflowStatus 
                           wagon={wagon} 
                           onClick={() => {
-                            if (getWorkflowForWagonType(wagon.details.typeName).supported) {
-                              setViewingWorkflowWagonId(wagon.id);
+                            if (getWorkflowForWagonType(wagon.details?.typeName || wagon.type).supported) {
+                              setManageWagonTab("workflow");
+                              setManageWagonId(wagon.id);
                             }
                           }} 
                         />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {/* Old Workflow Timeline button removed as part of Step 3 updates */}
-                          {isAdmin && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-info hover:text-info hover:bg-info/10"
-                              onClick={() => openEditDialog(wagon)}
-                              title="Edit Wagon"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-
-                          {isAdmin && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => onDelete(wagon.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
                           {/* Linked Memos badge */}
                           {(() => {
                             const count = linkedMemoCount[wagon.wagonNumber.trim()] ?? 0;
@@ -399,17 +375,49 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-violet-600 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950 gap-1"
-                                onClick={() => nav(`/memos?wagon=${encodeURIComponent(wagon.wagonNumber)}`)}
-                                title={`${count} linked memo${count > 1 ? "s" : ""}`}
+                                className="text-muted-foreground hover:bg-muted"
+                                title={`${count} Linked Memo(s)`}
+                                onClick={() => nav("/operations/unit-memos")}
                               >
-                                <FileText className="h-3.5 w-3.5" />
-                                <span className="text-[11px] font-bold">{count}</span>
+                                <FileText className="h-4 w-4 mr-1" />
+                                {count}
                               </Button>
                             );
                           })()}
+
+                          {isAdmin && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setManageWagonTab("details");
+                                  setManageWagonId(wagon.id);
+                                }}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  <span>Edit Details</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setManageWagonTab("repairs");
+                                  setManageWagonId(wagon.id);
+                                }}>
+                                  <Wrench className="mr-2 h-4 w-4" />
+                                  <span>Defects & Repairs</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setWagonToDelete(wagon.id)} className="text-destructive focus:text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  <span>Delete Wagon</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
@@ -419,21 +427,14 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
         </CardContent>
       </Card>
 
-      {/* Unified Edit Modal for Workflow & Details */}
-      {editingWagon && (
-        <EditWagonModal 
-          key={editingWagon.id}
-          wagonId={editingWagon.id} 
-          open={!!editingWagon} 
-          onOpenChange={(open) => !open && setEditingWagon(null)} 
-        />
-      )}
-
-      {/* Detailed Workflow Modal (Step 3) */}
-      {viewingWorkflowWagon && (
-        <WagonWorkflowModal
-          wagon={viewingWorkflowWagon}
-          onClose={() => setViewingWorkflowWagonId(null)}
+      {/* Unified Manage Wagon Panel */}
+      {manageWagonId && (
+        <ManageWagonPanel 
+          key={manageWagonId}
+          wagonId={manageWagonId} 
+          defaultTab={manageWagonTab}
+          open={!!manageWagonId} 
+          onOpenChange={(open) => !open && setManageWagonId(null)} 
         />
       )}
 

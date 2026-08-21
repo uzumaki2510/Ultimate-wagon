@@ -18,6 +18,7 @@ export interface WorkflowDefinition {
   name: string;
   stages: Record<string, WorkflowStage>;
   initialStage: string;
+  expectedTotalStages: number;
 }
 
 // ----------------------------------------------------------------------------
@@ -28,6 +29,7 @@ export const GENERAL_FREIGHT_WORKFLOW: WorkflowDefinition = {
   id: "GENERAL_FREIGHT_WORKFLOW",
   name: "General Freight Workflow",
   initialStage: "YARD_EXAM",
+  expectedTotalStages: 7,
   stages: {
     "YARD_EXAM": { key: "YARD_EXAM", label: "Yard / Initial Examination", completionRequired: true, nextStages: ["SICK_MARKING"], targetDurationHours: 1 },
     "SICK_MARKING": { key: "SICK_MARKING", label: "Sick Marking & Defect Classification", completionRequired: true, nextStages: ["REPAIR_ASSIGNMENT"], targetDurationHours: 0 },
@@ -43,6 +45,7 @@ export const COVERED_WAGON_WORKFLOW: WorkflowDefinition = {
   id: "COVERED_WAGON_WORKFLOW",
   name: "Covered Wagon Workflow",
   initialStage: "YARD_EXAM",
+  expectedTotalStages: 7,
   stages: {
     "YARD_EXAM": { key: "YARD_EXAM", label: "Yard / Initial Examination", completionRequired: true, nextStages: ["SICK_MARKING"], targetDurationHours: 1 },
     "SICK_MARKING": { key: "SICK_MARKING", label: "Sick Marking & Defect Classification", completionRequired: true, nextStages: ["REPAIR_ASSIGNMENT"], targetDurationHours: 0 },
@@ -58,6 +61,7 @@ export const BRAKE_VAN_WORKFLOW: WorkflowDefinition = {
   id: "BRAKE_VAN_WORKFLOW",
   name: "Brake Van Workflow",
   initialStage: "YARD_SAFETY_EXAM",
+  expectedTotalStages: 8,
   stages: {
     "YARD_SAFETY_EXAM": { key: "YARD_SAFETY_EXAM", label: "Yard / Safety Examination", completionRequired: true, nextStages: ["SICK_MARKING"], targetDurationHours: 1 },
     "SICK_MARKING": { key: "SICK_MARKING", label: "Sick Marking", completionRequired: true, nextStages: ["REPAIR_ASSIGNMENT"], targetDurationHours: 0 },
@@ -74,6 +78,7 @@ export const BTPN_LOCAL_TANK_WORKFLOW: WorkflowDefinition = {
   id: "BTPN_LOCAL_TANK_WORKFLOW",
   name: "BTPN Local Tank Workflow",
   initialStage: "YARD_INSPECTION",
+  expectedTotalStages: 9,
   stages: {
     "YARD_INSPECTION": { key: "YARD_INSPECTION", label: "Initial / Yard Inspection", completionRequired: true, nextStages: ["STEAMING"], targetDurationHours: 1 },
     "STEAMING": { key: "STEAMING", label: "Steaming", completionRequired: true, nextStages: ["STEAM_CLEANING"], targetDurationHours: 4 },
@@ -91,6 +96,7 @@ export const BTPGLN_LOCAL_LPG_WORKFLOW: WorkflowDefinition = {
   id: "BTPGLN_LOCAL_LPG_WORKFLOW",
   name: "BTPGLN Local LPG Workflow",
   initialStage: "RRT_SIDING",
+  expectedTotalStages: 11,
   stages: {
     "RRT_SIDING": { key: "RRT_SIDING", label: "Wagon moved to RRT siding", completionRequired: true, nextStages: ["DE_GASSING"], targetDurationHours: 1 },
     "DE_GASSING": { key: "DE_GASSING", label: "De-Gassing", completionRequired: true, nextStages: ["DG_COMPLETION"], targetDurationHours: 4 },
@@ -149,31 +155,75 @@ export function getWorkflowDefinitionForWagon(wagonType: string | undefined): Wo
 }
 
 // ----------------------------------------------------------------------------
-// STATE HELPERS (Reading from WorkflowItem)
+// AUTHORITATIVE WORKFLOW RESOLVER
 // ----------------------------------------------------------------------------
 
-export function getCurrentWorkflowStage(workflow: WorkflowItem | undefined, def: WorkflowDefinition): string | null {
-  if (!workflow || !def) return null;
-  return workflow.currentStage || def.initialStage;
+export type StageState = "COMPLETED" | "CURRENT" | "PENDING" | "SKIPPED" | "BLOCKED" | "NOT_APPLICABLE";
+
+export interface ResolvedWorkflow {
+  definition: WorkflowDefinition;
+  family: string;
+  currentStageKey: string | null;
+  completedStageKeys: string[];
+  stageStates: Record<string, StageState>;
+  resolvedPath: string[];
+  branchState: "UNRESOLVED" | "RESOLVED" | "NONE";
+  completedCount: number;
+  totalCount: number;
+  latestCompletedAt: string | null;
 }
 
-// Extract branch choices from action history
-function getBranchChoiceFromHistory(workflow: WorkflowItem, branchConditionId: string): string | null {
-  // We need to figure out what was chosen. The action history might contain the choice.
-  // Actually, the simplest way is to see which of the next stages actually exists in the stage history and is completed/in progress.
+// Maps legacy/dirty stage names to actual config keys
+function normalizeStageKey(def: WorkflowDefinition, identifier: string): string | null {
+  if (!identifier) return null;
+  if (def.stages[identifier]) return identifier;
+  const upperId = identifier.toUpperCase().trim();
+  for (const [key, stage] of Object.entries(def.stages)) {
+    if (key === upperId || stage.label.toUpperCase() === upperId || (stage.shortLabel && stage.shortLabel.toUpperCase() === upperId)) {
+      return key;
+    }
+    // Legacy fallbacks
+    if (upperId.includes("DEGASSING") && key === "DE_GASSING") return key;
+    if (upperId.includes("DE-GASSING") && key === "DE_GASSING") return key;
+    if (upperId.includes("INITIAL INSPECTION") && key === "YARD_INSPECTION") return key;
+    if (upperId.includes("STEAMING") && key === "STEAMING") return key;
+    if (upperId.includes("STEAM CLEANING") && key === "STEAM_CLEANING") return key;
+  }
   return null;
 }
 
-export function getApplicableWorkflowPath(workflow: WorkflowItem | undefined, def: WorkflowDefinition): string[] {
-  if (!def) return [];
+export function getResolvedWorkflowForWagon(wagon: Wagon | any, workflowRecord?: WorkflowItem): ResolvedWorkflow | null {
+  const def = getWorkflowDefinitionForWagon(wagon?.details?.typeName || wagon?.type);
+  if (!def) return null;
 
-  const path: string[] = [];
+  // 1. Map completed stages from persisted record
+  const completedStageKeys: string[] = [];
+  let latestCompletedAt: string | null = null;
+  const recordedStages = workflowRecord?.stages || [];
+  
+  for (const st of recordedStages) {
+    if (st.status === "Done" || st.status === "Skipped") {
+      const normalizedKey = normalizeStageKey(def, st.stageName);
+      if (normalizedKey && !completedStageKeys.includes(normalizedKey)) {
+        completedStageKeys.push(normalizedKey);
+        if (st.completedAt) {
+          if (!latestCompletedAt || new Date(st.completedAt) > new Date(latestCompletedAt)) {
+            latestCompletedAt = st.completedAt;
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Compute Path & Branch State
+  const resolvedPath: string[] = [];
   const visited = new Set<string>();
   let currentKey: string | undefined = def.initialStage;
+  let branchState: "UNRESOLVED" | "RESOLVED" | "NONE" = "NONE";
   
   while (currentKey && !visited.has(currentKey)) {
     visited.add(currentKey);
-    path.push(currentKey);
+    resolvedPath.push(currentKey);
     
     const stageInfo = def.stages[currentKey];
     if (!stageInfo || stageInfo.nextStages.length === 0) break;
@@ -182,56 +232,78 @@ export function getApplicableWorkflowPath(workflow: WorkflowItem | undefined, de
       continue;
     }
     
-    // Branch logic - resolve based on what is in the workflow stages list
-    if (workflow) {
-      // Find which of the nextStages is present in the WorkflowItem's stages array and has been started/completed
-      // Wait, we need to know the *chosen* path. If the current stage is completed, the NEXT stage will be in the WorkflowItem's stages list.
-      // In the new architecture, when a branch is taken, the next stage is dynamically added or updated in the WorkflowItem.
-      // Let's just check which of the nextStages exists in workflow.stages with status != Pending (or exists at all if we add them dynamically).
-      const chosenStage = stageInfo.nextStages.find(nextKey => 
-        workflow.stages.some(s => s.stageName === nextKey && s.status !== "Pending")
-      );
-      if (chosenStage) {
-        currentKey = chosenStage;
-        continue;
-      }
+    // We hit a branch!
+    branchState = "UNRESOLVED";
+    // Check if any next branch has been started or completed
+    const chosenStage = stageInfo.nextStages.find(nextKey => {
+      return recordedStages.some(s => {
+        const norm = normalizeStageKey(def, s.stageName);
+        return norm === nextKey && s.status !== "Pending";
+      });
+    });
 
-      // If we haven't reached this branch yet, we might not know the choice. Just pick the first one as a placeholder or break.
-      // The modal can handle rendering possible branches. For path calculation, let's just break if unresolved.
-      break;
-    } else {
-      break;
+    if (chosenStage) {
+      branchState = "RESOLVED";
+      currentKey = chosenStage;
+      continue;
     }
+    
+    // Branch is unresolved. We stop adding stages to the resolved path.
+    // The UI will handle displaying the branch choice at `currentKey`.
+    break; 
   }
-  return path;
-}
 
-export type StageState = "COMPLETED" | "CURRENT" | "PENDING" | "SKIPPED" | "BLOCKED";
-
-export function getWorkflowStageState(workflow: WorkflowItem | undefined, stageKey: string): StageState {
-  if (!workflow) return "PENDING";
+  // 3. Determine Current Stage Key
+  let computedCurrentStageKey: string | null = null;
+  if (workflowRecord?.currentStage) {
+    computedCurrentStageKey = normalizeStageKey(def, workflowRecord.currentStage);
+  }
   
-  const stageRecord = workflow.stages.find(s => s.stageName === stageKey);
-  if (!stageRecord) return "SKIPPED"; // Or pending if it's a future branch
-
-  if (stageRecord.status === "Done" || stageRecord.status === "Skipped") return "COMPLETED";
-  if (workflow.currentStage === stageKey) return "CURRENT";
-  return "PENDING";
-}
-
-export function getLatestCompletionTimestamp(workflow: WorkflowItem | undefined): string | null {
-  if (!workflow || !workflow.stages) return null;
-
-  let latestTimestamp: string | null = null;
-  for (const entry of workflow.stages) {
-    if (entry.completedAt) {
-      if (!latestTimestamp || new Date(entry.completedAt) > new Date(latestTimestamp)) {
-        latestTimestamp = entry.completedAt;
+  if (!computedCurrentStageKey || !def.stages[computedCurrentStageKey]) {
+    // If not explicitly recorded or invalid, infer from path
+    computedCurrentStageKey = def.initialStage;
+    for (const key of resolvedPath) {
+      if (!completedStageKeys.includes(key)) {
+        computedCurrentStageKey = key;
+        break;
       }
+    }
+    // If all are completed, the last one is effectively the "current" (final) state
+    if (completedStageKeys.length >= resolvedPath.length && resolvedPath.length > 0) {
+      computedCurrentStageKey = resolvedPath[resolvedPath.length - 1];
     }
   }
 
-  return latestTimestamp;
+  // 4. Calculate states
+  const stageStates: Record<string, StageState> = {};
+  for (const key of Object.keys(def.stages)) {
+    if (completedStageKeys.includes(key)) {
+      stageStates[key] = "COMPLETED";
+    } else if (key === computedCurrentStageKey) {
+      stageStates[key] = "CURRENT";
+    } else if (resolvedPath.includes(key)) {
+      stageStates[key] = "PENDING";
+    } else {
+      stageStates[key] = "NOT_APPLICABLE"; // Not in the active path (either unselected branch or alternative branch)
+    }
+  }
+
+  // 5. Total Count and Completed Count
+  const totalCount = def.expectedTotalStages;
+  const completedCount = completedStageKeys.filter(k => resolvedPath.includes(k)).length;
+
+  return {
+    definition: def,
+    family: def.name,
+    currentStageKey: computedCurrentStageKey,
+    completedStageKeys,
+    stageStates,
+    resolvedPath,
+    branchState,
+    completedCount,
+    totalCount,
+    latestCompletedAt
+  };
 }
 
 export function formatWorkflowTimestamp(isoString: string): string {
@@ -249,7 +321,7 @@ export function formatWorkflowTimestamp(isoString: string): string {
     });
     
     return `${day} ${month} ${year} · ${time}`;
-  } catch {
+  } catch (e) {
     return "";
   }
-}
+}}

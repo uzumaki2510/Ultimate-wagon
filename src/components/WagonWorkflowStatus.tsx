@@ -2,10 +2,7 @@ import React, { useMemo } from "react";
 import { Wagon } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
 import { 
-  getWorkflowDefinitionForWagon, 
-  getCurrentWorkflowStage, 
-  getApplicableWorkflowPath,
-  getLatestCompletionTimestamp,
+  getResolvedWorkflowForWagon,
   formatWorkflowTimestamp
 } from "@/lib/wagonWorkflows";
 import { ChevronRight } from "lucide-react";
@@ -17,11 +14,14 @@ interface Props {
 
 export function WagonWorkflowStatus({ wagon, onClick }: Props) {
   const workflows = useAppStore(s => s.workflows);
-  const workflow = useMemo(() => workflows.find(w => w.wagonId === wagon.id), [workflows, wagon.id]);
   
-  const def = getWorkflowDefinitionForWagon(wagon.details?.typeName || wagon.type);
+  // Use the authoritative resolver
+  const resolved = useMemo(() => {
+    const workflowRecord = workflows.find(w => w.wagonId === wagon.id);
+    return getResolvedWorkflowForWagon(wagon, workflowRecord);
+  }, [wagon, workflows]);
 
-  if (!def) {
+  if (!resolved) {
     return (
       <div 
         className="flex flex-col p-2 border border-border/50 rounded-md bg-secondary/30 text-muted-foreground w-48 cursor-pointer hover:bg-secondary/50 transition-colors"
@@ -35,17 +35,18 @@ export function WagonWorkflowStatus({ wagon, onClick }: Props) {
     );
   }
 
-  const activeStageKey = getCurrentWorkflowStage(workflow, def);
-  const activeStage = activeStageKey ? def.stages[activeStageKey] : null;
+  const {
+    definition,
+    family,
+    currentStageKey,
+    resolvedPath,
+    completedCount,
+    totalCount,
+    latestCompletedAt
+  } = resolved;
 
-  // Calculate branch-aware path.
-  const path = getApplicableWorkflowPath(workflow, def);
-
-  const activeIndex = activeStageKey ? path.indexOf(activeStageKey) : -1;
-  // If activeIndex is -1, it means not started (0 / total).
-  // If activeIndex >= 0, it means it's progressed (activeIndex + 1 / total).
-  const currentProgressCount = activeIndex >= 0 ? activeIndex + 1 : 0;
-  const totalStages = path.length;
+  const currentStageDef = currentStageKey ? definition.stages[currentStageKey] : null;
+  const currentStageLabel = currentStageDef ? (currentStageDef.shortLabel || currentStageDef.label) : "Not Started";
 
   return (
     <div 
@@ -53,40 +54,38 @@ export function WagonWorkflowStatus({ wagon, onClick }: Props) {
       onClick={onClick}
       data-testid={`wagon-workflow-status-${wagon.id}`}
       data-wagon-type={wagon.details?.typeName || wagon.type}
-      data-current-stage={activeStageKey}
+      data-current-stage={currentStageKey}
       title="Click to view workflow details"
     >
       <div className="flex justify-between items-start">
         <span className="font-semibold text-[11px] text-muted-foreground uppercase tracking-wider mb-1">
-          {def.name}
+          {family}
         </span>
       </div>
       <div className="font-medium text-sm text-foreground truncate">
-        {activeStage?.label || "Not Started"}
+        {currentStageLabel}
       </div>
       <div className="text-xs text-muted-foreground mt-0.5">
-        {currentProgressCount} / {totalStages} stages
+        {completedCount} / {totalCount} stages
       </div>
       
       <div className="flex items-center gap-1 mt-2 w-full pr-4 relative">
-        {path.map((stageKey, idx) => {
+        {resolvedPath.map((stageKey, idx) => {
           let dotClass = "bg-gray-200 dark:bg-gray-700"; // Upcoming
           
-          if (activeIndex >= 0) {
-            if (idx < activeIndex) {
-              dotClass = "bg-green-500"; // Completed
-            } else if (idx === activeIndex) {
-              dotClass = "bg-blue-500"; // Current
-            }
+          if (resolved.stageStates[stageKey] === "COMPLETED") {
+            dotClass = "bg-green-500";
+          } else if (resolved.stageStates[stageKey] === "CURRENT") {
+            dotClass = "bg-blue-500";
           }
 
-          const stageInfo = def.stages[stageKey];
+          const stageInfo = definition.stages[stageKey];
 
           return (
             <div 
               key={`${stageKey}-${idx}`} 
               className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass} transition-all`}
-              title={`${stageInfo?.label} ${activeIndex >= 0 && idx < activeIndex ? "(Completed)" : activeIndex >= 0 && idx === activeIndex ? "(Current)" : "(Upcoming)"}`}
+              title={`${stageInfo?.label} (${resolved.stageStates[stageKey]})`}
             />
           );
         })}
@@ -95,20 +94,14 @@ export function WagonWorkflowStatus({ wagon, onClick }: Props) {
         </div>
       </div>
 
-      {(() => {
-        const latestTimestamp = getLatestCompletionTimestamp(workflow);
-        if (!latestTimestamp) return null;
-        const formatted = formatWorkflowTimestamp(latestTimestamp);
-        if (!formatted) return null;
-        return (
-          <div 
-            className="text-[10px] text-muted-foreground mt-1 truncate" 
-            title={`Last update: ${formatted}`}
-          >
-            Updated: {formatted}
-          </div>
-        );
-      })()}
+      {latestCompletedAt && (
+        <div 
+          className="text-[10px] text-muted-foreground mt-1 truncate" 
+          title={`Last completed: ${formatWorkflowTimestamp(latestCompletedAt)}`}
+        >
+          Last completed: {formatWorkflowTimestamp(latestCompletedAt)}
+        </div>
+      )}
     </div>
   );
 }
