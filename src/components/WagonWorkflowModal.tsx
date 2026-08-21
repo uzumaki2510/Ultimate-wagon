@@ -14,7 +14,6 @@ import {
   getWorkflowDefinitionForWagon, 
   getWorkflowStageState,
   getCurrentWorkflowStage,
-  getNextValidStage,
   getApplicableWorkflowPath,
   formatWorkflowTimestamp
 } from "@/lib/wagonWorkflows";
@@ -183,7 +182,7 @@ export function WagonWorkflowModal({ wagon, onClose }: Props) {
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Defect Summary</div>
             <div className="font-medium text-sm flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-orange-500" />
-              {wagon.defect || "Unknown defect"}
+              {(wagon as any).defect || "Unknown defect"}
             </div>
           </div>
           <div className="p-3 border rounded-lg bg-card shadow-sm flex flex-col justify-center">
