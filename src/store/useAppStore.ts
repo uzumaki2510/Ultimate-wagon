@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import {
   AuditEvent, Employee, Rake, UnitMemo, Wagon, WorkflowItem, WorkflowStageRecord, WorkflowActionHistory,
-  FitConfirmation, InspectionChecklist, WagonDocument
+  FitConfirmation, InspectionChecklist, WagonDocument, RepairTask
 } from "@/types";
 import { getWorkflowTemplate } from "@/lib/workflowConfig";
 import { getWorkflowDefinitionForWagon } from "@/lib/wagonWorkflows";
@@ -50,6 +50,8 @@ interface AppState {
   // wagons
   addWagon: (wagon: Omit<Wagon, "id">) => Wagon;
   updateWagon: (id: string, patch: Partial<Wagon>, actorName?: string) => void;
+  correctWagonNumber: (id: string, newWagonNo: string, actorName: string, reason: string) => { success: boolean; error?: string };
+  updateRepairTask: (wagonId: string, taskId: string, patch: Partial<RepairTask>, actorName: string) => void;
   removeWagon: (id: string) => void;
 
   // rakes
@@ -73,6 +75,8 @@ interface AppState {
   pauseStage: (id: string, stageName: string, staffName: string, reason?: string) => void;
   resumeStage: (id: string, stageName: string, staffName: string) => void;
   markStageDone: (id: string, stageName: string, staffName: string, inspectorName: string, remarks: string) => void;
+  correctWorkflowStage: (id: string, stageName: string, patch: Partial<WorkflowStageRecord>, actorName: string, reason: string) => void;
+  correctWorkflowBranch: (id: string, branchingStageName: string, oldBranchStageName: string, newBranchStageName: string, actorName: string, reason: string) => { success: boolean; error?: string };
   markWagonFit: (wagonId: string, fitConfirmation?: FitConfirmation) => { success: boolean; error?: string };
   updateInspectionChecklist: (wagonId: string, patch: Partial<InspectionChecklist>) => void;
   undoLastWorkflowAction: (wagonId: string, reason?: string) => { success: boolean; error?: string };
@@ -224,6 +228,51 @@ export const useAppStore = create<AppState>()(
             }
           }
         }
+      },
+      correctWagonNumber: (id: string, newWagonNo: string, actorName: string, reason: string) => {
+        const state = get();
+        const existing = state.wagons.find(w => w.id === id);
+        if (!existing) return { success: false, error: "Wagon not found" };
+        if (existing.wagonNo === newWagonNo) return { success: true };
+        
+        // Uniqueness check
+        const duplicate = state.wagons.find(w => w.wagonNo === newWagonNo && w.id !== id);
+        if (duplicate) return { success: false, error: "Wagon number already exists" };
+
+        const oldWagonNo = existing.wagonNo;
+        set((s) => ({ wagons: s.wagons.map((w) => (w.id === id ? { ...w, wagonNo: newWagonNo } : w)) }));
+        wagonApi.updateWagon(id, { wagonNo: newWagonNo }).catch(console.error);
+        
+        get().log({ 
+          actor: actorName, 
+          action: "Wagon number corrected", 
+          wagonId: id, 
+          details: `${oldWagonNo} → ${newWagonNo} (Reason: ${reason})`
+        });
+        
+        return { success: true };
+      },
+      updateRepairTask: (wagonId: string, taskId: string, patch: Partial<RepairTask>, actorName: string) => {
+        set((s) => {
+          const wagon = s.wagons.find(w => w.id === wagonId);
+          if (!wagon || !wagon.repairTasks) return s;
+
+          // Legacy fallback: if taskId is provided but no task has it, maybe it matches subRepair?
+          const updatedTasks = wagon.repairTasks.map(t => {
+             const match = (t.id === taskId) || (!t.id && t.subRepair === taskId);
+             return match ? { ...t, ...patch, id: t.id || nanoid() } : t;
+          });
+
+          wagonApi.updateWagon(wagonId, { repairTasks: updatedTasks }).catch(console.error);
+          return { wagons: s.wagons.map(w => w.id === wagonId ? { ...w, repairTasks: updatedTasks } : w) };
+        });
+
+        get().log({
+           actor: actorName,
+           action: "Repair Task Updated",
+           wagonId,
+           details: `Task ${taskId} was updated.`
+        });
       },
       removeWagon: (id) => {
         set((s) => ({ 
@@ -512,6 +561,69 @@ export const useAppStore = create<AppState>()(
             }).catch(console.error);
           }
         }
+      },
+
+      correctWorkflowStage: (id, stageName, patch, actorName, reason) => {
+        set((s) => ({
+          workflows: s.workflows.map(wf => {
+            if (wf.id !== id) return wf;
+            const updatedStages = wf.stages.map(st => {
+              if (st.stageName === stageName && st.status === "Done") {
+                return { ...st, ...patch };
+              }
+              return st;
+            });
+            return { ...wf, stages: updatedStages, updatedAt: new Date().toISOString() };
+          })
+        }));
+        const wf = get().workflows.find((w) => w.id === id);
+        if (wf) {
+          get().log({
+            actor: actorName,
+            action: "Workflow Stage Corrected",
+            wagonId: wf.wagonId,
+            details: `Metadata for completed stage '${stageName}' was corrected. Reason: ${reason}`
+          });
+        }
+      },
+
+      correctWorkflowBranch: (id, branchingStageName, oldBranchStageName, newBranchStageName, actorName, reason) => {
+        const wf = get().workflows.find(w => w.id === id);
+        if (!wf) return { success: false, error: "Workflow not found" };
+
+        // Verify downstream safety on the old branch
+        // For safety, we block if the old branch stage has ANY activity.
+        const oldStage = wf.stages.find(s => s.stageName === oldBranchStageName);
+        if (oldStage && (oldStage.status === "Done" || oldStage.status === "In Progress" || oldStage.completedAt || oldStage.startedAt || oldStage.remarks || oldStage.staffName)) {
+           return { success: false, error: "Work has already started on the selected branch. Use workflow rollback instead." };
+        }
+
+        set((s) => ({
+          workflows: s.workflows.map(w => {
+            if (w.id !== id) return w;
+            const updatedStages = w.stages.map(st => {
+              if (st.stageName === newBranchStageName) {
+                return { ...st, status: "In Progress" as const, startedAt: new Date().toISOString() };
+              }
+              if (st.stageName === oldBranchStageName) {
+                return { ...st, status: "Pending" as const, startedAt: undefined, completedAt: undefined, remarks: undefined, staffName: undefined };
+              }
+              return st;
+            });
+            // Update current stage to the new branch
+            const currentStage = w.currentStage === oldBranchStageName ? newBranchStageName : w.currentStage;
+            return { ...w, stages: updatedStages, currentStage, updatedAt: new Date().toISOString() };
+          })
+        }));
+
+        get().log({
+          actor: actorName,
+          action: "Workflow Branch Corrected",
+          wagonId: wf.wagonId,
+          details: `Branch changed from '${oldBranchStageName}' to '${newBranchStageName}'. Reason: ${reason}`
+        });
+
+        return { success: true };
       },
 
       advanceWorkflow: (id, toStage) => {

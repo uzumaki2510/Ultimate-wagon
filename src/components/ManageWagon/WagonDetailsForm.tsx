@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { WagonRepair } from "@/lib/wagonData";
+import { CorrectionDialog } from "@/components/ui/CorrectionDialog";
+import { Edit2 } from "lucide-react";
 
 interface Props {
   wagonId: string;
@@ -15,21 +16,26 @@ interface Props {
 }
 
 export function WagonDetailsForm({ wagonId, onSave }: Props) {
-  const { user } = useAuth();
-  const { wagons, updateWagon } = useAppStore();
+  const { user, isSuperAdmin } = useAuth();
+  const { wagons, updateWagon, correctWagonNumber, log } = useAppStore();
   const wagon = wagons.find((w) => w.id === wagonId);
   const loggedInUserName = user?.name || user?.email || "Current User";
 
+  const [isEditing, setIsEditing] = useState(false);
   const [comments, setComments] = useState("");
   const [isSteamed, setIsSteamed] = useState(false);
   const [isDegassed, setIsDegassed] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState(wagon.currentLocation || "Yard");
-  const [builtYear, setBuiltYear] = useState(wagon.builtYear?.toString() || "");
-  const [pohDate, setPohDate] = useState(wagon.pohDate || "");
-  const [rohDate, setRohDate] = useState(wagon.rohDate || "");
-  const [bookedTo, setBookedTo] = useState(wagon.bookedTo || "");
-  const [defect, setDefect] = useState(wagon.defect || "");
+  const [currentLocation, setCurrentLocation] = useState(wagon?.currentLocation || "Yard");
+  const [builtYear, setBuiltYear] = useState(wagon?.builtYear?.toString() || "");
+  const [pohDate, setPohDate] = useState(wagon?.pohDate || "");
+  const [rohDate, setRohDate] = useState(wagon?.rohDate || "");
+  const [bookedTo, setBookedTo] = useState(wagon?.bookedTo || "");
+  const [defect, setDefect] = useState(wagon?.defect || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Wagon No Correction
+  const [isWagonNoDialogOpen, setIsWagonNoDialogOpen] = useState(false);
+  const [newWagonNo, setNewWagonNo] = useState("");
 
   useEffect(() => {
     if (wagon) {
@@ -66,10 +72,28 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
       if (wagon.type?.includes("BTPN")) patch.isSteamed = isSteamed;
       if (wagon.type === "BTPGLN") patch.isDegassed = isDegassed;
 
-      // Note: As per requirements, we DO NOT auto-advance workflows from details save.
       updateWagon(wagonId, patch, loggedInUserName);
+      
+      if (currentLocation !== wagon.currentLocation) {
+         log({
+           actor: loggedInUserName,
+           action: "Location corrected",
+           wagonId,
+           details: `Placement corrected: ${wagon.currentLocation || "Yard"} → ${currentLocation}`
+         });
+      }
+
+      if (comments !== (wagon.comments || "")) {
+         log({
+           actor: loggedInUserName,
+           action: "Comment Edited",
+           wagonId,
+           details: `Wagon details comment was updated.`
+         });
+      }
 
       toast({ title: "Changes Saved", description: "Wagon details updated successfully." });
+      setIsEditing(false);
       onSave?.();
     } catch (e) {
       toast({ title: "Error", description: "Failed to save details", variant: "destructive" });
@@ -78,12 +102,37 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
     }
   };
 
+  const handleCorrectWagonNo = async (reason: string) => {
+    if (!newWagonNo.trim()) throw new Error("Wagon number cannot be empty.");
+    const result = correctWagonNumber(wagonId, newWagonNo.trim(), loggedInUserName, reason);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    toast({ title: "Wagon Number Corrected", description: `Updated to ${newWagonNo.trim()}` });
+  };
+
   return (
-    <div className="space-y-6 mt-4">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6 mt-4 relative">
+      {!isEditing && (
+        <div className="absolute top-0 right-0 z-10">
+          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Edit2 className="w-4 h-4 mr-2" />
+            Edit Details
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 mt-8">
         <div className="space-y-2">
           <Label>Wagon Number</Label>
-          <Input value={wagon.wagonNo} disabled className="bg-muted" />
+          <div className="flex gap-2">
+            <Input value={wagon.wagonNo} disabled className="bg-muted" />
+            {isSuperAdmin && (
+              <Button variant="outline" onClick={() => { setNewWagonNo(wagon.wagonNo); setIsWagonNoDialogOpen(true); }}>
+                Correct
+              </Button>
+            )}
+          </div>
         </div>
         <div className="space-y-2">
           <Label>Wagon Type</Label>
@@ -95,23 +144,23 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
         </div>
         <div className="space-y-2">
           <Label>Built Year</Label>
-          <Input type="number" placeholder="YYYY" value={builtYear} onChange={e => setBuiltYear(e.target.value)} />
+          <Input type="number" placeholder="YYYY" value={builtYear} onChange={e => setBuiltYear(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="space-y-2">
           <Label>POH Date</Label>
-          <Input type="date" value={pohDate} onChange={e => setPohDate(e.target.value)} />
+          <Input type="date" value={pohDate} onChange={e => setPohDate(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="space-y-2">
           <Label>ROH Date</Label>
-          <Input type="date" value={rohDate} onChange={e => setRohDate(e.target.value)} />
+          <Input type="date" value={rohDate} onChange={e => setRohDate(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="space-y-2">
           <Label>Return Station / Booked To</Label>
-          <Input placeholder="Destination" value={bookedTo} onChange={e => setBookedTo(e.target.value)} />
+          <Input placeholder="Destination" value={bookedTo} onChange={e => setBookedTo(e.target.value)} disabled={!isEditing} />
         </div>
         <div className="space-y-2">
           <Label>Sick Reason</Label>
-          <Input placeholder="Defect/Reason" value={defect} onChange={e => setDefect(e.target.value)} />
+          <Input placeholder="Defect/Reason" value={defect} onChange={e => setDefect(e.target.value)} disabled={!isEditing} />
         </div>
       </div>
 
@@ -121,6 +170,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
           className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           value={currentLocation}
           onChange={(e) => setCurrentLocation(e.target.value)}
+          disabled={!isEditing}
         >
           <option value="Yard">Yard</option>
           <option value="Steam Point">Steam Point</option>
@@ -139,6 +189,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
           value={comments} 
           onChange={(e) => setComments(e.target.value)}
           rows={3}
+          disabled={!isEditing}
         />
       </div>
 
@@ -150,6 +201,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
                 id="edit-steamed" 
                 checked={isSteamed} 
                 onCheckedChange={(c) => setIsSteamed(!!c)} 
+                disabled={!isEditing}
               />
               <Label htmlFor="edit-steamed" className="cursor-pointer">Mark as Steamed</Label>
             </div>
@@ -160,6 +212,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
                 id="edit-degassed" 
                 checked={isDegassed} 
                 onCheckedChange={(c) => setIsDegassed(!!c)} 
+                disabled={!isEditing}
               />
               <Label htmlFor="edit-degassed" className="cursor-pointer">Mark as De-gassed</Label>
             </div>
@@ -190,11 +243,34 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
         </div>
       )}
 
-      <div className="flex justify-end pt-4 border-t">
-        <Button onClick={handleSave} disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : "Save Details"}
-        </Button>
-      </div>
+      {isEditing && (
+        <div className="flex justify-end pt-4 border-t gap-2">
+          <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save Details"}
+          </Button>
+        </div>
+      )}
+
+      <CorrectionDialog
+        isOpen={isWagonNoDialogOpen}
+        onOpenChange={setIsWagonNoDialogOpen}
+        title="Correct Wagon Number"
+        description="Modify the wagon number if it was registered incorrectly. Uniqueness will be verified."
+        reasonRequired={true}
+        onSave={handleCorrectWagonNo}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Current Wagon Number</Label>
+            <Input value={wagon.wagonNo} disabled className="bg-muted" />
+          </div>
+          <div className="space-y-2">
+            <Label>Corrected Wagon Number <span className="text-red-500">*</span></Label>
+            <Input value={newWagonNo} onChange={e => setNewWagonNo(e.target.value)} placeholder="Enter correct number" />
+          </div>
+        </div>
+      </CorrectionDialog>
     </div>
   );
 }

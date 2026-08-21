@@ -28,13 +28,19 @@ export function AppSidebar() {
 
   const isActive = (u: string) => u === "/" ? pathname === "/" : pathname.startsWith(u);
 
-  const navItems = [
+  const operationsItems = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
     { title: "Live Board", url: "/live-sick-line", icon: LayoutDashboard, role: "all" },
     { title: "Wagon Register", url: "/register", icon: FileText, role: "all" },
     { title: "Quick Entry", url: "/quick-board", icon: Zap, role: "admin" },
     { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
+  ];
+
+  const reportsRecordsItems = [
     { title: "Reports", url: "/reports", icon: FileText, role: "all" },
+  ];
+
+  const managementItems = [
     { title: "Wagon Master", url: "/wagon-directory", icon: FileText, role: "all" },
     { title: "Employees", url: "/employees", icon: Users, role: "all", badge: pendingCount },
   ];
@@ -53,10 +59,31 @@ export function AppSidebar() {
     { title: "Fit Certificate", url: "/workshop/fit", icon: CheckCircle },
   ];
 
-  const filteredItems = navItems.filter(item => {
-    if (item.role === "admin") return isAdmin;
-    return true;
-  });
+  const renderNavGroup = (items: any[], roleFilter = true) => {
+    return items.filter(item => {
+      if (roleFilter && item.role === "admin") return isAdmin;
+      return true;
+    }).map((n) => (
+      <SidebarMenuItem key={n.url}>
+        <SidebarMenuButton asChild isActive={isActive(n.url)}>
+          <NavLink to={n.url} className="flex items-center gap-2">
+            <n.icon className="h-4 w-4 shrink-0" />
+            {!collapsed && (
+              <span className="flex-1">{n.title}</span>
+            )}
+            {!collapsed && n.badge && n.badge > 0 && (
+              <span className="ml-auto h-5 min-w-5 flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold px-1">
+                {n.badge}
+              </span>
+            )}
+            {collapsed && n.badge && n.badge > 0 && (
+              <span className="absolute top-1 right-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-sidebar" />
+            )}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    ));
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -79,26 +106,25 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredItems.map((n) => (
-                <SidebarMenuItem key={n.url}>
-                  <SidebarMenuButton asChild isActive={isActive(n.url)}>
-                    <NavLink to={n.url} className="flex items-center gap-2">
-                      <n.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && (
-                        <span className="flex-1">{n.title}</span>
-                      )}
-                      {!collapsed && n.badge && n.badge > 0 && (
-                        <span className="ml-auto h-5 min-w-5 flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold px-1">
-                          {n.badge}
-                        </span>
-                      )}
-                      {collapsed && n.badge && n.badge > 0 && (
-                        <span className="absolute top-1 right-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-sidebar" />
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {renderNavGroup(operationsItems)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="pt-2">
+          <SidebarGroupLabel className="text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">Reports & Records</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {renderNavGroup(reportsRecordsItems)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="pt-2">
+          <SidebarGroupLabel className="text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {renderNavGroup(managementItems)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -115,16 +141,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {superAdminItems.map((n) => (
-                      <SidebarMenuItem key={n.url}>
-                        <SidebarMenuButton asChild isActive={isActive(n.url)}>
-                          <NavLink to={n.url} className="flex items-center gap-2">
-                            <n.icon className="h-4 w-4 shrink-0" />
-                            {!collapsed && <span>{n.title}</span>}
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    {renderNavGroup(superAdminItems, false)}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </CollapsibleContent>
@@ -144,16 +161,7 @@ export function AppSidebar() {
               <CollapsibleContent>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {workshopItems.map((n) => (
-                      <SidebarMenuItem key={n.url}>
-                        <SidebarMenuButton asChild isActive={isActive(n.url)}>
-                          <NavLink to={n.url} className="flex items-center gap-2">
-                            <n.icon className="h-4 w-4 shrink-0" />
-                            {!collapsed && <span>{n.title}</span>}
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    {renderNavGroup(workshopItems, false)}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </CollapsibleContent>

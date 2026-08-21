@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { DEFECT_LIBRARY } from "@/lib/wagonData";
-import { InspectionChecklist } from "@/types";
+import { InspectionChecklist, RepairTask, FitConfirmation } from "@/types";
+import { CorrectionDialog } from "@/components/ui/CorrectionDialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   wagonId: string;
@@ -15,7 +18,7 @@ interface Props {
 
 export function WagonDefectsRepairs({ wagonId }: Props) {
   const { user } = useAuth();
-  const { wagons, updateWagon, updateInspectionChecklist, markWagonFit } = useAppStore();
+  const { wagons, updateWagon, updateInspectionChecklist, markWagonFit, updateRepairTask, log } = useAppStore();
   const wagon = wagons.find((w) => w.id === wagonId);
   const loggedInUserName = user?.name || user?.email || "Current User";
 
@@ -23,14 +26,67 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
   const [checklist, setChecklist] = useState<InspectionChecklist>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Correction state
+  const [correctingTask, setCorrectingTask] = useState<RepairTask | null>(null);
+  const [correctingTaskRemarks, setCorrectingTaskRemarks] = useState("");
+  const [isFitCorrectionOpen, setIsFitCorrectionOpen] = useState(false);
+  const [fitCorrectionData, setFitCorrectionData] = useState<Partial<FitConfirmation>>({ confirmedBy: "", remarks: "" });
+
   useEffect(() => {
     if (wagon) {
       setEditRepairTypes(wagon.repairTypes || []);
       setChecklist(wagon.inspectionChecklist || {});
+      if (wagon.fitConfirmation) {
+        setFitCorrectionData({
+          confirmedBy: wagon.fitConfirmation.confirmedBy || "",
+          remarks: wagon.fitConfirmation.remarks || ""
+        });
+      }
     }
   }, [wagon]);
 
   if (!wagon) return null;
+
+  const handleOpenTaskCorrection = (task: RepairTask) => {
+    setCorrectingTask(task);
+    setCorrectingTaskRemarks(task.remarks || "");
+  };
+
+  const handleSaveTaskCorrection = async (reason: string) => {
+    if (!correctingTask) return;
+    const patch = { remarks: correctingTaskRemarks };
+    
+    updateRepairTask(wagon.id, correctingTask.id || correctingTask.subRepair, patch, loggedInUserName);
+    
+    // Log explicit correction audit event
+    log({
+      actor: loggedInUserName,
+      action: "Work Done Corrected",
+      wagonId: wagon.id,
+      details: `Task '${correctingTask.subRepair}' remarks corrected. Reason: ${reason}`
+    });
+
+    setCorrectingTask(null);
+    toast({ title: "Task Corrected", description: "Work Done details have been updated." });
+  };
+
+  const handleSaveFitCorrection = async (reason: string) => {
+    if (!wagon.fitConfirmation) return;
+    
+    // Bypass markWagonFit, just patch the metadata directly
+    const patchedFit = { ...wagon.fitConfirmation, ...fitCorrectionData };
+    updateWagon(wagon.id, { fitConfirmation: patchedFit }, loggedInUserName);
+
+    log({
+      actor: loggedInUserName,
+      action: "Fit Information Corrected",
+      wagonId: wagon.id,
+      details: `Fit metadata corrected. Reason: ${reason}`
+    });
+
+    setIsFitCorrectionOpen(false);
+    toast({ title: "Fit Corrected", description: "Fitness metadata updated." });
+  };
 
   const handleSave = () => {
     setIsSubmitting(true);
@@ -171,16 +227,29 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
 
             return (
               <ul className="space-y-2">
-                {doneTasks.map((t, idx) => (
-                  <li key={`task-${idx}`} className="flex items-center text-sm">
-                    <span className="text-emerald-500 mr-2">✓</span>
-                    <span>{t.subRepair} <span className="text-muted-foreground text-xs">(Repair)</span></span>
+                {doneTasks.map((t) => (
+                  <li key={`task-${t.id || t.subRepair}`} className="flex items-center justify-between text-sm group">
+                    <div>
+                      <span className="text-emerald-500 mr-2">✓</span>
+                      <span>{t.subRepair} <span className="text-muted-foreground text-xs">(Repair)</span></span>
+                      {t.remarks && <div className="text-xs text-muted-foreground ml-6 italic">{t.remarks}</div>}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                      onClick={() => handleOpenTaskCorrection(t)}
+                    >
+                      <span className="sr-only">Correct</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </Button>
                   </li>
                 ))}
                 {doneStages.map((s, i) => (
                   <li key={`stage-${i}`} className="flex items-center text-sm">
                     <span className="text-emerald-500 mr-2">✓</span>
                     <span>{s.stageName} <span className="text-muted-foreground text-xs">(Workflow)</span></span>
+                    {/* Workflow stages are corrected from the Workflow tab */}
                   </li>
                 ))}
               </ul>
@@ -190,9 +259,12 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
       </div>
 
       <div className="flex justify-between pt-4 border-t items-center mt-6">
-        <div>
+        <div className="flex items-center gap-2">
           {wagon.status === "FIT_READY" || wagon.status === "RELEASED" || wagon.status === "IN_SERVICE" ? (
-            <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">Currently FIT</Badge>
+            <>
+              <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">Currently FIT</Badge>
+              <Button variant="outline" size="sm" onClick={() => setIsFitCorrectionOpen(true)}>Correct Fit Info</Button>
+            </>
           ) : (
             <Button variant="outline" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={handleMarkFit}>
               Mark Wagon FIT
@@ -203,6 +275,58 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
           {isSubmitting ? "Saving..." : "Save Defects & Repairs"}
         </Button>
       </div>
+
+      <CorrectionDialog
+        isOpen={!!correctingTask}
+        onOpenChange={(open) => !open && setCorrectingTask(null)}
+        title="Correct Repair Task"
+        description="Correct the remarks or details of this completed work."
+        reasonRequired={true}
+        onSave={handleSaveTaskCorrection}
+      >
+        {correctingTask && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Task / Defect</Label>
+              <Input value={correctingTask.subRepair} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label>Remarks</Label>
+              <Textarea 
+                value={correctingTaskRemarks} 
+                onChange={e => setCorrectingTaskRemarks(e.target.value)} 
+                placeholder="Updated remarks..."
+              />
+            </div>
+          </div>
+        )}
+      </CorrectionDialog>
+
+      <CorrectionDialog
+        isOpen={isFitCorrectionOpen}
+        onOpenChange={setIsFitCorrectionOpen}
+        title="Correct Fit Information"
+        description="Correct the metadata for this Fit confirmation. This will not change the wagon's current status."
+        reasonRequired={true}
+        onSave={handleSaveFitCorrection}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Fit Confirmed By (Name / ID)</Label>
+            <Input 
+              value={fitCorrectionData.confirmedBy} 
+              onChange={e => setFitCorrectionData(prev => ({...prev, confirmedBy: e.target.value}))} 
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Remarks</Label>
+            <Textarea 
+              value={fitCorrectionData.remarks} 
+              onChange={e => setFitCorrectionData(prev => ({...prev, remarks: e.target.value}))} 
+            />
+          </div>
+        </div>
+      </CorrectionDialog>
     </div>
   );
 }
