@@ -33,9 +33,15 @@ export type WagonStatus = `${WagonWorkflowStatus}`;
 export type PriorityLevel = "Normal" | "Urgent" | "Safety Critical";
 
 export interface RepairTask {
+  id?: string;
   category: string;
   subRepair: string;
   severity: PriorityLevel;
+  status?: "pending" | "in_progress" | "repaired" | "blocked";
+  location?: string;
+  inspector?: string;
+  reportedAt?: string;
+  remarks?: string;
 }
 
 export interface ChecklistItem {

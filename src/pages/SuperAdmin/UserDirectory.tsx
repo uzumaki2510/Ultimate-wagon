@@ -59,7 +59,7 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
       fetchUsers();
       
       // Update URL params
-      const newParams = new URLSearchParams();
+      const newParams = new URLSearchParams(searchParams);
       if (q) newParams.set("q", q);
       if (roleFilter !== "all") newParams.set("role", roleFilter);
       if (statusFilter !== "all") newParams.set("status", statusFilter);

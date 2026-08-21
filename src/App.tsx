@@ -78,33 +78,33 @@ const App = () => (
                 <Route path="/memos/new" element={<MemoEditor />} />
                 <Route path="/memos/:id" element={<MemoEditor />} />
                 <Route path="/memos/:id/print" element={<MemoPrint />} />
-                <Route path="/sickline" element={<SickLine />} />
+                <Route path="/sickline" element={<Navigate to="/live-sick-line" replace />} />
                 <Route path="/live-sick-line" element={<LiveSickLineBoard />} />
                 <Route path="/quick-board" element={<QuickBoard />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
-                <Route path="/workflow-builder" element={<AdminRoute><WorkflowBuilder /></AdminRoute>} />
+                <Route path="/workflow-builder" element={<Navigate to="/super-admin/center?tab=master-data" replace />} />
 
                 {/* Super Admin Guarded Routes - New Unified Architecture */}
                 <Route path="/super-admin/center" element={<SuperAdminRoute><AdminCenter /></SuperAdminRoute>} />
                 <Route path="/super-admin/security" element={<SuperAdminRoute><AuditSecurity /></SuperAdminRoute>} />
 
                 {/* Legacy Super Admin Routes Redirected */}
-                <Route path="/super-admin" element={<Navigate to="/super-admin/center?tab=overview" replace />} />
+                <Route path="/super-admin" element={<Navigate to="/super-admin/center?tab=users" replace />} />
                 <Route path="/super-admin/admins" element={<Navigate to="/super-admin/center?tab=roles-access" replace />} />
                 <Route path="/super-admin/approvals" element={<Navigate to="/super-admin/center?tab=approvals" replace />} />
                 <Route path="/super-admin/users" element={<Navigate to="/super-admin/center?tab=users" replace />} />
                 <Route path="/super-admin/master-data" element={<Navigate to="/super-admin/center?tab=master-data" replace />} />
                 <Route path="/super-admin/logs" element={<Navigate to="/super-admin/security" replace />} />
 
-                {/* Admin Guarded Routes */}
+                {/* Legacy Guarded Routes Redirected */}
                 <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />
-                <Route path="/archives" element={<AdminRoute><Archives /></AdminRoute>} />
-                <Route path="/admin-log" element={<AdminRoute><AdminLog /></AdminRoute>} />
-                <Route path="/audit-logs" element={<AdminRoute><AuditLog /></AdminRoute>} />
+                <Route path="/archives" element={<Navigate to="/memos?tab=archived" replace />} />
+                <Route path="/admin-log" element={<Navigate to="/super-admin/security?tab=logs" replace />} />
+                <Route path="/audit-logs" element={<Navigate to="/super-admin/security?tab=logs" replace />} />
 
                 {/* All authenticated users */}
-                <Route path="/deleted" element={<Deleted />} />
+                <Route path="/deleted" element={<Navigate to="/super-admin/security?tab=deleted" replace />} />
 
                 {/* Profile Route */}
                 <Route path="/profile" element={<Profile />} />

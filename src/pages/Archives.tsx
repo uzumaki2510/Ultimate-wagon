@@ -28,7 +28,11 @@ import {
 import { Calendar, FileSpreadsheet, Download, CheckCircle, Clock, FileText, History } from "lucide-react";
 import * as XLSX from "xlsx";
 
-export default function Archives() {
+interface ArchivesProps {
+  embedded?: boolean;
+}
+
+export default function Archives({ embedded }: ArchivesProps = {}) {
   const { memos, audit } = useAppStore();
   const archivedMemos = memos.filter((m) => m.archived);
   const [wagonArchives, setWagonArchives] = useState<MonthlyArchive[]>([]);
@@ -109,11 +113,13 @@ export default function Archives() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Archives & History</h1>
-        <p className="text-sm text-muted-foreground">Access archived memos, monthly wagon registers, and detailed audit trails.</p>
-      </div>
+    <div className={`space-y-6 animate-fade-in ${embedded ? '' : 'pb-12 max-w-[1600px] mx-auto'}`}>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Archives & History</h1>
+          <p className="text-sm text-muted-foreground">Access archived memos, monthly wagon registers, and detailed audit trails.</p>
+        </div>
+      )}
 
       <Tabs defaultValue="memos" className="w-full">
         <TabsList className="mb-4">

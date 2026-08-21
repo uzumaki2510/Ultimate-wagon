@@ -77,6 +77,8 @@ export default function WagonRegister() {
         comments: w.comments || w.defect,
         isSteamed: w.isSteamed,
         isDegassed: w.isDegassed,
+        btpnWorkflow: (w as any).btpnWorkflow,
+        btpglnWorkflow: (w as any).btpglnWorkflow,
       } as unknown as WagonRepair & { isToday: boolean };
     });
   }, [zustandWagons, workflows]);

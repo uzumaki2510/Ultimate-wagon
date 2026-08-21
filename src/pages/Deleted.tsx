@@ -23,7 +23,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, RotateCcw, Archive, Search } from "lucide-react";
 
-const Deleted = () => {
+interface DeletedProps {
+  embedded?: boolean;
+}
+
+const Deleted = ({ embedded }: DeletedProps = {}) => {
   const [deletedWagons, setDeletedWagons] = useState<WagonRepair[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
@@ -84,15 +88,19 @@ const Deleted = () => {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Deleted Register</h1>
-        <p className="text-sm text-muted-foreground">
-          {isAdmin
-            ? "Restore or permanently delete wagons from the system."
-            : "View wagons that have been removed from the active register."}
-        </p>
-      </div>
+    <div className={`space-y-6 animate-fade-in ${embedded ? '' : 'pb-12 max-w-7xl mx-auto'}`}>
+      {!embedded && (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Deleted Register</h1>
+            <p className="text-sm text-muted-foreground">
+              {isAdmin
+                ? "Restore or permanently delete wagons from the system."
+                : "View wagons that have been removed from the active register."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {!isAdmin && (
         <div className="flex items-center gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">

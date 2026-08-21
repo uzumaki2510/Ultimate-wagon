@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { WagonRepair, DEFECT_LIBRARY } from "@/lib/wagonData";
+import { RepairTask } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,28 +14,53 @@ import {
   Printer, Download, Wrench, FileImage, ImageIcon,
   CheckCircle2, AlertOctagon
 } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
+import { EditConditionDialog } from "./EditConditionDialog";
 
 interface ConditionPanelProps {
   wagon: WagonRepair;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defects?: string[];
+  defects?: RepairTask[];
   severityInfo?: { level: string, color: string, text: string, bg: string, icon: any };
 }
 
 export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefects, severityInfo: initialSeverityInfo }: ConditionPanelProps) {
+  const updateWagon = useAppStore(state => state.updateWagon);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [editingDefect, setEditingDefect] = useState<RepairTask | null>(null);
+
+  const handleSaveDefect = async (updatedDefect: RepairTask) => {
+    if (updatedDefect.category === "Legacy") {
+      const newTask = { ...updatedDefect, category: "Converted" };
+      const newRepairTasks = [...((wagon as any).repairTasks || []), newTask];
+      
+      const newPrimary = wagon.primaryRepair === updatedDefect.subRepair ? undefined : wagon.primaryRepair;
+      const newSecondary = wagon.secondaryRepairs?.filter(r => r !== updatedDefect.subRepair);
+
+      await updateWagon(wagon.id, { 
+        repairTasks: newRepairTasks,
+        primaryRepair: newPrimary,
+        secondaryRepairs: newSecondary
+      } as any, "System");
+    } else {
+      const newRepairTasks = ((wagon as any).repairTasks || []).map((rt: RepairTask) => 
+        (rt.id === updatedDefect.id || rt.subRepair === updatedDefect.subRepair) ? updatedDefect : rt
+      );
+      await updateWagon(wagon.id, { repairTasks: newRepairTasks } as any, "System");
+    }
+  };
 
   const defects = React.useMemo(() => {
     if (initialDefects) return initialDefects;
-    const list: string[] = [];
+    const list: RepairTask[] = [];
     if ((wagon as any).repairTasks && (wagon as any).repairTasks.length > 0) {
-      list.push(...(wagon as any).repairTasks.map((rt: any) => rt.subRepair));
+      list.push(...(wagon as any).repairTasks);
     } else {
-      if (wagon.primaryRepair) list.push(wagon.primaryRepair);
+      if (wagon.primaryRepair) list.push({ id: crypto.randomUUID(), category: "Legacy", subRepair: wagon.primaryRepair, severity: "Normal" } as any);
       if (wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0) {
-        list.push(...wagon.secondaryRepairs);
+        list.push(...wagon.secondaryRepairs.map(r => ({ id: crypto.randomUUID(), category: "Legacy", subRepair: r, severity: "Normal" } as any)));
       }
     }
     return list;
@@ -45,9 +71,9 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefe
     let hasCritical = false;
     let hasUrgent = false;
 
-    for (const defectName of defects) {
+    for (const defect of defects) {
       for (const group of DEFECT_LIBRARY) {
-        const def = group.defects.find(d => d.name === defectName);
+        const def = group.defects.find(d => d.name === defect.subRepair);
         if (def) {
           if (def.severity === "Safety Critical") hasCritical = true;
           if (def.severity === "Urgent") hasUrgent = true;
@@ -74,16 +100,16 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefe
   const pending = total - repaired;
 
   const groupedDefects = React.useMemo(() => {
-    const groups: Record<string, string[]> = {};
-    const others: string[] = [];
+    const groups: Record<string, RepairTask[]> = {};
+    const others: RepairTask[] = [];
     
     if (defects.length === 0 && wagon.comments) {
-      others.push(wagon.comments);
+      others.push({ id: crypto.randomUUID(), category: "Legacy", subRepair: wagon.comments, severity: "Normal" } as any);
     } else {
       defects.forEach(defect => {
         let found = false;
         for (const g of DEFECT_LIBRARY) {
-          if (g.defects.some(d => d.name === defect)) {
+          if (g.defects.some(d => d.name === defect.subRepair)) {
             if (!groups[g.groupName]) groups[g.groupName] = [];
             groups[g.groupName].push(defect);
             found = true;
@@ -182,13 +208,13 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefe
               <div className="bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900 rounded-lg p-3 shadow-sm flex flex-col justify-between">
                 <span className="text-xs text-red-600 dark:text-red-400 font-semibold">Critical</span>
                 <span className="text-2xl font-bold text-red-700 dark:text-red-300">
-                  {defects.filter(d => getSeverityInfoForDefect(d).level === "Critical").length}
+                  {defects.filter(d => getSeverityInfoForDefect(d.subRepair).level === "Critical").length}
                 </span>
               </div>
               <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-900 rounded-lg p-3 shadow-sm flex flex-col justify-between">
                 <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">Major</span>
                 <span className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-                  {defects.filter(d => getSeverityInfoForDefect(d).level === "Major").length}
+                  {defects.filter(d => getSeverityInfoForDefect(d.subRepair).level === "Major").length}
                 </span>
               </div>
               <div className="bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900 rounded-lg p-3 shadow-sm flex flex-col justify-between">
@@ -235,7 +261,7 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefe
 
             <div className="space-y-6">
               {Object.entries(groupedDefects).map(([groupName, groupDefects]) => {
-                const filtered = groupDefects.filter(d => d.toLowerCase().includes(searchQuery.toLowerCase()));
+                const filtered = groupDefects.filter(d => d.subRepair.toLowerCase().includes(searchQuery.toLowerCase()));
                 if (filtered.length === 0) return null;
 
                 return (
@@ -247,47 +273,65 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefe
                     
                     <div className="grid gap-3">
                       {filtered.map((defect, i) => {
-                        const sev = getSeverityInfoForDefect(defect);
+                        const sev = getSeverityInfoForDefect(defect.subRepair);
+                        const displayStatus = defect.status ? defect.status.replace("_", " ") : defectStatus;
+                        const dColor = defect.status === "repaired" ? "text-green-600 bg-green-100" : (defect.status === "pending" ? "text-amber-600 bg-amber-100" : "text-blue-600 bg-blue-100");
+                        
                         return (
-                          <div key={i} className="bg-card border rounded-lg p-3.5 shadow-sm hover:border-primary/30 transition-colors">
+                          <div key={defect.id || i} className="bg-card border rounded-lg p-3.5 shadow-sm hover:border-primary/30 transition-colors">
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <h4 className="font-semibold text-sm flex items-center gap-2">
-                                  {defect}
+                                  {defect.subRepair}
                                 </h4>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                   <Badge variant="outline" className={`text-[10px] font-bold ${sev.color}`}>
                                     {sev.level}
                                   </Badge>
-                                  <Badge variant="outline" className={`text-[10px] font-bold ${defectStatusColor} border-transparent`}>
-                                    {defectStatus}
+                                  <Badge variant="outline" className={`text-[10px] font-bold ${dColor} border-transparent capitalize`}>
+                                    {displayStatus}
                                   </Badge>
                                 </div>
                               </div>
-                              <Button size="sm" variant="ghost" className="h-8 text-xs font-medium shrink-0">
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8 text-xs font-medium shrink-0"
+                                onClick={() => setEditingDefect(defect)}
+                              >
                                 <Wrench className="w-3.5 h-3.5 mr-1.5" />
                                 Edit
                               </Button>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 mt-4 py-2 border-t text-[11px]">
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <MapPin className="w-3.5 h-3.5" />
-                                <span>Side: <span className="font-medium text-foreground">A-End</span></span>
+                            {(defect.location || defect.inspector || defect.reportedAt || defect.remarks) && (
+                              <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 mt-4 py-2 border-t text-[11px]">
+                                {defect.location && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    <span>Location: <span className="font-medium text-foreground">{defect.location}</span></span>
+                                  </div>
+                                )}
+                                {defect.inspector && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <User className="w-3.5 h-3.5" />
+                                    <span>Insp: <span className="font-medium text-foreground">{defect.inspector}</span></span>
+                                  </div>
+                                )}
+                                {defect.reportedAt && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    <span>Reported: <span className="font-medium text-foreground">{new Date(defect.reportedAt).toLocaleString()}</span></span>
+                                  </div>
+                                )}
+                                {defect.remarks && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
+                                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Remarks: <span className="font-medium text-foreground italic">{defect.remarks}</span></span>
+                                  </div>
+                                )}
                               </div>
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <User className="w-3.5 h-3.5" />
-                                <span>Insp: <span className="font-medium text-foreground">Mech Dept</span></span>
-                              </div>
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>Time: <span className="font-medium text-foreground">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></span>
-                              </div>
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <FileText className="w-3.5 h-3.5" />
-                                <span className="truncate">Remarks: <span className="font-medium text-foreground italic">None</span></span>
-                              </div>
-                            </div>
+                            )}
                           </div>
                         );
                       })}
@@ -368,6 +412,14 @@ export function ConditionPanel({ wagon, open, onOpenChange, defects: initialDefe
         </SheetHeader>
         <Content />
       </SheetContent>
+
+      <EditConditionDialog
+        wagonId={wagon.id}
+        wagonNumber={wagon.wagonNumber}
+        defect={editingDefect}
+        onClose={() => setEditingDefect(null)}
+        onSave={handleSaveDefect}
+      />
     </Sheet>
   );
 }

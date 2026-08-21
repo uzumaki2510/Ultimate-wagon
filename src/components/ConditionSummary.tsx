@@ -13,13 +13,13 @@ export function ConditionSummary({ wagon }: ConditionSummaryProps) {
   const [panelOpen, setPanelOpen] = useState(false);
 
   const defects = useMemo(() => {
-    const list: string[] = [];
+    const list: any[] = [];
     if ((wagon as any).repairTasks && (wagon as any).repairTasks.length > 0) {
-      list.push(...(wagon as any).repairTasks.map((rt: any) => rt.subRepair));
+      list.push(...(wagon as any).repairTasks);
     } else {
-      if (wagon.primaryRepair) list.push(wagon.primaryRepair);
+      if (wagon.primaryRepair) list.push({ category: "Legacy", subRepair: wagon.primaryRepair, severity: "Normal" });
       if (wagon.secondaryRepairs && wagon.secondaryRepairs.length > 0) {
-        list.push(...wagon.secondaryRepairs);
+        list.push(...wagon.secondaryRepairs.map(r => ({ category: "Legacy", subRepair: r, severity: "Normal" })));
       }
     }
     return list;
@@ -29,9 +29,9 @@ export function ConditionSummary({ wagon }: ConditionSummaryProps) {
     let hasCritical = false;
     let hasUrgent = false;
 
-    for (const defectName of defects) {
+    for (const defect of defects) {
       for (const group of DEFECT_LIBRARY) {
-        const def = group.defects.find(d => d.name === defectName);
+        const def = group.defects.find(d => d.name === defect.subRepair);
         if (def) {
           if (def.severity === "Safety Critical") hasCritical = true;
           if (def.severity === "Urgent") hasUrgent = true;
@@ -53,7 +53,7 @@ export function ConditionSummary({ wagon }: ConditionSummaryProps) {
     return { level: "Minor", color: "border-blue-500", text: "text-blue-700 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950", icon: Info };
   }, [defects, wagon.status]);
 
-  const topDefect = defects.length > 0 ? defects[0] : (wagon.comments || "No specific defects listed");
+  const topDefect = defects.length > 0 ? defects[0].subRepair : wagon.comments || "Unknown Issue";
   const additionalCount = defects.length > 1 ? defects.length - 1 : 0;
   
   // Calculate mock repair progress based on workflow status
@@ -113,9 +113,9 @@ export function ConditionSummary({ wagon }: ConditionSummaryProps) {
             <div className="font-bold text-sm mb-2 border-b pb-1">Condition Preview</div>
             <div className="flex flex-col gap-1.5">
               {defects.slice(0, 5).map((d, i) => (
-                <div key={i} className="text-xs flex items-center gap-2">
-                  <span>{getCategoryIcon(d)}</span>
-                  <span>{d}</span>
+                <div key={i} className="flex items-center gap-2 truncate text-muted-foreground">
+                  <div className="w-1 h-1 rounded-full bg-muted-foreground shrink-0" />
+                  <span className="truncate">{d.subRepair}</span>
                 </div>
               ))}
               {defects.length === 0 && wagon.comments && (

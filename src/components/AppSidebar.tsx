@@ -30,7 +30,11 @@ export function AppSidebar() {
 
   const navItems = [
     { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
+    { title: "Live Board", url: "/live-sick-line", icon: LayoutDashboard, role: "all" },
     { title: "Wagon Register", url: "/register", icon: FileText, role: "all" },
+    { title: "Quick Entry", url: "/quick-board", icon: Zap, role: "admin" },
+    { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
+    { title: "Reports", url: "/reports", icon: FileText, role: "all" },
     { title: "Wagon Master", url: "/wagon-directory", icon: FileText, role: "all" },
     { title: "Employees", url: "/employees", icon: Users, role: "all", badge: pendingCount },
   ];
@@ -38,19 +42,6 @@ export function AppSidebar() {
   const superAdminItems = [
     { title: "Admin Center", url: "/super-admin/center", icon: LayoutDashboard },
     { title: "Audit & Security", url: "/super-admin/security", icon: ShieldAlert },
-  ];
-
-  const adminItems = [
-    { title: "SICK_LINE", url: "/sickline", icon: Wrench },
-    { title: "Live Board", url: "/live-sick-line", icon: LayoutDashboard },
-    { title: "Quick Entry", url: "/quick-board", icon: Zap },
-    { title: "Unit Memos", url: "/memos", icon: FileText },
-    { title: "Reports", url: "/reports", icon: FileText },
-    { title: "Archives", url: "/archives", icon: Archive },
-    { title: "Deleted Register", url: "/deleted", icon: Trash2 },
-    { title: "Admin Log", url: "/admin-log", icon: ShieldCheck },
-    { title: "Audit Trail", url: "/audit-logs", icon: ShieldCheck },
-    { title: "Workflow Engine", url: "/workflow-builder", icon: Workflow },
   ];
 
   const workshopItems = [
@@ -154,35 +145,6 @@ export function AppSidebar() {
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {workshopItems.map((n) => (
-                      <SidebarMenuItem key={n.url}>
-                        <SidebarMenuButton asChild isActive={isActive(n.url)}>
-                          <NavLink to={n.url} className="flex items-center gap-2">
-                            <n.icon className="h-4 w-4 shrink-0" />
-                            {!collapsed && <span>{n.title}</span>}
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
-        )}
-
-        {isAdmin && (
-          <Collapsible defaultOpen className="group/collapsible">
-            <SidebarGroup className="pt-2">
-              <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">
-                  Admin / More
-                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                </CollapsibleTrigger>
-              </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {adminItems.map((n) => (
                       <SidebarMenuItem key={n.url}>
                         <SidebarMenuButton asChild isActive={isActive(n.url)}>
                           <NavLink to={n.url} className="flex items-center gap-2">

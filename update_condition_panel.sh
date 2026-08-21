@@ -7,3 +7,4 @@ sed -i '' 's/severityInfo: { level: string, color: string, text: string, bg: str
 
 # 2. Add the computation of defects and severityInfo inside the component
 # We'll use a small python script to insert the logic at the beginning of the component
+

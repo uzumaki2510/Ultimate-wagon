@@ -7,14 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // Import existing super admin components
-import SuperAdminDashboard from "./Dashboard";
 import UserDirectory from "./UserDirectory";
 import EmployeeApprovals from "./EmployeeApprovals";
 import MasterData from "./MasterData";
 import AdminManagement from "./AdminManagement";
 
 const TAB_OPTIONS = [
-  { value: "overview", label: "Overview", icon: LayoutDashboard },
   { value: "users", label: "Users", icon: Users },
   { value: "approvals", label: "Approvals", icon: ShieldAlert },
   { value: "master-data", label: "Master Data", icon: Database },
@@ -26,16 +24,16 @@ export default function AdminCenter() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
-  // Read active tab from URL, fallback to overview
-  const urlTab = searchParams.get("tab") || "overview";
+  // Read active tab from URL, fallback to users
+  const urlTab = searchParams.get("tab") || "users";
   const isValidTab = TAB_OPTIONS.some(t => t.value === urlTab);
-  const activeTab = isValidTab ? urlTab : "overview";
+  const activeTab = isValidTab ? urlTab : "users";
 
-  // Redirect invalid tab to overview to fix URL
+  // Redirect invalid tab to users to fix URL
   useEffect(() => {
     if (!isValidTab && searchParams.has("tab")) {
       const newParams = new URLSearchParams(searchParams);
-      newParams.set("tab", "overview");
+      newParams.set("tab", "users");
       setSearchParams(newParams, { replace: true });
     }
   }, [isValidTab, searchParams, setSearchParams]);
@@ -89,10 +87,6 @@ export default function AdminCenter() {
               ))}
             </TabsList>
             
-            <TabsContent value="overview" className="mt-0 outline-none">
-              <SuperAdminDashboard embedded={true} />
-            </TabsContent>
-            
             <TabsContent value="users" className="mt-0 outline-none">
               <UserDirectory embedded={true} />
             </TabsContent>
@@ -114,7 +108,6 @@ export default function AdminCenter() {
         {/* Mobile rendering of content (since Tabs is hidden) */}
         {isMobile && (
           <div className="mt-4">
-            {activeTab === "overview" && <SuperAdminDashboard embedded={true} />}
             {activeTab === "users" && <UserDirectory embedded={true} />}
             {activeTab === "approvals" && <EmployeeApprovals embedded={true} />}
             {activeTab === "master-data" && <MasterData embedded={true} />}

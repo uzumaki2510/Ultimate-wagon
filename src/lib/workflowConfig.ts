@@ -1,3 +1,5 @@
+import { getWorkflowDefinitionForWagon } from "./wagonWorkflows";
+
 export interface StageConfig {
   name: string;
   targetDurationHours: number;
@@ -17,59 +19,19 @@ export function isTankWagonType(wagonType: string | undefined): boolean {
   return TANK_WAGON_TYPES.has(wagonType.toUpperCase()) || wagonType.toUpperCase().includes("TANK") || wagonType.toUpperCase().includes("BTP");
 }
 
-export const WORKFLOW_CONFIGS: Record<string, WorkflowTemplate> = {
-  TANK: {
-    stages: [
-      { name: "Initial Inspection", targetDurationHours: 1 },
-      { name: "Steam Cleaning", targetDurationHours: 4 },
-      { name: "Degassing", targetDurationHours: 4 },
-      { name: "Gas Free Verification", targetDurationHours: 1 },
-      { name: "Mechanical Inspection", targetDurationHours: 2 },
-      { name: "Repair / Rectification", targetDurationHours: 8 },
-      { name: "Testing", targetDurationHours: 2 },
-      { name: "Fit Certificate", targetDurationHours: 0 },
-      { name: "Released", targetDurationHours: 0 },
-    ]
-  },
-  GENERAL: {
-    stages: [
-      { name: "Initial Inspection", targetDurationHours: 1 },
-      { name: "Mechanical Inspection", targetDurationHours: 2 },
-      { name: "Repair / Rectification", targetDurationHours: 8 },
-      { name: "Testing", targetDurationHours: 2 },
-      { name: "Fit Certificate", targetDurationHours: 0 },
-      { name: "Released", targetDurationHours: 0 },
-    ]
-  },
-  // Keep older ones for backward compatibility when fetching template, 
-  // though we will use the new ones for newly added wagons.
-  BTPGLN: {
-    stages: [
-      { name: "Sick Reason", targetDurationHours: 0 },
-      { name: "RRT De-Gassing", targetDurationHours: 2 },
-      { name: "HAPA Examination", targetDurationHours: 2 },
-      { name: "Purging", targetDurationHours: 4 },
-      { name: "Yard Examination", targetDurationHours: 1 },
-      { name: "FIT_READY", targetDurationHours: 0 },
-    ]
-  },
-  BTPN: {
-    stages: [
-      { name: "SICK_LINE", targetDurationHours: 0 },
-      { name: "Steaming", targetDurationHours: 2 },
-      { name: "Steam Point 24h", targetDurationHours: 24 },
-      { name: "Placement Decision", targetDurationHours: 1 },
-      { name: "Hydro Testing", targetDurationHours: 3 },
-      { name: "Fit For Use", targetDurationHours: 0 },
-    ]
-  },
-};
-
 export function getWorkflowTemplate(wagonType: string | undefined): WorkflowTemplate {
-  if (isTankWagonType(wagonType)) {
-    return WORKFLOW_CONFIGS.TANK;
+  const def = getWorkflowDefinitionForWagon(wagonType);
+  if (!def) {
+    return { stages: [] }; // No workflow configured
   }
-  return WORKFLOW_CONFIGS.GENERAL;
+
+  // Convert the graph definition into a linear array of stages for WorkflowItem initialization
+  const stages: StageConfig[] = Object.values(def.stages).map(stage => ({
+    name: stage.key,
+    targetDurationHours: stage.targetDurationHours || 0
+  }));
+
+  return { stages };
 }
 
 import { 
