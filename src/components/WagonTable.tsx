@@ -260,7 +260,6 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                     <TableHead className="font-semibold">Status</TableHead>
                     <TableHead className="font-semibold">Condition</TableHead>
                     <TableHead className="font-semibold">Workflow Status</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -364,60 +363,6 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                             }
                           }} 
                         />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {/* Linked Memos badge */}
-                          {(() => {
-                            const count = linkedMemoCount[wagon.wagonNumber.trim()] ?? 0;
-                            if (count === 0) return null;
-                            return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-muted-foreground hover:bg-muted"
-                                title={`${count} Linked Memo(s)`}
-                                onClick={() => nav("/operations/unit-memos")}
-                              >
-                                <FileText className="h-4 w-4 mr-1" />
-                                {count}
-                              </Button>
-                            );
-                          })()}
-
-                          {isAdmin && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Open menu</span>
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  setManageWagonTab("details");
-                                  setManageWagonId(wagon.id);
-                                }}>
-                                  <Pencil className="mr-2 h-4 w-4" />
-                                  <span>Edit Details</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  setManageWagonTab("repairs");
-                                  setManageWagonId(wagon.id);
-                                }}>
-                                  <Wrench className="mr-2 h-4 w-4" />
-                                  <span>Defects & Repairs</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setWagonToDelete(wagon.id)} className="text-destructive focus:text-destructive">
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  <span>Delete Wagon</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
-                      </TableCell>
-
                     </TableRow>
                   ))}
                 </TableBody>
@@ -435,6 +380,10 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
           defaultTab={manageWagonTab}
           open={!!manageWagonId} 
           onOpenChange={(open) => !open && setManageWagonId(null)} 
+          onDelete={() => {
+            onDelete(manageWagonId);
+            setManageWagonId(null);
+          }}
         />
       )}
 
