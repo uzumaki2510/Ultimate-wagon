@@ -161,15 +161,6 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
     onSelectionChange?.(wagons.filter((w) => newSelected.has(w.id)));
   };
 
-  const handleSaveEdit = () => {
-    // This is now handled entirely inside EditWagonModal
-    setEditingWagon(null);
-  };
-
-  const openEditDialog = (wagon: WagonRepair) => {
-    setEditingWagon(wagon);
-  };
-
   const isAllSelected = filteredWagons.length > 0 && filteredWagons.every((w) => selectedIds.has(w.id));
   const isSomeSelected = filteredWagons.some((w) => selectedIds.has(w.id));
 
@@ -274,7 +265,10 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                       </TableCell>
                       <TableCell className="font-mono font-medium">
                         <button 
-                          onClick={() => setViewingDetailWagonId(wagon.id)} 
+                          onClick={() => {
+                            setManageWagonTab("details");
+                            setManageWagonId(wagon.id);
+                          }} 
                           className="text-primary hover:underline font-bold text-left focus:outline-none"
                         >
                           {wagon.wagonNumber}
@@ -357,12 +351,13 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                         <WagonWorkflowStatus 
                           wagon={wagon} 
                           onClick={() => {
-                            if (getWorkflowForWagonType(wagon.details?.typeName || wagon.type).supported) {
+                            if (getWorkflowForWagonType((wagon as any).type).supported) {
                               setManageWagonTab("workflow");
                               setManageWagonId(wagon.id);
                             }
                           }} 
                         />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -459,15 +454,6 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Wagon Detail Drawer (replaces full page navigation) */}
-      {viewingDetailWagon && (
-        <ConditionPanel
-          key={viewingDetailWagon.id}
-          wagon={viewingDetailWagon}
-          open={!!viewingDetailWagon}
-          onOpenChange={(open) => !open && setViewingDetailWagonId(null)}
-        />
-      )}
     </>
   );
 }

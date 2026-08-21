@@ -63,23 +63,23 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Wagon Number</Label>
-          <Input value={wagon.wagonNumber} disabled className="bg-muted" />
+          <Input value={wagon.wagonNo} disabled className="bg-muted" />
         </div>
         <div className="space-y-2">
           <Label>Wagon Type</Label>
-          <Input value={wagon.details?.typeName || wagon.type} disabled className="bg-muted" />
+          <Input value={wagon.type as string} disabled className="bg-muted" />
         </div>
         <div className="space-y-2">
           <Label>Railway</Label>
-          <Input value={wagon.railway} disabled className="bg-muted" />
+          <Input value={wagon.owner} disabled className="bg-muted" />
         </div>
         <div className="space-y-2">
           <Label>Pool Type</Label>
-          <Input value={wagon.poolType || "N/A"} disabled className="bg-muted" />
+          <Input value={(wagon as any).poolType || "N/A"} disabled className="bg-muted" />
         </div>
         <div className="space-y-2">
           <Label>Inspection Date</Label>
-          <Input value={wagon.date ? new Date(wagon.date).toLocaleDateString() : ""} disabled className="bg-muted" />
+          <Input value={(wagon as any).date ? new Date((wagon as any).date).toLocaleDateString() : ""} disabled className="bg-muted" />
         </div>
       </div>
 

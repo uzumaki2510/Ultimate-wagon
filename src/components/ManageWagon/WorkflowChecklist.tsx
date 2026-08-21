@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Wagon } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
-import { getResolvedWorkflowForWagon, formatWorkflowTimestamp } from "@/lib/wagonWorkflows";
+import { getResolvedWorkflowForWagon, formatWorkflowTimestamp, getWorkflowDefinitionForWagon } from "@/lib/wagonWorkflows";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -20,7 +20,7 @@ export function WorkflowChecklist({ wagon }: Props) {
   
   // Safe initialization
   const workflowRecord = workflows.find((w) => w.wagonId === wagon.id);
-  const def = getWorkflowDefinitionForWagon(wagon.details?.typeName || wagon.type);
+  const def = getWorkflowDefinitionForWagon((wagon as any).details?.typeName || wagon.type);
   
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState("");

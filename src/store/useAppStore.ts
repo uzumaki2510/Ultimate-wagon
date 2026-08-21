@@ -6,6 +6,7 @@ import {
   FitConfirmation, InspectionChecklist, WagonDocument
 } from "@/types";
 import { getWorkflowTemplate } from "@/lib/workflowConfig";
+import { getWorkflowDefinitionForWagon } from "@/lib/wagonWorkflows";
 import { wagonApi } from "@/api/wagons";
 import { memoApi } from "@/api/memos";
 import { workflowApi } from "@/api/workflows";
@@ -302,10 +303,10 @@ export const useAppStore = create<AppState>()(
           const existing = get().workflows.find((wf) => wf.wagonId === wagonId);
           if (existing) return existing;
           
-          const def = getWorkflowDefinitionForWagon(wagon.details?.typeName || wagon.type);
+          const def = getWorkflowDefinitionForWagon(wagon.type as string);
           if (!def) throw new Error("Workflow not configured for this wagon type");
 
-          const stageRecords = Object.values(def.stages).map((st) => ({
+          const stageRecords = (Object.values(def.stages) as any[]).map((st) => ({
             stageName: st.key,
             targetDurationHours: st.targetDurationHours || 0,
             status: "Pending" as const
@@ -316,7 +317,7 @@ export const useAppStore = create<AppState>()(
             wagonId, 
             memoId, 
             wagonNo: wagon.wagonNo, 
-            wagonType: wagon.details?.typeName || wagon.type,
+            wagonType: wagon.type as string,
             currentStage: def.initialStage, 
             stages: stageRecords, 
             updatedAt: new Date().toISOString(),

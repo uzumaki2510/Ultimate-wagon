@@ -101,19 +101,19 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
           <Label className="text-sm font-semibold mb-3 block">Inspection Checklist</Label>
           <div className="space-y-3 p-4 border rounded-md bg-secondary/10">
             <div className="flex items-center space-x-2">
-              <Checkbox id="cl-underGear" checked={!!checklist.underGear?.checked} onCheckedChange={(c) => handleChecklistToggle("underGear", !!c)} />
+              <Checkbox id="cl-underGear" checked={!!(checklist as any).underGear?.checked} onCheckedChange={(c) => handleChecklistToggle("underGear" as any, !!c)} />
               <Label htmlFor="cl-underGear" className="text-sm font-normal cursor-pointer">Under Gear Examined</Label>
-              {checklist.underGear?.checkedBy && <span className="text-[10px] text-muted-foreground ml-auto">by {checklist.underGear.checkedBy}</span>}
+              {(checklist as any).underGear?.checkedBy && <span className="text-[10px] text-muted-foreground ml-auto">by {(checklist as any).underGear.checkedBy}</span>}
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox id="cl-upperGear" checked={!!checklist.upperGear?.checked} onCheckedChange={(c) => handleChecklistToggle("upperGear", !!c)} />
+              <Checkbox id="cl-upperGear" checked={!!(checklist as any).upperGear?.checked} onCheckedChange={(c) => handleChecklistToggle("upperGear" as any, !!c)} />
               <Label htmlFor="cl-upperGear" className="text-sm font-normal cursor-pointer">Upper Gear Examined</Label>
-              {checklist.upperGear?.checkedBy && <span className="text-[10px] text-muted-foreground ml-auto">by {checklist.upperGear.checkedBy}</span>}
+              {(checklist as any).upperGear?.checkedBy && <span className="text-[10px] text-muted-foreground ml-auto">by {(checklist as any).upperGear.checkedBy}</span>}
             </div>
             <div className="flex items-center space-x-2">
-              <Checkbox id="cl-airBrake" checked={!!checklist.airBrake?.checked} onCheckedChange={(c) => handleChecklistToggle("airBrake", !!c)} />
+              <Checkbox id="cl-airBrake" checked={!!(checklist as any).airBrake?.checked} onCheckedChange={(c) => handleChecklistToggle("airBrake" as any, !!c)} />
               <Label htmlFor="cl-airBrake" className="text-sm font-normal cursor-pointer">Air Brake Tested</Label>
-              {checklist.airBrake?.checkedBy && <span className="text-[10px] text-muted-foreground ml-auto">by {checklist.airBrake.checkedBy}</span>}
+              {(checklist as any).airBrake?.checkedBy && <span className="text-[10px] text-muted-foreground ml-auto">by {(checklist as any).airBrake.checkedBy}</span>}
             </div>
           </div>
         </div>
@@ -145,7 +145,7 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
                         />
                         <div>
                           <div className="text-sm font-medium">{def.name}</div>
-                          {isSelected && <div className="text-xs opacity-80 mt-1">Est: {def.estHours}h</div>}
+                          {isSelected && <div className="text-xs opacity-80 mt-1">Est: {(def as any).estHours}h</div>}
                         </div>
                       </div>
                     );
@@ -159,7 +159,7 @@ export function WagonDefectsRepairs({ wagonId }: Props) {
 
       <div className="flex justify-between pt-4 border-t items-center mt-6">
         <div>
-          {wagon.status === "FIT" ? (
+          {wagon.status === "FIT_READY" || wagon.status === "RELEASED" || wagon.status === "IN_SERVICE" ? (
             <Badge className="bg-emerald-500 text-white hover:bg-emerald-600">Currently FIT</Badge>
           ) : (
             <Button variant="outline" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={handleMarkFit}>

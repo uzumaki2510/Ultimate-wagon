@@ -37,7 +37,7 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
   const linkedMemoCount = useMemo(() => {
     if (!wagon) return 0;
     return (memos || []).reduce((count, memo) => {
-      const hasWagon = memo.entries.some(e => e.wagonId === wagon.id || (wagon.wagonNo && e.wagonNumber?.trim() === wagon.wagonNo.trim()));
+      const hasWagon = memo.entries.some(e => e.wagonId === wagon.id);
       return count + (hasWagon ? 1 : 0);
     }, 0);
   }, [memos, wagon]);
@@ -52,6 +52,8 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
 
   const resolved = getResolvedWorkflowForWagon(wagon, workflowRecord);
 
+  const isFit = wagon.status === "FIT_READY" || wagon.status === "RELEASED" || wagon.status === "IN_SERVICE";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 gap-0">
@@ -59,7 +61,7 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
           <div className="flex justify-between items-start">
             <div>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                {wagon.wagonNumber}
+                {wagon.wagonNo}
                 {linkedMemoCount > 0 && (
                   <Button
                     variant="outline"
@@ -74,16 +76,16 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
                 )}
               </DialogTitle>
               <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                <Badge variant="outline">{wagon.details?.typeName || wagon.type}</Badge>
-                <span>{wagon.railway}</span>
+                <Badge variant="outline">{wagon.type as string}</Badge>
+                <span>{wagon.owner}</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1 relative">
               <div className="flex items-center gap-2">
                 <Badge 
-                  className={wagon.status === 'FIT' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}
+                  className={isFit ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'}
                 >
-                  {wagon.status === 'FIT' ? 'FIT' : 'SICK'}
+                  {isFit ? 'FIT' : 'SICK'}
                 </Badge>
                 
                 {isAdmin && onDelete && (
