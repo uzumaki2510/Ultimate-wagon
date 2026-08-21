@@ -36,12 +36,8 @@ export function AppSidebar() {
   ];
 
   const superAdminItems = [
-    { title: "System Dashboard", url: "/super-admin", icon: LayoutDashboard },
-    { title: "Admin Management", url: "/super-admin/admins", icon: ShieldCheck },
-    { title: "Employee Approvals", url: "/super-admin/approvals", icon: Users },
-    { title: "User Directory", url: "/super-admin/users", icon: FileText },
-    { title: "Master Data", url: "/super-admin/master-data", icon: Database },
-    { title: "Audit Logs", url: "/super-admin/logs", icon: ListFilter },
+    { title: "Admin Center", url: "/super-admin/center", icon: LayoutDashboard },
+    { title: "Audit & Security", url: "/super-admin/security", icon: ShieldAlert },
   ];
 
   const adminItems = [

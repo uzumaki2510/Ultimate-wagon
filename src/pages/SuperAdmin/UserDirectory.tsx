@@ -14,7 +14,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-export default function UserDirectory() {
+interface UserDirectoryProps {
+  embedded?: boolean;
+}
+
+export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,17 +119,19 @@ export default function UserDirectory() {
   );
 
   return (
-    <div className="space-y-4 animate-fade-in pb-24 max-w-[1600px] mx-auto">
-      <PageHeader 
-        title="User Management Console"
-        description="Comprehensive master list and operational controls."
-        icon={Users}
-        actions={
-          <Button variant="outline" onClick={exportCSV} className="gap-2 shrink-0 shadow-sm bg-background hover:bg-muted font-medium h-9">
-            <Download className="h-4 w-4" /> <span className="hidden sm:inline">Export {selectedIds.size > 0 ? `(${selectedIds.size})` : 'All'}</span>
-          </Button>
-        }
-      />
+    <div className={`space-y-4 animate-fade-in pb-24 max-w-[1600px] mx-auto ${embedded ? 'pt-2' : ''}`}>
+      {!embedded && (
+        <PageHeader 
+          title="User Management Console"
+          description="Comprehensive master list and operational controls."
+          icon={Users}
+          actions={
+            <Button variant="outline" onClick={exportCSV} className="gap-2 shrink-0 shadow-sm bg-background hover:bg-muted font-medium h-9">
+              <Download className="h-4 w-4" /> <span className="hidden sm:inline">Export {selectedIds.size > 0 ? `(${selectedIds.size})` : 'All'}</span>
+            </Button>
+          }
+        />
+      )}
 
       <Card className="border-border shadow-sm overflow-hidden rounded-md">
         <CardHeader className="bg-secondary/10 pb-3 pt-3 border-b border-border/50 px-4">

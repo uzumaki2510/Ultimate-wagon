@@ -11,8 +11,11 @@ import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
+interface AdminManagementProps {
+  embedded?: boolean;
+}
 
-export default function AdminManagement() {
+export default function AdminManagement({ embedded }: AdminManagementProps = {}) {
   const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user: currentUser } = useAuth();
@@ -82,12 +85,49 @@ export default function AdminManagement() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <PageHeader 
-        title="Admin Management"
-        description="Manage system administrators and elevated access accounts."
-        icon={ShieldCheck}
-        actions={
+    <div className={`space-y-6 animate-fade-in pb-12 max-w-[1400px] mx-auto ${embedded ? 'pt-4' : ''}`}>
+      {!embedded && (
+        <PageHeader 
+          title="Admin Management"
+          description="Manage system administrators and elevated access accounts."
+          icon={ShieldCheck}
+          actions={
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 shadow-sm">
+                  <Plus className="h-4 w-4" /> Create Admin
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Admin</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreate} className="grid gap-4 py-4">
+                  <Input required placeholder="Full Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+                  <Input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
+                  <Input required type="password" placeholder="Temporary Password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input required placeholder="Emp Code" value={form.empCode} onChange={e => setForm({...form, empCode: e.target.value})} />
+                    <Input required placeholder="Designation" value={form.designation} onChange={e => setForm({...form, designation: e.target.value})} />
+                  </div>
+                  <Input required placeholder="Department" value={form.department} onChange={e => setForm({...form, department: e.target.value})} />
+                  <Input placeholder="Phone (Optional)" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+                  <Button type="submit" disabled={isSubmitting} className="w-full mt-2 shadow-sm">
+                    {isSubmitting ? "Creating..." : "Create Admin"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
+      )}
+
+      {embedded && (
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">System Administrators</h2>
+            <p className="text-muted-foreground text-sm">Manage Super Admin and Admin access levels.</p>
+          </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2 shadow-sm">
@@ -114,8 +154,8 @@ export default function AdminManagement() {
               </form>
             </DialogContent>
           </Dialog>
-        }
-      />
+        </div>
+      )}
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
         <CardHeader className="bg-secondary/20 pb-4 border-b border-border/50">

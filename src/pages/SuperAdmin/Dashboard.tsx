@@ -19,7 +19,11 @@ interface DashboardMetrics {
   recentRegistrations: any[];
 }
 
-export default function SuperAdminDashboard() {
+interface DashboardProps {
+  embedded?: boolean;
+}
+
+export default function SuperAdminDashboard({ embedded }: DashboardProps = {}) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,12 +55,14 @@ export default function SuperAdminDashboard() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12 max-w-[1400px] mx-auto">
-      <PageHeader 
-        title="Super Admin Control Center"
-        description="Operational overview of system users and activities."
-        icon={LayoutDashboard}
-      />
+    <div className={`space-y-6 animate-fade-in pb-12 max-w-[1400px] mx-auto ${embedded ? 'pt-4' : ''}`}>
+      {!embedded && (
+        <PageHeader 
+          title="Super Admin Control Center"
+          description="Operational overview of system users and activities."
+          icon={LayoutDashboard}
+        />
+      )}
 
       <div className="space-y-3">
         <h2 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">System Overview</h2>

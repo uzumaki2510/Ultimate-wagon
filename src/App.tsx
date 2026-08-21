@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -44,6 +44,8 @@ const EmployeeApprovals = lazy(() => import("@/pages/SuperAdmin/EmployeeApproval
 const UserDirectory = lazy(() => import("@/pages/SuperAdmin/UserDirectory"));
 const MasterData = lazy(() => import("@/pages/SuperAdmin/MasterData"));
 const AuditLogs = lazy(() => import("@/pages/SuperAdmin/AuditLogs"));
+const AdminCenter = lazy(() => import("@/pages/SuperAdmin/AdminCenter"));
+const AuditSecurity = lazy(() => import("@/pages/SuperAdmin/AuditSecurity"));
 
 const queryClient = new QueryClient();
 
@@ -83,13 +85,17 @@ const App = () => (
                 <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
                 <Route path="/workflow-builder" element={<AdminRoute><WorkflowBuilder /></AdminRoute>} />
 
-                {/* Super Admin Guarded Routes */}
-                <Route path="/super-admin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
-                <Route path="/super-admin/admins" element={<SuperAdminRoute><AdminManagement /></SuperAdminRoute>} />
-                <Route path="/super-admin/approvals" element={<SuperAdminRoute><EmployeeApprovals /></SuperAdminRoute>} />
-                <Route path="/super-admin/users" element={<SuperAdminRoute><UserDirectory /></SuperAdminRoute>} />
-                <Route path="/super-admin/master-data" element={<SuperAdminRoute><MasterData /></SuperAdminRoute>} />
-                <Route path="/super-admin/logs" element={<SuperAdminRoute><AuditLogs /></SuperAdminRoute>} />
+                {/* Super Admin Guarded Routes - New Unified Architecture */}
+                <Route path="/super-admin/center" element={<SuperAdminRoute><AdminCenter /></SuperAdminRoute>} />
+                <Route path="/super-admin/security" element={<SuperAdminRoute><AuditSecurity /></SuperAdminRoute>} />
+
+                {/* Legacy Super Admin Routes Redirected */}
+                <Route path="/super-admin" element={<Navigate to="/super-admin/center?tab=overview" replace />} />
+                <Route path="/super-admin/admins" element={<Navigate to="/super-admin/center?tab=roles-access" replace />} />
+                <Route path="/super-admin/approvals" element={<Navigate to="/super-admin/center?tab=approvals" replace />} />
+                <Route path="/super-admin/users" element={<Navigate to="/super-admin/center?tab=users" replace />} />
+                <Route path="/super-admin/master-data" element={<Navigate to="/super-admin/center?tab=master-data" replace />} />
+                <Route path="/super-admin/logs" element={<Navigate to="/super-admin/security" replace />} />
 
                 {/* Admin Guarded Routes */}
                 <Route path="/employees" element={<AdminRoute><Employees /></AdminRoute>} />

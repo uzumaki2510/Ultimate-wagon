@@ -21,8 +21,11 @@ const CATEGORIES = [
   { id: "WORKSHOP_LINE", label: "Workshop Lines" },
   { id: "ROLE", label: "User Roles" }
 ];
+interface MasterDataProps {
+  embedded?: boolean;
+}
 
-export default function MasterData() {
+export default function MasterData({ embedded }: MasterDataProps = {}) {
   const { masterData, addMasterData, updateMasterData } = useAppStore();
   const { toast } = useToast();
   
@@ -83,14 +86,17 @@ export default function MasterData() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
-      <PageHeader 
-        title="Master Data Management" 
-        description="Centralized configuration for system-wide dropdowns and categories."
-        icon={Database}
-      />
+    <div className={`space-y-6 animate-fade-in pb-24 max-w-[1400px] mx-auto ${embedded ? 'pt-4' : ''}`}>
+      {!embedded && (
+        <PageHeader 
+          title="Master Data Management"
+          description="Configure system-wide dropdowns, codes, and standardized values."
+          icon={Database}
+        />
+      )}
 
-      <Card className="shadow-sm border-border/50">
+      <div className="flex flex-col md:flex-row gap-6">
+        <Card className="shadow-sm border-border/50 flex-1">
         <CardHeader className="pb-4">
           <CardTitle>System Categories</CardTitle>
         </CardHeader>
@@ -163,6 +169,7 @@ export default function MasterData() {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent>

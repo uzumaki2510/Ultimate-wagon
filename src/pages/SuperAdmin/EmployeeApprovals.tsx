@@ -12,7 +12,11 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 type TabStatus = "pending" | "approved" | "rejected";
 
-export default function EmployeeApprovals() {
+interface EmployeeApprovalsProps {
+  embedded?: boolean;
+}
+
+export default function EmployeeApprovals({ embedded }: EmployeeApprovalsProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialTab = (searchParams.get("status") as TabStatus) || "pending";
@@ -75,12 +79,19 @@ export default function EmployeeApprovals() {
   );
 
   return (
-    <div className="space-y-4 animate-fade-in pb-12 max-w-[1400px] mx-auto">
-      <PageHeader 
-        title="Employee Approvals"
-        description="Review and action new employee registration requests."
-        icon={Users}
-      />
+    <div className={`space-y-6 animate-fade-in pb-12 max-w-[1400px] mx-auto ${embedded ? 'pt-4' : ''}`}>
+      {!embedded && (
+        <PageHeader 
+          title="Employee Approvals"
+          description="Review and manage pending account access requests."
+          icon={ShieldAlert}
+          actions={
+            <Button variant="outline" onClick={() => navigate('/super-admin/users')} className="gap-2 shrink-0 shadow-sm">
+              <Users className="h-4 w-4" /> <span className="hidden sm:inline">Go to Directory</span>
+            </Button>
+          }
+        />
+      )}
 
       <div className="flex gap-1 border-b border-border/50 pb-px">
         {(["pending", "approved", "rejected"] as TabStatus[]).map((tab) => (

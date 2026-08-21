@@ -10,7 +10,11 @@ import { SearchBar } from "@/components/shared/SearchBar";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { EmptyState } from "@/components/shared/EmptyState";
 
-export default function AuditLogs() {
+interface AuditLogsProps {
+  embedded?: boolean;
+}
+
+export default function AuditLogs({ embedded }: AuditLogsProps = {}) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState("");
@@ -46,12 +50,14 @@ export default function AuditLogs() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <PageHeader 
-        title="Audit Logs"
-        description="Immutable record of all administrative actions taken in the system."
-        icon={ShieldAlert}
-      />
+    <div className={`space-y-6 animate-fade-in pb-12 ${embedded ? 'pt-4' : ''}`}>
+      {!embedded && (
+        <PageHeader 
+          title="Audit Logs"
+          description="Immutable record of all administrative actions taken in the system."
+          icon={ShieldAlert}
+        />
+      )}
 
       <Card className="border-border/50 shadow-sm overflow-hidden">
         <CardHeader className="bg-secondary/20 pb-4 border-b border-border/50">
