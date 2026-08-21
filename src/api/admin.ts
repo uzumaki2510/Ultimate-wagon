@@ -16,6 +16,16 @@ export const adminApi = {
     return response.data;
   },
 
+  updateUser: async (id: string, data: any) => {
+    const response = await apiClient.put(`/users/${id}`, data);
+    return response.data;
+  },
+
+  deleteUser: async (id: string) => {
+    const response = await apiClient.delete(`/users/${id}`);
+    return response.data;
+  },
+
   createAdmin: async (data: any) => {
     const response = await apiClient.post("/admin/create-admin", data);
     return response.data;

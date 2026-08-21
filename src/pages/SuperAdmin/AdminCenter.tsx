@@ -9,13 +9,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 // Import existing super admin components
 import UserDirectory from "./UserDirectory";
 import EmployeeApprovals from "./EmployeeApprovals";
-import MasterData from "./MasterData";
 import AdminManagement from "./AdminManagement";
 
 const TAB_OPTIONS = [
   { value: "users", label: "Users", icon: Users },
   { value: "approvals", label: "Approvals", icon: ShieldAlert },
-  { value: "master-data", label: "Master Data", icon: Database },
   { value: "roles-access", label: "Roles & Access", icon: ShieldCheck }
 ];
 
@@ -95,10 +93,6 @@ export default function AdminCenter() {
               <EmployeeApprovals embedded={true} />
             </TabsContent>
             
-            <TabsContent value="master-data" className="mt-0 outline-none">
-              <MasterData embedded={true} />
-            </TabsContent>
-            
             <TabsContent value="roles-access" className="mt-0 outline-none">
               <AdminManagement embedded={true} />
             </TabsContent>
@@ -110,7 +104,6 @@ export default function AdminCenter() {
           <div className="mt-4">
             {activeTab === "users" && <UserDirectory embedded={true} />}
             {activeTab === "approvals" && <EmployeeApprovals embedded={true} />}
-            {activeTab === "master-data" && <MasterData embedded={true} />}
             {activeTab === "roles-access" && <AdminManagement embedded={true} />}
           </div>
         )}

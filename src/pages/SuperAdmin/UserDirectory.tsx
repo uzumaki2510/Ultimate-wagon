@@ -1,18 +1,22 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { adminApi } from "@/api/admin";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { authApi } from "@/api/auth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Search, Users, Shield, Building, Power, PowerOff, Archive, Trash2, Edit, CheckSquare, XSquare, Settings, Lock, FileText, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download, Users, MoreHorizontal, Pencil, CheckCircle2, XCircle, RotateCcw, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchBar } from "@/components/shared/SearchBar";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { useSearchParams } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UserDirectoryProps {
   embedded?: boolean;
@@ -22,6 +26,7 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user: currentUser } = useAuth();
   
   // Filters
   const [q, setQ] = useState(searchParams.get("q") || "");
@@ -31,8 +36,15 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
-  // Drawer
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  // Edit State
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editFormData, setEditFormData] = useState<any>({});
+  
+  // Add User State
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [addFormData, setAddFormData] = useState<any>({ name: "", email: "", password: "", empCode: "", department: "" });
+
+  const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
 
@@ -47,7 +59,7 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
       const res = await adminApi.getAllUsers(params);
       if (res.success) setUsers(res.data);
     } catch (error: any) {
-      const errMsg = error.response ? `${error.response.status} ${error.response.statusText}: ${error.response.data?.message || ''}` : error.message;
+      const errMsg = error.response ? `${error.response.status}: ${error.response.data?.message || ''}` : error.message;
       toast({ title: "Failed to load users", description: errMsg, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -89,9 +101,9 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
   const exportCSV = () => {
     if (users.length === 0) return;
     const itemsToExport = selectedIds.size > 0 ? users.filter(u => selectedIds.has(u._id)) : users;
-    const headers = "Name,Email,Employee Code,Role,Status,Department,Designation,Joined Date\n";
+    const headers = "Name,Email,Employee Code,Role,Status,Department\n";
     const csvContent = "data:text/csv;charset=utf-8," + headers + itemsToExport.map(u => {
-      return `"${u.name}","${u.email}","${u.empCode || ''}","${u.role}","${u.status}","${u.department || ''}","${u.designation || ''}","${new Date(u.createdAt).toISOString().split('T')[0]}"`;
+      return `"${u.name}","${u.email}","${u.empCode || ''}","${u.role}","${u.status}","${u.department || ''}"`;
     }).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -102,21 +114,75 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
     document.body.removeChild(link);
   };
 
-  const DisabledApiButton = ({ icon: Icon, label, className = "" }: { icon: any, label: string, className?: string }) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span tabIndex={0}>
-          <Button variant="outline" size="sm" className={`gap-1.5 h-8 text-xs font-medium cursor-not-allowed opacity-50 ${className}`} disabled>
-            <Icon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{label}</span>
-          </Button>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent className="bg-destructive text-destructive-foreground font-semibold">
-        Backend API Required
-      </TooltipContent>
-    </Tooltip>
-  );
+  const decodeHTML = (html: string) => {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = html;
+    return txt.value;
+  };
+
+  const handleEditClick = (user: any) => {
+    setEditingUser(user);
+    setEditFormData({
+      name: user.name,
+      email: user.email,
+      empCode: user.empCode || "",
+      department: user.department ? decodeHTML(user.department) : "",
+      role: user.role,
+      status: user.status
+    });
+  };
+
+  const handleEditSave = async () => {
+    setIsSaving(true);
+    try {
+      await adminApi.updateUser(editingUser._id, editFormData);
+      toast({ title: "User updated successfully" });
+      setEditingUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message;
+      toast({ title: "Failed to update user", description: errMsg, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddUser = async () => {
+    setIsSaving(true);
+    try {
+      await authApi.register(addFormData);
+      toast({ title: "User created successfully", description: "The new user is pending approval." });
+      setIsAddingUser(false);
+      setAddFormData({ name: "", email: "", password: "", empCode: "", department: "" });
+      fetchUsers();
+    } catch (error: any) {
+      const errMsg = error.response?.data?.message || error.message;
+      toast({ title: "Failed to create user", description: errMsg, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAction = async (id: string, actionName: string, actionFn: (id: string) => Promise<any>) => {
+    try {
+      await actionFn(id);
+      toast({ title: `User ${actionName} successfully` });
+      fetchUsers();
+    } catch (error: any) {
+      toast({ title: `Failed to ${actionName} user`, description: error.response?.data?.message || error.message, variant: "destructive" });
+    }
+  };
+
+  const handleResetPassword = async (id: string) => {
+    const newPass = prompt("Enter new password for this user:");
+    if (!newPass) return;
+    try {
+      await adminApi.resetAdminPassword(id, newPass);
+      toast({ title: "Password reset successfully" });
+    } catch (error: any) {
+      toast({ title: "Failed to reset password", description: error.response?.data?.message || error.message, variant: "destructive" });
+    }
+  };
 
   return (
     <div className={`space-y-4 animate-fade-in pb-24 max-w-[1600px] mx-auto ${embedded ? 'pt-2' : ''}`}>
@@ -138,11 +204,19 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
           <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" />
-              <CardTitle className="text-sm font-semibold tracking-wide">
+              <CardTitle className="text-sm font-semibold tracking-wide flex items-center gap-2">
                 Directory ({users.length})
+                <Button size="sm" variant="default" className="h-7 px-2 ml-2" onClick={() => setIsAddingUser(true)}>
+                  <UserPlus className="h-3.5 w-3.5 mr-1" /> Add User
+                </Button>
               </CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              {embedded && (
+                <Button variant="outline" size="sm" className="h-8" onClick={exportCSV}>
+                  <Download className="h-4 w-4 mr-2" /> Export
+                </Button>
+              )}
               <SearchBar 
                 value={q}
                 onChange={setQ}
@@ -179,7 +253,7 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
             <LoadingState text="Loading user directory..." />
           ) : (
             <div className="overflow-x-auto relative">
-              <Table className="min-w-[800px]">
+              <Table className="min-w-[900px]">
                 <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   <TableRow className="hover:bg-transparent h-10">
                     <TableHead className="w-[40px] pl-4">
@@ -194,12 +268,13 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
                     <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground">Role</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground">Department</TableHead>
                     <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground">Status</TableHead>
+                    <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground text-right pr-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground text-sm">
+                      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-sm">
                         No users found matching your filters.
                       </TableCell>
                     </TableRow>
@@ -207,11 +282,7 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
                     users.map(u => (
                       <TableRow 
                         key={u._id} 
-                        className={`h-12 hover:bg-muted/30 cursor-pointer transition-colors ${selectedIds.has(u._id) ? 'bg-primary/5' : ''} ${u.isActive === false ? 'opacity-60' : ''}`}
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest('[role="checkbox"]')) return;
-                          setSelectedUser(u);
-                        }}
+                        className={`h-12 hover:bg-muted/30 transition-colors ${selectedIds.has(u._id) ? 'bg-primary/5' : ''} ${u.isActive === false ? 'opacity-60' : ''}`}
                       >
                         <TableCell className="pl-4 w-[40px]">
                           <Checkbox 
@@ -234,15 +305,54 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
                             {u.role.replace('_', ' ')}
                           </span>
                         </TableCell>
-                        <TableCell className="text-sm">{u.department || '-'}</TableCell>
+                        <TableCell className="text-sm">{u.department ? decodeHTML(u.department) : '-'}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
                             <span className={`h-1.5 w-1.5 rounded-full ${
                               !u.isActive ? 'bg-muted-foreground' :
-                              u.status === 'approved' ? 'bg-success' :
-                              u.status === 'pending' ? 'bg-warning' : 'bg-destructive'
+                              u.status === 'approved' ? 'bg-green-500' :
+                              u.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
                             }`} />
                             <span className="text-xs font-semibold uppercase tracking-wider">{!u.isActive ? 'Inactive' : u.status}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right pr-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => handleEditClick(u)}>
+                              <Pencil className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Edit</span>
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {u.status === 'pending' && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleAction(u._id, "approve", adminApi.approveUser)}>
+                                      <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" /> Approve
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleAction(u._id, "reject", adminApi.rejectUser)}>
+                                      <XCircle className="h-4 w-4 mr-2 text-red-500" /> Reject
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {u.isActive ? (
+                                  <DropdownMenuItem onClick={() => handleAction(u._id, "deactivate", adminApi.deactivateUser)}>
+                                    <XCircle className="h-4 w-4 mr-2 text-red-500" /> Deactivate
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => handleAction(u._id, "reactivate", adminApi.reactivateUser)}>
+                                    <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" /> Reactivate
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleResetPassword(u._id)}>
+                                  <RotateCcw className="h-4 w-4 mr-2" /> Reset Password
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -255,110 +365,146 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
         </CardContent>
       </Card>
 
-      {/* Bulk Action Toolbar */}
-      {selectedIds.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 z-50 animate-in slide-in-from-bottom-5 fade-in px-4 sm:px-0">
-          <div className="bg-popover border border-border shadow-xl rounded-t-xl sm:rounded-full p-2 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 max-w-4xl mx-auto backdrop-blur-md bg-opacity-95">
-            <div className="px-3 py-1 flex items-center gap-2 border-r border-border/50">
-              <span className="bg-primary text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">
-                {selectedIds.size}
-              </span>
-              <span className="text-xs font-medium text-muted-foreground hidden sm:inline">Selected</span>
-            </div>
-            
-            <DisabledApiButton icon={Settings} label="Change Role" />
-            <DisabledApiButton icon={Building} label="Assign Dept" />
-            <DisabledApiButton icon={Power} label="Activate" className="text-success border-success/30" />
-            <DisabledApiButton icon={PowerOff} label="Suspend" className="text-warning border-warning/30" />
-            <DisabledApiButton icon={Trash2} label="Delete" className="text-destructive border-destructive/30" />
-            
-            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="ml-auto h-8 text-xs gap-1 hover:bg-muted">
-              <XSquare className="h-3.5 w-3.5" /> Clear
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* User Details Drawer */}
-      <Sheet open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
-        <SheetContent className="w-full sm:max-w-md border-l border-border p-0 flex flex-col h-full bg-background">
-          <SheetHeader className="p-4 sm:p-6 border-b border-border bg-secondary/5 text-left">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <SheetTitle className="text-lg font-bold tracking-tight">{selectedUser?.name}</SheetTitle>
-                <SheetDescription className="font-mono text-xs mt-1">{selectedUser?.email}</SheetDescription>
-              </div>
-              <span className={`text-[10px] px-2 py-1 border rounded-sm uppercase tracking-wider font-bold shrink-0 ${
-                selectedUser?.role === 'super_admin' ? 'border-primary/50 text-primary bg-primary/5' :
-                selectedUser?.role === 'admin' ? 'border-blue-500/50 text-blue-700 bg-blue-500/5' :
-                'border-muted-foreground/30 text-muted-foreground bg-muted/30'
-              }`}>
-                {selectedUser?.role?.replace('_', ' ')}
-              </span>
-            </div>
+      <Sheet open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Edit User Profile</SheetTitle>
+            <SheetDescription>
+              Update account details for {editingUser?.name}.
+            </SheetDescription>
           </SheetHeader>
-          
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <Activity className="h-3.5 w-3.5" /> Employee Information
-                </h3>
-                <DisabledApiButton icon={Edit} label="Edit" />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-md border border-border/50">
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Employee Code</div>
-                  <div className="text-sm font-mono mt-0.5 font-medium">{selectedUser?.empCode || 'N/A'}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Status</div>
-                  <div className="text-sm font-medium mt-0.5 capitalize flex items-center gap-1.5">
-                    <span className={`h-1.5 w-1.5 rounded-full ${!selectedUser?.isActive ? 'bg-muted-foreground' : selectedUser?.status === 'approved' ? 'bg-success' : 'bg-destructive'}`} />
-                    {!selectedUser?.isActive ? 'Inactive' : selectedUser?.status}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Department</div>
-                  <div className="text-sm font-medium mt-0.5">{selectedUser?.department || 'Unassigned'}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Designation</div>
-                  <div className="text-sm font-medium mt-0.5">{selectedUser?.designation || 'Unassigned'}</div>
-                </div>
-              </div>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input 
+                value={editFormData.name} 
+                onChange={e => setEditFormData({...editFormData, name: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input 
+                type="email" 
+                value={editFormData.email} 
+                onChange={e => setEditFormData({...editFormData, email: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Employee Code</Label>
+              <Input 
+                value={editFormData.empCode} 
+                onChange={e => setEditFormData({...editFormData, empCode: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Department</Label>
+              <Input 
+                value={editFormData.department} 
+                onChange={e => setEditFormData({...editFormData, department: e.target.value})} 
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select 
+                disabled={currentUser?.id === editingUser?._id}
+                value={editFormData.role} 
+                onValueChange={v => setEditFormData({...editFormData, role: v})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              {currentUser?.id === editingUser?._id && (
+                <p className="text-xs text-muted-foreground">You cannot change your own role.</p>
+              )}
             </div>
 
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Shield className="h-3.5 w-3.5" /> Access & Permissions
-              </h3>
-              <div className="bg-muted/30 p-4 rounded-md border border-border/50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">Workshop Access</div>
-                  <div className="text-xs text-muted-foreground">{selectedUser?.workshopId || 'Global'}</div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">Created Date</div>
-                  <div className="text-xs font-mono text-muted-foreground">
-                    {selectedUser && new Date(selectedUser.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Lock className="h-3.5 w-3.5" /> Administration
-              </h3>
-              <div className="flex flex-col gap-2">
-                <DisabledApiButton icon={PowerOff} label="Suspend User Account" className="w-full justify-start border-border bg-background" />
-                <DisabledApiButton icon={Archive} label="Archive User Records" className="w-full justify-start border-border bg-background" />
-                <DisabledApiButton icon={Trash2} label="Permanently Delete User" className="w-full justify-start text-destructive border-destructive/30 hover:bg-destructive/10 bg-background" />
-              </div>
+            <div className="space-y-2">
+              <Label>Account Status</Label>
+              <Select 
+                disabled={currentUser?.id === editingUser?._id}
+                value={editFormData.status} 
+                onValueChange={v => setEditFormData({...editFormData, status: v})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <SheetFooter className="mt-4 pt-4 border-t">
+            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={isAddingUser} onOpenChange={setIsAddingUser}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Add User</SheetTitle>
+            <SheetDescription>
+              Register a new employee. The account will require approval.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input 
+                value={addFormData.name} 
+                onChange={e => setAddFormData({...addFormData, name: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input 
+                type="email" 
+                value={addFormData.email} 
+                onChange={e => setAddFormData({...addFormData, email: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <Input 
+                type="password" 
+                value={addFormData.password} 
+                onChange={e => setAddFormData({...addFormData, password: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Employee Code</Label>
+              <Input 
+                value={addFormData.empCode} 
+                onChange={e => setAddFormData({...addFormData, empCode: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Department</Label>
+              <Input 
+                value={addFormData.department} 
+                onChange={e => setAddFormData({...addFormData, department: e.target.value})} 
+              />
+            </div>
+          </div>
+          <SheetFooter className="mt-4 pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsAddingUser(false)}>Cancel</Button>
+            <Button onClick={handleAddUser} disabled={isSaving || !addFormData.name || !addFormData.email || !addFormData.password}>
+              {isSaving ? "Creating..." : "Create User"}
+            </Button>
+          </SheetFooter>
         </SheetContent>
       </Sheet>
     </div>

@@ -83,18 +83,20 @@ const App = () => (
                 <Route path="/quick-board" element={<QuickBoard />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
-                <Route path="/workflow-builder" element={<Navigate to="/super-admin/center?tab=master-data" replace />} />
-
-                {/* Super Admin Guarded Routes - New Unified Architecture */}
+                {/* System Settings & Redirections */}
+                <Route path="/settings" element={<Navigate to="/profile" replace />} />
+                <Route path="/workflow-builder" element={<Navigate to="/super-admin/center?tab=users" replace />} />
+                
+                {/* Consolidate old individual Super Admin routes */}
                 <Route path="/super-admin/center" element={<SuperAdminRoute><AdminCenter /></SuperAdminRoute>} />
                 <Route path="/super-admin/security" element={<SuperAdminRoute><AuditSecurity /></SuperAdminRoute>} />
-
-                {/* Legacy Super Admin Routes Redirected */}
-                <Route path="/super-admin" element={<Navigate to="/super-admin/center?tab=users" replace />} />
-                <Route path="/super-admin/admins" element={<Navigate to="/super-admin/center?tab=roles-access" replace />} />
-                <Route path="/super-admin/approvals" element={<Navigate to="/super-admin/center?tab=approvals" replace />} />
+                
+                {/* Legacy redirects */}
                 <Route path="/super-admin/users" element={<Navigate to="/super-admin/center?tab=users" replace />} />
-                <Route path="/super-admin/master-data" element={<Navigate to="/super-admin/center?tab=master-data" replace />} />
+                <Route path="/super-admin/approvals" element={<Navigate to="/super-admin/center?tab=approvals" replace />} />
+                <Route path="/super-admin/master-data" element={<Navigate to="/super-admin/center?tab=users" replace />} />
+                <Route path="/super-admin/admin-management" element={<Navigate to="/super-admin/center?tab=roles-access" replace />} />
+                <Route path="/super-admin/audit-logs" element={<Navigate to="/super-admin/security" replace />} />
                 <Route path="/super-admin/logs" element={<Navigate to="/super-admin/security" replace />} />
 
                 {/* Legacy Guarded Routes Redirected */}
