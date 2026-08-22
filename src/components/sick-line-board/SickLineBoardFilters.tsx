@@ -24,7 +24,7 @@ export function SickLineBoardFilters({
   return (
     <div className="flex flex-wrap gap-4 items-center">
       <Input 
-        placeholder="Search wagon no..." 
+        placeholder="Search wagon no or defect..." 
         value={search} 
         onChange={e => setSearch(e.target.value)}
         className="w-[200px]"

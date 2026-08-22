@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { evaluateWagonAlerts } from "@/features/wagon-alerts/wagonAlertRules";
 import { WagonAlertBadge } from "@/features/wagon-alerts/WagonAlertBadge";
+import { getWagonDefects } from "@/utils/wagonDefects";
 
 interface Props {
   wagon: Wagon;
@@ -41,6 +42,8 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
     const wf = useAppStore.getState().workflows.find(w => w.wagonId === wagon.id);
     return evaluateWagonAlerts({ wagon, workflow: wf, now: new Date() });
   }, [wagon]);
+
+  const activeDefects = useMemo(() => getWagonDefects(wagon), [wagon]);
 
   const wf = useAppStore(s => s.workflows.find(w => w.wagonId === wagon.id));
   const currentStageName = wf?.stages.find(s => s.status === "In Progress")?.stageName || "Not Started";
@@ -88,11 +91,36 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
         </div>
       </div>
       
-      {wagon.defect && (
-        <div className="text-xs text-foreground mb-2 line-clamp-2">
-          {wagon.defect}
+      <div 
+        className="mb-2 hover:bg-muted/50 p-1 -mx-1 rounded transition-colors" 
+        onClick={(e) => { e.stopPropagation(); navigate(`/wagon/${wagon.id}?tab=defects`); }}
+      >
+        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+          Defects {activeDefects.length > 0 && <span className="ml-1 opacity-70">{activeDefects.length}</span>}
         </div>
-      )}
+        {activeDefects.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic">No active defects</div>
+        ) : (
+          <div className="space-y-1">
+            {activeDefects.slice(0, 2).map((d, i) => (
+              <div key={i} className="flex items-start text-xs text-foreground">
+                <span className="mr-1.5 mt-0.5 text-muted-foreground">•</span>
+                <span className="line-clamp-2 flex-1" title={d.defectName}>
+                  {d.defectName}
+                </span>
+                {d.isCritical && (
+                  <span className="text-[9px] font-bold text-red-500 bg-red-100 dark:bg-red-900/30 px-1 rounded ml-1 uppercase whitespace-nowrap">Critical</span>
+                )}
+              </div>
+            ))}
+            {activeDefects.length > 2 && (
+              <div className="text-[10px] text-muted-foreground pl-2.5">
+                +{activeDefects.length - 2} more
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="text-[11px] text-muted-foreground mb-2 flex items-center justify-between">
         <span className="truncate">Workflow: {currentStageName}</span>

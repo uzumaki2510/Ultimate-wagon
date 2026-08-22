@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { evaluateWagonAlerts } from "@/features/wagon-alerts/wagonAlertRules";
+import { getWagonDefects } from "@/utils/wagonDefects";
 
 export function SickLineBoard() {
   const { wagons, updateWagon, log } = useAppStore();
@@ -29,7 +30,13 @@ export function SickLineBoard() {
   const filteredWagons = useMemo(() => {
     const now = new Date();
     return wagons.filter(wagon => {
-      if (search && !wagon.wagonNo.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const wagonNoMatches = wagon.wagonNo.toLowerCase().includes(q);
+        const defects = getWagonDefects(wagon);
+        const defectMatches = defects.some(d => d.defectName.toLowerCase().includes(q));
+        if (!wagonNoMatches && !defectMatches) return false;
+      }
       if (typeFilter !== "all" && wagon.type !== typeFilter) return false;
       if (priorityFilter !== "all" && (wagon.priority || "Normal") !== priorityFilter) return false;
       
