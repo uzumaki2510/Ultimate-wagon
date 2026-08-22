@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { evaluateWagonAlerts } from "@/features/wagon-alerts/wagonAlertRules";
 import { getWagonDefects } from "@/utils/wagonDefects";
+import { ManageWagonPanel } from "@/components/ManageWagon/ManageWagonPanel";
 
 export function SickLineBoard() {
   const { wagons, updateWagon, log } = useAppStore();
@@ -24,6 +25,10 @@ export function SickLineBoard() {
   const [draggedWagonId, setDraggedWagonId] = useState<string | null>(null);
   const [transitionConfirm, setTransitionConfirm] = useState<{ wagon: Wagon, targetColumn: BoardColumn } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Shared Manage Wagon Panel State
+  const [manageWagonId, setManageWagonId] = useState<string | null>(null);
+  const [manageWagonTab, setManageWagonTab] = useState<"workflow" | "details" | "repairs">("workflow");
 
   const draggedWagon = useMemo(() => wagons.find(w => w.id === draggedWagonId), [wagons, draggedWagonId]);
 
@@ -155,6 +160,10 @@ export function SickLineBoard() {
               onDragStartCard={handleDragStart}
               onDragEndCard={handleDragEnd}
               onMoveRequest={handleMoveRequest}
+              onManageRequest={(wagonId, tab) => {
+                setManageWagonId(wagonId);
+                setManageWagonTab(tab);
+              }}
               isAdmin={isAdmin}
             />
           ))}
@@ -177,6 +186,17 @@ export function SickLineBoard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unified Manage Wagon Panel */}
+      {manageWagonId && (
+        <ManageWagonPanel 
+          key={manageWagonId}
+          wagonId={manageWagonId} 
+          defaultTab={manageWagonTab}
+          open={!!manageWagonId} 
+          onOpenChange={(open) => !open && setManageWagonId(null)} 
+        />
+      )}
     </div>
   );
 }

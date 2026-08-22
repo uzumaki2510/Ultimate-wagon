@@ -19,6 +19,7 @@ interface Props {
   onDragStart?: (id: string) => void;
   onDragEnd?: () => void;
   onMoveRequest?: (wagon: Wagon, targetColumn: BoardColumn) => void;
+  onManageRequest?: (wagonId: string, tab: "workflow" | "details" | "repairs") => void;
 }
 
 function getChecklistProgress(cl: InspectionChecklist | undefined): { completed: number; total: number } {
@@ -29,8 +30,7 @@ function getChecklistProgress(cl: InspectionChecklist | undefined): { completed:
   return { completed, total };
 }
 
-export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMoveRequest }: Props) {
-  const navigate = useNavigate();
+export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMoveRequest, onManageRequest }: Props) {
 
   const priorityColor = wagon.priority === "Urgent" ? "bg-red-500" :
                         wagon.priority === "Safety Critical" ? "bg-purple-500" : "bg-blue-500";
@@ -55,7 +55,7 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
       data-testid={`wagon-card-${wagon.wagonNo}`}
       className={`p-3 relative group transition-colors text-sm ${draggable ? "cursor-grab active:cursor-grabbing hover:border-primary" : "cursor-pointer"}`}
       draggable={draggable}
-      onClick={() => navigate(`/wagon/${wagon.id}`)}
+      onClick={() => { if (onManageRequest) onManageRequest(wagon.id, "details"); }}
       onDragStart={(e) => {
         if (!draggable) return;
         e.dataTransfer.setData("wagonId", wagon.id);
@@ -92,8 +92,8 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
       </div>
       
       <div 
-        className="mb-2 hover:bg-muted/50 p-1 -mx-1 rounded transition-colors" 
-        onClick={(e) => { e.stopPropagation(); navigate(`/wagon/${wagon.id}?tab=defects`); }}
+        className="mb-2 cursor-pointer hover:bg-muted/50 p-1 -mx-1 rounded transition-colors" 
+        onClick={(e) => { e.stopPropagation(); if (onManageRequest) onManageRequest(wagon.id, "repairs"); }}
       >
         <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
           Defects {activeDefects.length > 0 && <span className="ml-1 opacity-70">{activeDefects.length}</span>}
@@ -122,7 +122,10 @@ export function WagonBoardCard({ wagon, draggable, onDragStart, onDragEnd, onMov
         )}
       </div>
 
-      <div className="text-[11px] text-muted-foreground mb-2 flex items-center justify-between">
+      <div 
+        className="text-[11px] text-muted-foreground mb-2 flex items-center justify-between cursor-pointer hover:text-primary transition-colors"
+        onClick={(e) => { e.stopPropagation(); if (onManageRequest) onManageRequest(wagon.id, "workflow"); }}
+      >
         <span className="truncate">Workflow: {currentStageName}</span>
       </div>
 

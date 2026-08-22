@@ -4,11 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { CorrectionDialog } from "@/components/ui/CorrectionDialog";
-import { Edit2 } from "lucide-react";
+import { Edit2, History } from "lucide-react";
+import { WagonTimeline } from "@/components/WagonTimeline";
 
 interface Props {
   wagonId: string;
@@ -17,9 +19,20 @@ interface Props {
 
 export function WagonDetailsForm({ wagonId, onSave }: Props) {
   const { user, isSuperAdmin } = useAuth();
-  const { wagons, updateWagon, correctWagonNumber, log } = useAppStore();
+  const { wagons, workflows, memos, updateWagon, correctWagonNumber, log } = useAppStore();
   const wagon = wagons.find((w) => w.id === wagonId);
+  const workflow = workflows.find((w) => w.wagonId === wagonId);
   const loggedInUserName = user?.name || user?.email || "Current User";
+
+  const sickMemo = React.useMemo(() => {
+    return memos.find(m => m.memoType === 'sick' && m.entries.some(e => e.wagonId === wagonId));
+  }, [memos, wagonId]);
+
+  const assignedTo = React.useMemo(() => {
+    if (!workflow) return "Unassigned";
+    const active = workflow.stages.find(s => s.status === "In Progress");
+    return active?.staffName || workflow.sscJeName || workflow.fitterName || "Unassigned";
+  }, [workflow]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [comments, setComments] = useState("");
@@ -123,6 +136,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
       )}
 
       <div className="grid grid-cols-2 gap-4 mt-8">
+        <div className="col-span-2 text-sm font-bold text-muted-foreground uppercase border-b pb-1 mb-2">Wagon Information</div>
         <div className="space-y-2">
           <Label>Wagon Number</Label>
           <div className="flex gap-2">
@@ -136,12 +150,21 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
         </div>
         <div className="space-y-2">
           <Label>Wagon Type</Label>
-          <Input value={wagon.type as string} disabled className="bg-muted" />
+          <div className="flex gap-2">
+            <Input value={wagon.type as string} disabled className="bg-muted flex-1" />
+            {wagon.type?.includes("BTPN") && (
+               <Badge variant="outline" className="flex items-center text-xs whitespace-nowrap">
+                 {wagon.isSteamed ? "Steam" : "without Steam"}
+               </Badge>
+            )}
+          </div>
         </div>
         <div className="space-y-2">
           <Label>Railway</Label>
           <Input value={wagon.owner} disabled className="bg-muted" />
         </div>
+        
+        <div className="col-span-2 text-sm font-bold text-muted-foreground uppercase border-b pb-1 mt-4 mb-2">Maintenance Dates</div>
         <div className="space-y-2">
           <Label>Built Year</Label>
           <Input type="number" placeholder="YYYY" value={builtYear} onChange={e => setBuiltYear(e.target.value)} disabled={!isEditing} />
@@ -154,6 +177,8 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
           <Label>ROH Date</Label>
           <Input type="date" value={rohDate} onChange={e => setRohDate(e.target.value)} disabled={!isEditing} />
         </div>
+
+        <div className="col-span-2 text-sm font-bold text-muted-foreground uppercase border-b pb-1 mt-4 mb-2">Sick Information</div>
         <div className="space-y-2">
           <Label>Return Station / Booked To</Label>
           <Input placeholder="Destination" value={bookedTo} onChange={e => setBookedTo(e.target.value)} disabled={!isEditing} />
@@ -162,10 +187,24 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
           <Label>Sick Reason</Label>
           <Input placeholder="Defect/Reason" value={defect} onChange={e => setDefect(e.target.value)} disabled={!isEditing} />
         </div>
+        <div className="space-y-2">
+          <Label>Memo Number</Label>
+          <Input value={sickMemo ? sickMemo.memoNo : "—"} disabled className="bg-muted" />
+        </div>
+        <div className="space-y-2">
+          <Label>Date Marked Sick</Label>
+          <Input value={sickMemo ? new Date(sickMemo.date).toLocaleDateString() : "—"} disabled className="bg-muted" />
+        </div>
+
+        <div className="col-span-2 text-sm font-bold text-muted-foreground uppercase border-b pb-1 mt-4 mb-2">Assignment</div>
+        <div className="space-y-2 col-span-2">
+          <Label>Assigned Employee / Team</Label>
+          <Input value={assignedTo} disabled className="bg-muted" />
+        </div>
       </div>
 
-      <div className="space-y-2 border-t pt-4">
-        <Label>Current Location (Sick Line)</Label>
+      <div className="space-y-2 mt-6">
+        <Label className="text-sm font-bold text-muted-foreground uppercase border-b pb-1 block mb-2">Current Placement</Label>
         <select 
           className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           value={currentLocation}
@@ -182,8 +221,8 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
         </select>
       </div>
 
-      <div className="space-y-2 border-t pt-4">
-        <Label>General Comments</Label>
+      <div className="space-y-2 mt-6">
+        <Label className="text-sm font-bold text-muted-foreground uppercase border-b pb-1 block mb-2">General Comments</Label>
         <Textarea 
           placeholder="Enter any general remarks about the wagon..."
           value={comments} 
@@ -251,6 +290,15 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
           </Button>
         </div>
       )}
+
+      <div className="space-y-2 mt-6">
+        <Label className="text-sm font-bold text-muted-foreground uppercase border-b pb-1 block mb-2 flex items-center gap-2">
+          <History className="h-4 w-4" /> Operational History
+        </Label>
+        <div className="border rounded-md bg-muted/10 max-h-64 overflow-y-auto">
+          <WagonTimeline workflow={workflow} wagonId={wagon.id} />
+        </div>
+      </div>
 
       <CorrectionDialog
         isOpen={isWagonNoDialogOpen}

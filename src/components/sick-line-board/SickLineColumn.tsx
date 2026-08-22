@@ -13,13 +13,14 @@ interface SickLineColumnProps {
   onDragStartCard: (wagonId: string) => void;
   onDragEndCard: () => void;
   onMoveRequest: (wagon: Wagon, targetColumn: BoardColumn) => void;
+  onManageRequest?: (wagonId: string, tab: "workflow" | "details" | "repairs") => void;
   isAdmin: boolean;
 }
 
 export function SickLineColumn({ 
   id, title, wagons, 
   isDragActive, isValidTarget, 
-  onDropColumn, onDragStartCard, onDragEndCard, onMoveRequest,
+  onDropColumn, onDragStartCard, onDragEndCard, onMoveRequest, onManageRequest,
   isAdmin 
 }: SickLineColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -66,6 +67,7 @@ export function SickLineColumn({
               onDragStart={onDragStartCard}
               onDragEnd={onDragEndCard}
               onMoveRequest={onMoveRequest}
+              onManageRequest={onManageRequest}
             />
           ))
         )}
