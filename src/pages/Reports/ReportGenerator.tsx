@@ -40,21 +40,21 @@ export default function ReportGenerator() {
     try {
       if (format === 'CSV') {
         const blob = new Blob([[report.headers, ...report.rows].map(row => row.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `YardPilot-${filters.kind}-report.csv`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `RailFlow-${filters.kind}-report.csv`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
       } else if (format === 'Excel') {
         const excel = await import('@/lib/spreadsheetExport'); const book = excel.utils.book_new();
-        excel.utils.book_append_sheet(book, excel.utils.aoa_to_sheet([report.headers, ...report.rows]), 'Report'); await excel.writeFile(book, `YardPilot-${filters.kind}-report.xlsx`);
+        excel.utils.book_append_sheet(book, excel.utils.aoa_to_sheet([report.headers, ...report.rows]), 'Report'); await excel.writeFile(book, `RailFlow-${filters.kind}-report.xlsx`);
       } else {
         const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
-        const doc = new jsPDF({ orientation: 'landscape' }); doc.text('YardPilot — Wagon Maintenance', 14, 16);
-        autoTable(doc, { head: [report.headers], body: report.rows, startY: 24 }); doc.save(`YardPilot-${filters.kind}-report.pdf`);
+        const doc = new jsPDF({ orientation: 'landscape' }); doc.text('RailFlow — Wagon Maintenance', 14, 16);
+        autoTable(doc, { head: [report.headers], body: report.rows, startY: 24 }); doc.save(`RailFlow-${filters.kind}-report.pdf`);
       }
     } catch { setError('Export failed. Please retry.'); } finally { setBusy(false); }
   };
   const print = () => {
     const popup = window.open('', '_blank', 'width=1000,height=700'); if (!popup) { setError('Allow the print window and try again.'); return; }
     popup.opener = null;
-    popup.document.write(`<!doctype html><html><head><title>YardPilot report</title><style>body{font:12px sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left}h1{color:#a51b30}</style></head><body><h1>YardPilot report</h1><p>${report.rows.length} rows</p><table><thead><tr>${report.headers.map(h => '<th>' + escapeHtml(h) + '</th>').join('')}</tr></thead><tbody>${report.rows.map(row => '<tr>' + row.map(cell => '<td>' + escapeHtml(String(cell)) + '</td>').join('') + '</tr>').join('')}</tbody></table></body></html>`);
+    popup.document.write(`<!doctype html><html><head><title>RailFlow report</title><style>body{font:12px sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left}h1{color:#a51b30}</style></head><body><h1>RailFlow report</h1><p>${report.rows.length} rows</p><table><thead><tr>${report.headers.map(h => '<th>' + escapeHtml(h) + '</th>').join('')}</tr></thead><tbody>${report.rows.map(row => '<tr>' + row.map(cell => '<td>' + escapeHtml(String(cell)) + '</td>').join('') + '</tr>').join('')}</tbody></table></body></html>`);
     popup.document.close(); popup.focus(); popup.print();
   };
   return <div className="space-y-5"><PageHeader title="Reports" description="One filtered dataset for the screen, CSV, Excel, PDF and print. Certification and release are reported separately." />

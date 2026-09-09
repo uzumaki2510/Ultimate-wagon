@@ -45,6 +45,12 @@ The user requested committing the current implementation and deferring alignment
 - BTPGLN: align initial work classification and the upper-gear-specific return route for sickness during purging; confirm the ROH/POH return path, which is not connected in the supplied diagram, and the CC-type BPC requirement before final fitness for loading.
 - Confirm the approved workflow mapping and evidence requirements before changing stage definitions or migrating historical records. No diagram-alignment changes have been implemented.
 
+## CI correction and branding follow-up — 10 September 2026
+
+The failed [GitHub Actions job](https://github.com/uzumaki2510/Ultimate-wagon/actions/runs/34410893578/job/102664785359) reached the backend tests after successful dependency installation, production build and frontend tests. Its MongoDB fixture requested `mongodb-linux-x86_64-ubuntu2404-7.0.14.tgz`, which returned HTTP 403 before application assertions could run. The local workflow now pins `ubuntu-22.04`; the matching `ubuntu2204-7.0.14.tgz` archive was verified to return HTTP 200. The CI build explicitly uses `/api/v1` for mocked browser tests. This correction is local until committed and pushed; the original remote failed run has not been rerun.
+
+The displayed application name is now RailFlow, and the login-page imagery has been removed at the user's request. Existing saved browser preference keys are preserved. Current login previews and scope are documented in `docs/ui/LOGIN_DESIGN.md`. The full local verification passes: 27 frontend tests, 22 backend tests and 40 browser tests against the production build (89 total). The browser suite also refreshes its workspace and condition preview screenshots.
+
 ## Preview files
 
 - `docs/ui/upgraded-work-queue.png`

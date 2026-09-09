@@ -73,7 +73,7 @@ test('reports keep certification separate from archived release and all export f
   for (const [name, extension] of [['CSV', 'csv'], ['Excel', 'xlsx'], ['PDF', 'pdf']]) {
     const downloading = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export ' + name, exact: true }).click();
-    expect((await downloading).suggestedFilename()).toBe('YardPilot-released-report.' + extension);
+    expect((await downloading).suggestedFilename()).toBe('RailFlow-released-report.' + extension);
   }
   await page.getByLabel('From date').fill('2026-09-03');
   await expect(page.getByRole('alert')).toContainText('start date must not be after');

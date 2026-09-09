@@ -47,7 +47,7 @@ test('desktop has six sections, burgundy branding and no fake critical-alert cou
   await page.setViewportSize({ width: 1440, height: 1000 }); await mockWorkspace(page); await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link')).toHaveCount(6);
   await expect(page.getByText('2 Critical Alerts')).toHaveCount(0);
-  await expect(page).toHaveTitle('YardPilot — Wagon Maintenance');
+  await expect(page).toHaveTitle('RailFlow — Wagon Maintenance');
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).toBe('354 70% 38%');
 });
 
@@ -60,5 +60,5 @@ test('keyboard search opens and dismisses, and CSV export produces a file', asyn
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export CSV', exact: true }).click();
-  expect((await download).suggestedFilename()).toBe('YardPilot-workshop-report.csv');
+  expect((await download).suggestedFilename()).toBe('RailFlow-workshop-report.csv');
 });

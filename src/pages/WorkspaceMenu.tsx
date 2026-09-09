@@ -16,7 +16,7 @@ export default function WorkspaceMenu({ administration = false }: { administrati
     ] : []),
     ...(!administration ? [
       { label: 'Profile & preferences', description: 'Your account, appearance and display density', to: '/profile', icon: UserRound },
-      { label: 'Help', description: 'Find your way around YardPilot', to: '/help', icon: CircleHelp },
+      { label: 'Help', description: 'Find your way around RailFlow', to: '/help', icon: CircleHelp },
     ] : []),
   ];
   return <div className="space-y-6"><PageHeader title={administration ? 'Administration' : 'More'} description={administration ? 'Manage people, access and records.' : 'Reports, account and workspace settings.'} />

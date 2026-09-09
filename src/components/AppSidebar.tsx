@@ -14,7 +14,7 @@ export function AppSidebar() {
   useEffect(() => { setOpenMobile(false); }, [pathname, setOpenMobile]);
   useEffect(() => { const query = window.matchMedia('(min-width: 1024px)'); const changed = () => setOpen(query.matches); query.addEventListener('change', changed); return () => query.removeEventListener('change', changed); }, [setOpen]);
   return <Sidebar collapsible="icon" className="no-print">
-    <SidebarHeader className={collapsed ? "px-1 py-6 border-b" : "px-4 py-6 border-b"}><Link to="/" aria-label="YardPilot home"><Brand compact={collapsed} /></Link></SidebarHeader>
+    <SidebarHeader className={collapsed ? "px-1 py-6 border-b" : "px-4 py-6 border-b"}><Link to="/" aria-label="RailFlow home"><Brand compact={collapsed} /></Link></SidebarHeader>
     <SidebarContent className={collapsed ? "px-1 py-6" : "px-3 py-6"}>
       <nav aria-label="Primary navigation"><SidebarMenu className="gap-2">
         {primaryNavigation.filter(item => !item.admin || isAdmin).map(item => <SidebarMenuItem key={item.to}>
