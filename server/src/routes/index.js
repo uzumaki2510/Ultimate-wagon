@@ -25,6 +25,7 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/admin', adminRoutes);
 router.use('/wagons', wagonRoutes);
+router.use('/documents', require('./documents'));
 router.use('/sick-line', sickLineRoutes);
 router.use('/roh', rohRoutes);
 router.use('/inspections', inspectionRoutes);

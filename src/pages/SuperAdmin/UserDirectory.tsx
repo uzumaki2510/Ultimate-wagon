@@ -253,7 +253,7 @@ export default function UserDirectory({ embedded }: UserDirectoryProps = {}) {
             <LoadingState text="Loading user directory..." />
           ) : (
             <div className="overflow-x-auto relative">
-              <Table className="min-w-[900px]">
+              <Table mobileCards className="min-w-[900px]">
                 <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   <TableRow className="hover:bg-transparent h-10">
                     <TableHead className="w-[40px] pl-4">

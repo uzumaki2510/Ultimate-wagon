@@ -115,7 +115,7 @@ export function SickLineBoard() {
       const { wagon, targetColumn } = transitionConfirm;
       
       // Request transition via existing mechanism
-      updateWagon(wagon.id, { currentLocation: targetColumn }, user?.name || "system");
+      await updateWagon(wagon.id, { currentLocation: targetColumn }, user?.name || "system");
       
       log({ 
         actor: user?.name || "system", 

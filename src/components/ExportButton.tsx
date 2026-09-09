@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WagonRepair, SICK_LINES } from "@/lib/wagonData";
 import { Download, ChevronDown } from "lucide-react";
-import * as XLSX from "xlsx";
+import * as XLSX from "@/lib/spreadsheetExport";
 
 interface ExportButtonProps {
   wagons: WagonRepair[];

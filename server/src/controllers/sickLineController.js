@@ -15,7 +15,7 @@ const createSickLine = asyncHandler(async (req, res) => {
   const entry = await SickLine.create(req.body);
 
   // Update wagon status to Sick Line
-  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'Sick Line' });
+  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'SICK_LINE' });
 
   return ApiResponse.created(res, 'Sick line entry created', entry);
 });
@@ -80,7 +80,7 @@ const assignRepairStaff = asyncHandler(async (req, res) => {
   if (!entry) throw ApiError.notFound('Sick line entry not found');
 
   // Update wagon status
-  await Wagon.findByIdAndUpdate(entry.wagon, { status: 'Under Repair' });
+  await Wagon.findByIdAndUpdate(entry.wagon, { status: 'REPAIR_IN_PROGRESS' });
 
   return ApiResponse.success(res, 'Repair staff assigned', entry);
 });
@@ -100,7 +100,7 @@ const closeSickLine = asyncHandler(async (req, res) => {
   if (!entry) throw ApiError.notFound('Sick line entry not found');
 
   // Update wagon status to Fit For Loading
-  await Wagon.findByIdAndUpdate(entry.wagon, { status: 'Fit For Loading' });
+  await Wagon.findByIdAndUpdate(entry.wagon, { status: 'FIT_CERTIFICATE_PENDING' });
 
   return ApiResponse.success(res, 'Sick line case closed', entry);
 });

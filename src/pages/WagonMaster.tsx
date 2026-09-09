@@ -76,13 +76,13 @@ export default function WagonMaster() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       <PageHeader
-        title="Wagon Master"
+        title="Wagon directory"
         description="Master database view of all wagons. Edit and manage core details."
         icon={Database}
         actions={
           <div className="flex gap-2">
             {(selectedCategory !== "All" || selectedType !== "All" || search !== "") && (
-              <Button variant="outline" onClick={clearFilters} className="text-muted-foreground shadow-sm bg-background">
+              <Button aria-label="Clear filters" variant="outline" onClick={clearFilters} className="text-muted-foreground shadow-sm bg-background">
                 <X className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Clear Filters</span>
               </Button>
             )}
@@ -90,18 +90,18 @@ export default function WagonMaster() {
               value={search} 
               onChange={setSearch} 
               placeholder="Search by No, Type, Owner..." 
-              className="w-[200px] sm:w-[250px]"
+              className="w-full sm:w-[250px]"
             />
           </div>
         }
       />
 
       {/* Category Summary Section */}
-      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {Object.entries(categoryCounts).map(([cat, data]) => (
           <Card 
             key={cat} 
-            className={`min-w-[200px] cursor-pointer transition-all hover:shadow-modern flex-shrink-0 ${selectedCategory === cat ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50 border-border/50 shadow-sm'}`}
+            className={`min-w-0 cursor-pointer transition-all hover:shadow-modern flex-shrink-0 ${selectedCategory === cat ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50 border-border/50 shadow-sm'}`}
             onClick={() => handleCategoryClick(cat as WagonCategory)}
           >
             <CardContent className="p-3">
@@ -128,7 +128,7 @@ export default function WagonMaster() {
 
       <div className="rounded-md border bg-card overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <Table>
+          <Table mobileCards>
             <TableHeader className="bg-secondary/50">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="whitespace-nowrap font-semibold">Wagon Number</TableHead>
@@ -182,7 +182,7 @@ export default function WagonMaster() {
                       <Button variant="ghost" size="icon" className="mr-1 hover:bg-secondary text-muted-foreground hover:text-foreground">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => removeWagon(w.id)} className="hover:bg-destructive/10 text-destructive/70 hover:text-destructive">
+                      <Button variant="ghost" size="icon" onClick={async () => await removeWagon(w.id)} className="hover:bg-destructive/10 text-destructive/70 hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>

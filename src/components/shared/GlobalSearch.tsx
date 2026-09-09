@@ -1,75 +1,20 @@
-import { useState, useEffect } from "react";
-import { Search } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { useAppStore } from "@/store/useAppStore";
-
+import { useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { useAppStore } from '@/store/useAppStore';
 export function GlobalSearch() {
-  const [open, setOpen] = useState(false);
-  const { wagons, rakes } = useAppStore();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((open) => !open);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
-
-  const handleSelect = (url: string) => {
-    setOpen(false);
-    navigate(url);
-  };
-
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground bg-muted/50 hover:bg-muted border rounded-md w-full md:w-64 transition-colors"
-      >
-        <Search className="h-4 w-4" />
-        <span className="hidden md:inline-block">Search wagons...</span>
-        <kbd className="hidden md:inline-block ml-auto text-[10px] bg-background px-1.5 py-0.5 rounded border shadow-sm">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </button>
-
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Type a wagon number, yard, or status..." />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          
-          <CommandGroup heading="Wagons">
-            {wagons.slice(0, 10).map((wagon) => (
-              <CommandItem 
-                key={wagon.id} 
-                onSelect={() => handleSelect(`/wagon/${wagon.id}`)}
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium">{wagon.wagonNo}</span>
-                  <span className="text-xs text-muted-foreground">{wagon.type} • {wagon.status.replace(/_/g, " ")}</span>
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          
-          <CommandGroup heading="Quick Links">
-            <CommandItem onSelect={() => handleSelect("/register")}>
-              Register New Wagon
-            </CommandItem>
-            <CommandItem onSelect={() => handleSelect("/memos/new")}>
-              Create Unit Memo
-            </CommandItem>
-            <CommandItem onSelect={() => handleSelect("/reports")}>
-              Generate Reports
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
-      </CommandDialog>
-    </>
-  );
+  const [open, setOpen] = useState(false); const [query, setQuery] = useState('');
+  const { wagons, memos } = useAppStore(); const navigate = useNavigate();
+  useEffect(() => { const down = (e: KeyboardEvent) => { if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setOpen(v => !v); } }; document.addEventListener('keydown', down); return () => document.removeEventListener('keydown', down); }, []);
+  const choose = (path: string) => { setOpen(false); setQuery(''); navigate(path); };
+  const q = query.toLowerCase().trim();
+  const matches = wagons.filter(w => [w.wagonNo, w.owner, w.type, w.status].join(' ').toLowerCase().includes(q)).slice(0, 30);
+  return <>
+    <button aria-label="Search wagons or memos" onClick={() => setOpen(true)} className="flex min-h-11 min-w-11 items-center justify-center md:justify-start gap-3 rounded-lg md:border md:bg-muted/30 px-2 md:px-3 md:w-full md:max-w-lg text-muted-foreground"><Search className="h-5 w-5 shrink-0" /><span className="hidden md:inline text-sm">Search wagons or memos</span><kbd className="hidden lg:inline ml-auto text-xs">⌘ K</kbd></button>
+    <CommandDialog open={open} onOpenChange={setOpen}><CommandInput value={query} onValueChange={setQuery} placeholder="Search wagon number, type or memo…" /><CommandList><CommandEmpty>No matching records.</CommandEmpty>
+      <CommandGroup heading="Wagons">{matches.map(w => <CommandItem key={w.id} value={[w.wagonNo, w.owner, w.type, w.status].join(' ')} onSelect={() => choose('/wagon/' + w.id)}><span className="font-medium">{w.wagonNo}</span><span className="ml-3 text-muted-foreground">{w.type}</span></CommandItem>)}</CommandGroup>
+      <CommandGroup heading="Memos">{memos.filter(m => [m.memoNo, m.rakeName].join(' ').toLowerCase().includes(q)).slice(0, 20).map(m => <CommandItem key={m.id} value={'Memo ' + m.memoNo + ' ' + m.rakeName} onSelect={() => choose('/memos/' + m.id)}>{m.memoNo} · {m.rakeName}</CommandItem>)}</CommandGroup>
+    </CommandList></CommandDialog>
+  </>;
 }

@@ -70,7 +70,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
 
   if (!wagon) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSubmitting(true);
     try {
       const patch: any = { 
@@ -85,7 +85,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
       if (wagon.type?.includes("BTPN")) patch.isSteamed = isSteamed;
       if (wagon.type === "BTPGLN") patch.isDegassed = isDegassed;
 
-      updateWagon(wagonId, patch, loggedInUserName);
+      await updateWagon(wagonId, patch, loggedInUserName);
       
       if (currentLocation !== wagon.currentLocation) {
          log({
@@ -117,7 +117,7 @@ export function WagonDetailsForm({ wagonId, onSave }: Props) {
 
   const handleCorrectWagonNo = async (reason: string) => {
     if (!newWagonNo.trim()) throw new Error("Wagon number cannot be empty.");
-    const result = correctWagonNumber(wagonId, newWagonNo.trim(), loggedInUserName, reason);
+    const result = await correctWagonNumber(wagonId, newWagonNo.trim(), loggedInUserName, reason);
     if (!result.success) {
       throw new Error(result.error);
     }

@@ -1,0 +1,20 @@
+name: Project checks
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix server
+      - run: npm run build
+      - run: npm test
+      - run: npm test --prefix server
+      - run: npx playwright install --with-deps chrome
+      - run: npm run test:e2e
+        env:
+          YARDPILOT_TEST_BUILD: '1'

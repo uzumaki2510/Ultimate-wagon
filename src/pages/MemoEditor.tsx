@@ -89,14 +89,16 @@ export default function MemoEditor() {
     return true;
   };
 
-  const save = () => {
+  const save = async () => {
     if (!validate()) return;
 
     // Create wagons if new
     let finalEntries = [...memo.entries];
     if (isNew) {
-      finalEntries = memo.entries.map((e: any) => {
-        const w = store.addWagon({
+      finalEntries = await Promise.all(memo.entries.map(async (e: any) => {
+        const existing = store.wagons.find(w => w.wagonNo === e._tempWagonNo || w.id === e.wagonId);
+        if (!isSick && !existing) throw new Error('Select an existing certified wagon for a fit memo');
+        const w = existing || await store.addWagon({
           wagonNo: e._tempWagonNo || "UNKNOWN",
           type: e._tempType || "Other",
           owner: "Unknown", builtYear: new Date().getFullYear(),
@@ -104,20 +106,20 @@ export default function MemoEditor() {
           rakeId: memo.rakeId, updatedAt: new Date().toISOString()
         });
         return { ...e, wagonId: w.id };
-      });
+      }));
     }
 
     if (isNew) {
-      const created = store.addMemo({ ...memo, entries: finalEntries });
+      const created = await store.addMemo({ ...memo, entries: finalEntries });
       if (isSick) {
-        finalEntries.forEach(e => store.upsertWorkflowForWagon(e.wagonId, created.id));
+        await Promise.all(finalEntries.map(e => store.upsertWorkflowForWagon(e.wagonId, created.id)));
       } else {
-        finalEntries.forEach(e => store.updateWagon(e.wagonId, { status: "FIT_READY" }));
+        // Fit memos reference wagons already certified by the server.
       }
       toast({ title: "Success", description: "Memo saved successfully." });
       nav(`/memos/${created.id}`);
     } else {
-      store.updateMemo(id!, { ...memo, entries: finalEntries });
+      await store.updateMemo(id!, { ...memo, entries: finalEntries });
       toast({ title: "Success", description: "Memo updated successfully." });
     }
   };
@@ -141,7 +143,7 @@ export default function MemoEditor() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="!grid w-full !grid-cols-2 sm:!grid-cols-4 !h-auto gap-1">
           <TabsTrigger value="info">1. Memo Info</TabsTrigger>
           <TabsTrigger value="wagons">2. Wagon List</TabsTrigger>
           <TabsTrigger value="preview">3. Preview</TabsTrigger>
@@ -152,13 +154,13 @@ export default function MemoEditor() {
           <TabsContent value="info" className="p-0 m-0">
             <CardHeader><CardTitle>Memo Details</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Memo No <span className="text-red-500">*</span></Label><Input value={memo.memoNo} onChange={e => set({ memoNo: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Date <span className="text-red-500">*</span></Label><Input type="date" value={memo.date} onChange={e => set({ date: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Time</Label><Input type="time" value={memo.time} onChange={e => set({ time: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Yard</Label><Input value={memo.yard} onChange={e => set({ yard: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Rake Name</Label><Input value={memo.rakeName} onChange={e => set({ rakeName: e.target.value })} /></div>
-              <div className="space-y-2"><Label>Line No</Label><Input value={memo.lineNo} onChange={e => set({ lineNo: e.target.value })} /></div>
-              <div className="space-y-2 md:col-span-2"><Label>Remarks</Label><Input value={memo.remarks} onChange={e => set({ remarks: e.target.value })} /></div>
+              <div className="space-y-2"><Label htmlFor="memo-memoNo">Memo No <span className="text-red-500">*</span></Label><Input id="memo-memoNo" value={memo.memoNo} onChange={e => set({ memoNo: e.target.value })} /></div>
+              <div className="space-y-2"><Label htmlFor="memo-date">Date <span className="text-red-500">*</span></Label><Input id="memo-date" type="date" value={memo.date} onChange={e => set({ date: e.target.value })} /></div>
+              <div className="space-y-2"><Label htmlFor="memo-time">Time</Label><Input id="memo-time" type="time" value={memo.time} onChange={e => set({ time: e.target.value })} /></div>
+              <div className="space-y-2"><Label htmlFor="memo-yard">Yard</Label><Input id="memo-yard" value={memo.yard} onChange={e => set({ yard: e.target.value })} /></div>
+              <div className="space-y-2"><Label htmlFor="memo-rakeName">Rake Name</Label><Input id="memo-rakeName" value={memo.rakeName} onChange={e => set({ rakeName: e.target.value })} /></div>
+              <div className="space-y-2"><Label htmlFor="memo-lineNo">Line No</Label><Input id="memo-lineNo" value={memo.lineNo} onChange={e => set({ lineNo: e.target.value })} /></div>
+              <div className="space-y-2 md:col-span-2"><Label htmlFor="memo-remarks">Remarks</Label><Input id="memo-remarks" value={memo.remarks} onChange={e => set({ remarks: e.target.value })} /></div>
             </CardContent>
             <CardFooter className="flex justify-end border-t pt-4">
               <Button onClick={() => setActiveTab("wagons")}>Next <ArrowRight className="h-4 w-4 ml-2" /></Button>
@@ -173,7 +175,7 @@ export default function MemoEditor() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
+              <Table mobileCards>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Pos</TableHead>
@@ -187,32 +189,32 @@ export default function MemoEditor() {
                 <TableBody>
                   {memo.entries.map((e: any) => (
                     <TableRow key={e.id}>
-                      <TableCell><Input className="w-16 h-8" value={e.position} onChange={ev => updateEntry(e.id, { position: ev.target.value })} /></TableCell>
+                      <TableCell><Input aria-label="Wagon position" className="w-16 h-8" value={e.position} onChange={ev => updateEntry(e.id, { position: ev.target.value })} /></TableCell>
                       <TableCell>
-                        {isNew ? <Input className="h-8" value={e._tempWagonNo} onChange={ev => updateEntry(e.id, { _tempWagonNo: ev.target.value })} /> : <span className="font-mono">{getWagonNo(e.wagonId)}</span>}
+                        {isNew ? <Input aria-label="Wagon number" inputMode="numeric" maxLength={11} className="h-8" value={e._tempWagonNo} onChange={ev => updateEntry(e.id, { _tempWagonNo: ev.target.value })} /> : <span className="font-mono">{getWagonNo(e.wagonId)}</span>}
                       </TableCell>
                       <TableCell>
                         {isNew ? (
                           <Select value={e._tempType} onValueChange={v => updateEntry(e.id, { _tempType: v })}>
-                            <SelectTrigger className="h-8 w-[100px]"><SelectValue /></SelectTrigger>
+                            <SelectTrigger aria-label="Wagon type" className="h-8 w-[100px]"><SelectValue /></SelectTrigger>
                             <SelectContent>{WAGON_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                           </Select>
                         ) : <span>{getWagonType(e.wagonId)}</span>}
                       </TableCell>
                       <TableCell>
                         <Select value={e.reason} onValueChange={v => updateEntry(e.id, { reason: v })}>
-                          <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
+                          <SelectTrigger aria-label="Reason" className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
                           <SelectContent>{REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell>
                         <Select value={e.bookedTo} onValueChange={v => updateEntry(e.id, { bookedTo: v })}>
-                          <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
+                          <SelectTrigger aria-label="Booked to" className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
                           <SelectContent>{BOOKED_TO.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                         </Select>
                       </TableCell>
                       {isNew && (
-                        <TableCell><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeEntry(e.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                        <TableCell><Button aria-label="Remove wagon from memo" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeEntry(e.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                       )}
                     </TableRow>
                   ))}

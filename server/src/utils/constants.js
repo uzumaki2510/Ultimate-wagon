@@ -114,9 +114,9 @@ const RAILWAY_ZONES = [
 // ── RBAC Permissions ─────────────────────────────────────
 // C = Create, R = Read, U = Update, D = Delete
 const PERMISSIONS = {
-  [ROLES.SUPER_ADMIN]: { users: 'CRUD', admin: 'CRUD', wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'CRUD', dashboard: 'R' },
-  [ROLES.ADMIN]:       { users: 'CRU',  admin: 'R',    wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'R',    dashboard: 'R' },
-  [ROLES.EMPLOYEE]:    { users: 'R',    admin: '',     wagons: 'CR',   sickLine: 'CRU',  roh: 'CRU',  inspections: 'CRU',  brakeTests: 'CRU',  repairs: 'CRU',  certifications: 'CRU',  movements: 'CRU',  reports: 'R',    dashboard: 'R' },
+  [ROLES.SUPER_ADMIN]: { workflows: 'CRUD', memos: 'CRUD', rakes: 'CRUD', users: 'CRUD', admin: 'CRUD', wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'CRUD', dashboard: 'R' },
+  [ROLES.ADMIN]:       { workflows: 'CRU', memos: 'CRUD', rakes: 'CRUD', users: 'CRU',  admin: 'R',    wagons: 'CRUD', sickLine: 'CRUD', roh: 'CRUD', inspections: 'CRUD', brakeTests: 'CRUD', repairs: 'CRUD', certifications: 'CRUD', movements: 'CRUD', reports: 'R',    dashboard: 'R' },
+  [ROLES.EMPLOYEE]:    { workflows: 'CRU', memos: 'CR', rakes: 'R', users: 'R',    admin: '',     wagons: 'CR',   sickLine: 'CRU',  roh: 'CRU',  inspections: 'CRU',  brakeTests: 'CRU',  repairs: 'CRU',  certifications: 'CRU',  movements: 'CRU',  reports: 'R',    dashboard: 'R' },
 };
 
 module.exports = {

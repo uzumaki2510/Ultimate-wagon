@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RepairTask } from "@/types";
 
 interface Props {
+  creating?: boolean;
   wagonId: string;
   wagonNumber: string;
   defect: RepairTask | null;
@@ -15,7 +17,10 @@ interface Props {
   onSave: (updatedDefect: RepairTask) => Promise<void>;
 }
 
-export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onSave }: Props) {
+export function EditConditionDialog({ creating = false, wagonNumber, defect, onClose, onSave }: Props) {
+  const [name, setName] = useState("");
+  const [severity, setSeverity] = useState<RepairTask["severity"]>("Normal");
+  const [error, setError] = useState("");
   const [status, setStatus] = useState("pending");
   const [location, setLocation] = useState("");
   const [inspector, setInspector] = useState("");
@@ -25,13 +30,14 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
 
   useEffect(() => {
     if (defect) {
+      setName(defect.subRepair); setSeverity(defect.severity); setError("");
       setStatus(defect.status || "pending");
       setLocation(defect.location || "");
       setInspector(defect.inspector || "");
       setReportedAt(
-        defect.reportedAt 
-          ? new Date(defect.reportedAt).toISOString().slice(0, 16) 
-          : new Date().toISOString().slice(0, 16)
+        defect.reportedAt
+          ? localDateTime(defect.reportedAt)
+          : localDateTime(new Date().toISOString())
       );
       setRemarks(defect.remarks || "");
     }
@@ -40,11 +46,14 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
   if (!defect) return null;
 
   const handleSave = async () => {
+    if (!name.trim()) { setError("Enter a repair description."); return; }
+    setError("");
     setIsSubmitting(true);
     try {
       const updated: RepairTask = {
         ...defect,
-        status: status as any,
+        subRepair: name.trim(), severity,
+        status: status as RepairTask["status"],
         location: location || undefined,
         inspector: inspector || undefined,
         reportedAt: reportedAt ? new Date(reportedAt).toISOString() : undefined,
@@ -53,25 +62,27 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
       await onSave(updated);
       onClose();
     } catch (e) {
-      console.error(e);
-      alert("Failed to save condition details.");
+      setError(isAxiosError(e) ? e.response?.data?.message || e.message : e instanceof Error ? e.message : "Failed to save condition details. Please retry.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={!!defect} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={!!defect} onOpenChange={(open) => !open && !isSubmitting && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Edit Condition</DialogTitle>
+          <DialogTitle>{creating ? "Add repair" : "Update repair"}</DialogTitle>
           <div className="text-sm text-muted-foreground mt-1">
             <div>Wagon: <span className="font-semibold text-foreground">{wagonNumber}</span></div>
             <div className="truncate">Defect: <span className="font-semibold text-foreground">{defect.subRepair}</span></div>
           </div>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <div className="grid gap-2"><Label htmlFor="repair-description">Repair description</Label><Input id="repair-description" value={name} onChange={e => setName(e.target.value)} /></div>
+          <div className="grid gap-2"><Label htmlFor="repair-severity">Severity</Label><select id="repair-severity" className="rounded-md border bg-background p-2" value={severity} onChange={e => setSeverity(e.target.value as RepairTask["severity"])}><option>Normal</option><option>Urgent</option><option>Safety Critical</option></select></div>
           <div className="grid gap-2">
             <Label htmlFor="status">Status</Label>
             <Select value={status} onValueChange={setStatus}>
@@ -109,8 +120,8 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
 
           <div className="grid gap-2">
             <Label htmlFor="inspector">Inspector / Reported By</Label>
-            <Input 
-              id="inspector" 
+            <Input
+              id="inspector"
               placeholder="e.g. SSE Mechanical"
               value={inspector}
               onChange={(e) => setInspector(e.target.value)}
@@ -119,8 +130,8 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
 
           <div className="grid gap-2">
             <Label htmlFor="reportedAt">Reported Date & Time</Label>
-            <Input 
-              id="reportedAt" 
+            <Input
+              id="reportedAt"
               type="datetime-local"
               value={reportedAt}
               onChange={(e) => setReportedAt(e.target.value)}
@@ -129,8 +140,8 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
 
           <div className="grid gap-2">
             <Label htmlFor="remarks">Remarks</Label>
-            <Textarea 
-              id="remarks" 
+            <Textarea
+              id="remarks"
               placeholder="Add remarks..."
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
@@ -139,7 +150,7 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
             />
           </div>
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
           <Button onClick={handleSave} disabled={isSubmitting}>
@@ -149,4 +160,10 @@ export function EditConditionDialog({ wagonId, wagonNumber, defect, onClose, onS
       </DialogContent>
     </Dialog>
   );
+}
+
+function localDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }

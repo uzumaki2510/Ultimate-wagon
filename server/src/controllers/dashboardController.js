@@ -24,11 +24,11 @@ const getStats = asyncHandler(async (req, res) => {
     expiringCerts,
     recentInspections,
   ] = await Promise.all([
-    Wagon.countDocuments(),
-    Wagon.countDocuments({ status: 'In Service' }),
-    Wagon.countDocuments({ status: { $in: ['Sick Line', 'Cut Off'] } }),
-    Wagon.countDocuments({ status: 'Under Repair' }),
-    Wagon.countDocuments({ status: { $in: ['Fit For Loading', 'Fit'] } }),
+    Wagon.countDocuments({ deletedAt: null }),
+    Wagon.countDocuments({ deletedAt: null, status: 'RELEASED' }),
+    Wagon.countDocuments({ deletedAt: null, status: { $in: ['SICK_LINE'] } }),
+    Wagon.countDocuments({ deletedAt: null, status: 'REPAIR_IN_PROGRESS' }),
+    Wagon.countDocuments({ deletedAt: null, status: { $in: ['FIT_READY', 'RELEASED'] } }),
     ROH.countDocuments({ status: 'Scheduled' }),
     ROH.countDocuments({
       status: { $in: ['Scheduled', 'In Progress'] },
@@ -51,12 +51,14 @@ const getStats = asyncHandler(async (req, res) => {
 
   // Wagon type distribution
   const typeDistribution = await Wagon.aggregate([
+    { $match: { deletedAt: null } },
     { $group: { _id: '$type', count: { $sum: 1 } } },
     { $sort: { count: -1 } },
   ]);
 
   // Status distribution
   const statusDistribution = await Wagon.aggregate([
+    { $match: { deletedAt: null } },
     { $group: { _id: '$status', count: { $sum: 1 } } },
     { $sort: { count: -1 } },
   ]);
@@ -114,4 +116,13 @@ const getRecentActivity = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getStats, getRecentActivity };
+const getTeamActivity = asyncHandler(async (req, res) => {
+  const User = require('../models/User');
+  const AuditLog = require('../models/AuditLog');
+  const [employees, activity] = await Promise.all([
+    User.find({ isActive: true, status: 'approved', role: 'employee' }).select('name designation department').lean(),
+    AuditLog.find({ 'metadata.resource': { $in: ['/api/v1/wagons', '/api/v1/workflows', '/api/v1/memos', '/api/v1/rakes'] } }).sort({ createdAt: -1 }).limit(20).populate('performedBy', 'name').lean()
+  ]);
+  return ApiResponse.success(res, 'Team activity', { employees, activity });
+});
+module.exports = { getTeamActivity, getStats, getRecentActivity };

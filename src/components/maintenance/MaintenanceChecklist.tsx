@@ -49,7 +49,7 @@ export function MaintenanceChecklist({ wagon }: Props) {
     });
   };
 
-  const handleToggle = (key: string, checked: boolean) => {
+  const handleToggle = async (key: string, checked: boolean) => {
     if (!isAdmin) {
       toast({ title: "Permission Denied", description: "Only authorized users can update checklist items.", variant: "destructive" });
       return;
@@ -61,7 +61,7 @@ export function MaintenanceChecklist({ wagon }: Props) {
         : undefined,
     };
 
-    updateInspectionChecklist(wagon.id, patch);
+    try { await updateInspectionChecklist(wagon.id, patch); } catch { return; }
 
     log({
       actor: user?.name || "user",

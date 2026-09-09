@@ -14,7 +14,7 @@ const createInspection = asyncHandler(async (req, res) => {
   req.body.createdBy = req.user._id;
   const inspection = await Inspection.create(req.body);
 
-  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'Under Inspection' });
+  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'INSPECTION_PENDING' });
 
   return ApiResponse.created(res, 'Inspection created', inspection);
 });

@@ -72,15 +72,15 @@ export default function QuickBoard() {
   };
 
   // Submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (wagons.length === 0) {
       toast({ title: "Error", description: "Please add at least one wagon.", variant: "destructive" });
       return;
     }
     
     // Create actual wagons in store
-    const createdWagons = wagons.map(w => {
-      const nw = addWagon({
+    const createdWagons = await Promise.all(wagons.map(async w => {
+      const nw = await addWagon({
         wagonNo: w.wagonNo || "UNKNOWN",
         type: w.type || "Other",
         status: "SICK_LINE",
@@ -92,7 +92,7 @@ export default function QuickBoard() {
         updatedAt: new Date().toISOString()
       });
       return { ...w, wagonId: nw.id };
-    });
+    }));
 
     // Create Memo
     const newMemo: Omit<UnitMemo, "id" | "createdAt"> = {
@@ -110,12 +110,10 @@ export default function QuickBoard() {
       approvals: []
     };
 
-    const addedMemo = addMemo(newMemo);
+    const addedMemo = await addMemo(newMemo);
 
     // Auto-create workflows
-    createdWagons.forEach(w => {
-      upsertWorkflowForWagon(w.wagonId, addedMemo.id);
-    });
+    await Promise.all(createdWagons.map(w => upsertWorkflowForWagon(w.wagonId, addedMemo.id)));
 
     toast({ title: "Success", description: "Sick Memo and Workflows created successfully." });
     navigate(`/memos/${addedMemo.id}/print`);

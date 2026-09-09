@@ -2,12 +2,24 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
-      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-    </div>
-  ),
+function plainText(node: React.ReactNode): string {
+  return React.Children.toArray(node).map(child => typeof child === "string" || typeof child === "number" ? String(child) : React.isValidElement<{ children?: React.ReactNode; colSpan?: number }>(child) ? plainText(child.props.children) : "").join("");
+}
+const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement> & { mobileCards?: boolean }>(
+  ({ className, children, mobileCards = false, ...props }, ref) => {
+    const groups = React.Children.toArray(children);
+    const header = groups.find(child => React.isValidElement<{ children?: React.ReactNode; colSpan?: number }>(child) && child.type === TableHeader) as React.ReactElement<{ children?: React.ReactNode }> | undefined;
+    const row = header && React.Children.toArray(header.props.children).find(React.isValidElement) as React.ReactElement<{ children?: React.ReactNode }> | undefined;
+    const labels = row ? React.Children.toArray(row.props.children).map(cell => React.isValidElement<{ children?: React.ReactNode; colSpan?: number }>(cell) ? plainText(cell.props.children) : "") : [];
+    const content = mobileCards ? groups.map(group => {
+      if (!React.isValidElement<{ children?: React.ReactNode; colSpan?: number }>(group) || group.type !== TableBody) return group;
+      return React.cloneElement(group, {}, React.Children.map(group.props.children, row => {
+        if (!React.isValidElement<{ children?: React.ReactNode; colSpan?: number }>(row)) return row;
+        return React.cloneElement(row, {}, React.Children.map(row.props.children, (cell, index) => React.isValidElement<{ children?: React.ReactNode; colSpan?: number }>(cell) ? React.cloneElement(cell, { "data-label": cell.props.colSpan ? "" : labels[index] || "" } as React.HTMLAttributes<HTMLElement>) : cell));
+      }));
+    }) : children;
+    return <div className={cn("relative w-full", mobileCards ? "md:overflow-auto" : "overflow-auto")}><table ref={ref} className={cn("w-full caption-bottom text-sm", mobileCards && "mobile-card-table", className)} {...props}>{content}</table></div>;
+  },
 );
 Table.displayName = "Table";
 

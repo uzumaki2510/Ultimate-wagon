@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { Link, useSearchParams } from "react-router-dom";
 import { useState, useMemo } from "react";
 import { useAppStore } from "@/store/useAppStore";
@@ -14,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ArchivesComponent from "./Archives";
 
 export default function MemoList() {
+  const { isAdmin, isSuperAdmin } = useAuth();
   const { memos, archiveMemo, removeMemo, wagons: zustandWagons } = useAppStore();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -34,7 +36,7 @@ export default function MemoList() {
   const registerWagons = useMemo(() => loadWagons(), []);
 
   const filtered = useMemo(() =>
-    memos.filter((m) =>
+    memos.filter(m => !m.archived).filter((m) =>
       [m.memoNo, m.rakeId, m.rakeName, m.yard, m.lineNo].join(" ").toLowerCase().includes(q.toLowerCase()) ||
       m.entries.some((e) => {
         const zw = zustandWagons.find((w) => w.id === e.wagonId);
@@ -66,13 +68,13 @@ export default function MemoList() {
               <Button asChild variant="outline" className="gap-2 border-warning/30 text-warning hover:bg-warning/10 hover:text-warning shadow-sm">
                 <Link to="/memos/new?type=sick">
                   <AlertTriangle className="h-4 w-4" />
-                  <span className="hidden sm:inline">Sick Memo</span>
+                  <span >Sick Memo</span>
                 </Link>
               </Button>
               <Button asChild variant="outline" className="gap-2 border-success/30 text-success hover:bg-success/10 hover:text-success shadow-sm">
                 <Link to="/memos/new?type=fit">
                   <CheckCircle2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Fit Memo</span>
+                  <span >Fit Memo</span>
                 </Link>
               </Button>
             </div>
@@ -95,7 +97,7 @@ export default function MemoList() {
         <TabsContent value="active" className="mt-0 outline-none">
           <Card className="border-border/50 shadow-sm overflow-hidden bg-card">
             <div className="overflow-x-auto">
-              <Table>
+              <Table mobileCards>
                 <TableHeader className="bg-secondary/50">
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="font-semibold pl-6">Memo No</TableHead>
@@ -167,10 +169,10 @@ export default function MemoList() {
                         </TableCell>
                         <TableCell className="text-right pr-6 whitespace-nowrap">
                           <div className="flex justify-end gap-1">
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" asChild><Link to={`/memos/${m.id}`}><Eye className="h-4 w-4" /></Link></Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" asChild><Link to={`/memos/${m.id}/print`}><Printer className="h-4 w-4" /></Link></Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" onClick={() => archiveMemo(m.id)}><Archive className="h-4 w-4" /></Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors" onClick={() => { if (confirm("Delete this memo?")) removeMemo(m.id); }}><Trash2 className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" asChild><Link aria-label={`Open memo ${m.memoNo}`} to={`/memos/${m.id}`}><Eye className="h-4 w-4" /></Link></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" asChild><Link aria-label={`Print memo ${m.memoNo}`} to={`/memos/${m.id}/print`}><Printer className="h-4 w-4" /></Link></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" aria-label={`Archive memo ${m.memoNo}`} disabled={!isAdmin} onClick={async () => { if (confirm("Archive this memo?")) await archiveMemo(m.id); }}><Archive className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label={`Delete memo ${m.memoNo}`} disabled={!isSuperAdmin} onClick={async () => { if (confirm("Delete this memo?")) await removeMemo(m.id); }}><Trash2 className="h-4 w-4" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>

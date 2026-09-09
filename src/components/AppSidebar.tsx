@@ -1,223 +1,32 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { LayoutDashboard, FileText, Wrench, Users, Archive, ShieldCheck, User as UserIcon, LogOut, Trash2, Zap, ChevronDown, ShieldAlert, ListFilter, Droplets, Wind, ClipboardCheck, Activity, CheckCircle, Database, Workflow } from "lucide-react";
-import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar, SidebarFooter
-} from "@/components/ui/sidebar";
-import { useAuth } from "@/contexts/AuthContext";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useTheme } from "next-themes";
-import { useDensity } from "@/contexts/DensityContext";
+import { Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { CircleHelp, UserRound } from 'lucide-react';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
+import { useAuth } from '@/contexts/AuthContext';
+import { Brand } from '@/components/Brand';
+import { primaryNavigation, sectionFor } from '@/lib/navigation';
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { state, isMobile, setOpenMobile, setOpen } = useSidebar();
+  const collapsed = state === 'collapsed' && !isMobile;
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const { user, isAdmin, isSuperAdmin, logout, listPendingEmployees } = useAuth();
-  const { theme, setTheme } = useTheme();
-  const { density, setDensity } = useDensity();
-  const [pendingCount, setPendingCount] = useState(0);
-
-  useEffect(() => {
-    if (isAdmin) {
-      listPendingEmployees().then(pend => setPendingCount(pend.length)).catch(() => { });
-    }
-  }, [isAdmin, listPendingEmployees]);
-
-  const isActive = (u: string) => u === "/" ? pathname === "/" : pathname.startsWith(u);
-
-  const operationsItems = [
-    { title: "Dashboard", url: "/", icon: LayoutDashboard, role: "all" },
-    { title: "Live Board", url: "/live-sick-line", icon: LayoutDashboard, role: "all" },
-    { title: "Wagon Register", url: "/register", icon: FileText, role: "all" },
-    { title: "Quick Entry", url: "/quick-board", icon: Zap, role: "admin" },
-    { title: "Unit Memos", url: "/memos", icon: FileText, role: "all" },
-  ];
-
-  const reportsRecordsItems = [
-    { title: "Reports", url: "/reports", icon: FileText, role: "all" },
-  ];
-
-  const managementItems = [
-    { title: "Wagon Master", url: "/wagon-directory", icon: FileText, role: "all" },
-    { title: "Employees", url: "/employees", icon: Users, role: "all", badge: pendingCount },
-  ];
-
-  const superAdminItems = [
-    { title: "Admin Center", url: "/super-admin/center", icon: LayoutDashboard },
-    { title: "Audit & Security", url: "/super-admin/security", icon: ShieldAlert },
-  ];
-
-  const workshopItems = [
-    { title: "Steam Line", url: "/workshop/steam", icon: Droplets },
-    { title: "Degassing Line", url: "/workshop/degassing", icon: Wind },
-    { title: "Inspection Line", url: "/workshop/inspection", icon: ClipboardCheck },
-    { title: "Repair Line", url: "/workshop/repair", icon: Wrench },
-    { title: "Testing Line", url: "/workshop/testing", icon: Activity },
-    { title: "Fit Certificate", url: "/workshop/fit", icon: CheckCircle },
-  ];
-
-  const renderNavGroup = (items: any[], roleFilter = true) => {
-    return items.filter(item => {
-      if (roleFilter && item.role === "admin") return isAdmin;
-      return true;
-    }).map((n) => (
-      <SidebarMenuItem key={n.url}>
-        <SidebarMenuButton asChild isActive={isActive(n.url)}>
-          <NavLink to={n.url} className="flex items-center gap-2">
-            <n.icon className="h-4 w-4 shrink-0" />
-            {!collapsed && (
-              <span className="flex-1">{n.title}</span>
-            )}
-            {!collapsed && n.badge && n.badge > 0 && (
-              <span className="ml-auto h-5 min-w-5 flex items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold px-1">
-                {n.badge}
-              </span>
-            )}
-            {collapsed && n.badge && n.badge > 0 && (
-              <span className="absolute top-1 right-1 h-3 w-3 rounded-full bg-amber-500 border-2 border-sidebar" />
-            )}
-          </NavLink>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    ));
-  };
-
-  return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-3">
-          <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
-          {!collapsed && (
-            <div className="leading-tight">
-              <div className="text-sm font-bold text-sidebar-foreground">Ultimate Wagon</div>
-              <div className="text-[10px] text-sidebar-foreground/70 uppercase tracking-wider">Repair & Memo System</div>
-            </div>
-          )}
-        </div>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <SidebarGroup className="pt-4">
-          <SidebarGroupLabel className="text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">Operations</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {renderNavGroup(operationsItems)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="pt-2">
-          <SidebarGroupLabel className="text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">Reports & Records</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {renderNavGroup(reportsRecordsItems)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="pt-2">
-          <SidebarGroupLabel className="text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {renderNavGroup(managementItems)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {isSuperAdmin && (
-          <Collapsible defaultOpen className="group/collapsible">
-            <SidebarGroup className="pt-2">
-              <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">
-                  Super Admin
-                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                </CollapsibleTrigger>
-              </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {renderNavGroup(superAdminItems, false)}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
-        )}
-
-        {isAdmin && (
-          <Collapsible defaultOpen className="group/collapsible">
-            <SidebarGroup className="pt-2">
-              <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center text-xs tracking-wider text-sidebar-foreground/50 uppercase font-semibold">
-                  Workshop Lines
-                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
-                </CollapsibleTrigger>
-              </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {renderNavGroup(workshopItems, false)}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
-        )}
-      </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border p-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="flex items-center gap-3 cursor-pointer text-muted-foreground hover:text-foreground">
-               <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                 {theme === "dark" ? <Wind className="h-3 w-3" /> : <Droplets className="h-3 w-3" />}
-               </div>
-               {!collapsed && <span>Toggle Theme</span>}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              onClick={() => {
-                const next = density === 'compact' ? 'comfortable' : density === 'comfortable' ? 'touch' : 'compact';
-                setDensity(next);
-              }} 
-              className="flex items-center gap-3 cursor-pointer text-muted-foreground hover:text-foreground"
-            >
-               <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
-                 <LayoutDashboard className="h-3 w-3" />
-               </div>
-               {!collapsed && <span className="capitalize">{density} Mode</span>}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive("/profile")}>
-              <NavLink to="/profile" className="flex items-center gap-3">
-                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                  <UserIcon className="h-3 w-3" />
-                </div>
-                {!collapsed && <span className="truncate font-medium">{user?.name || "Profile"}</span>}
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => {
-                logout();
-                navigate("/auth");
-              }}
-              className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-            >
-              <LogOut className="h-4 w-4" />
-              {!collapsed && <span>Logout</span>}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-    </Sidebar>
-  );
+  const { user, isAdmin } = useAuth();
+  useEffect(() => { setOpenMobile(false); }, [pathname, setOpenMobile]);
+  useEffect(() => { const query = window.matchMedia('(min-width: 1024px)'); const changed = () => setOpen(query.matches); query.addEventListener('change', changed); return () => query.removeEventListener('change', changed); }, [setOpen]);
+  return <Sidebar collapsible="icon" className="no-print">
+    <SidebarHeader className={collapsed ? "px-1 py-6 border-b" : "px-4 py-6 border-b"}><Link to="/" aria-label="YardPilot home"><Brand compact={collapsed} /></Link></SidebarHeader>
+    <SidebarContent className={collapsed ? "px-1 py-6" : "px-3 py-6"}>
+      <nav aria-label="Primary navigation"><SidebarMenu className="gap-2">
+        {primaryNavigation.filter(item => !item.admin || isAdmin).map(item => <SidebarMenuItem key={item.to}>
+          <SidebarMenuButton size="lg" asChild isActive={sectionFor(pathname) === item.section} tooltip={item.label} className="px-3 data-[active=true]:bg-primary/10 data-[active=true]:text-primary">
+            <Link to={item.to} aria-label={item.label} aria-current={sectionFor(pathname) === item.section ? 'page' : undefined}><item.icon className="h-5 w-5" />{!collapsed && <span>{item.label}</span>}</Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>)}
+      </SidebarMenu></nav>
+    </SidebarContent>
+    <SidebarFooter className="p-3 border-t">
+      <SidebarMenu><SidebarMenuItem><SidebarMenuButton asChild size="lg" tooltip="Help"><Link to="/help" aria-label="Help"><CircleHelp />{!collapsed && <span>Help</span>}</Link></SidebarMenuButton></SidebarMenuItem>
+      <SidebarMenuItem><SidebarMenuButton asChild size="lg" tooltip="Profile & preferences"><Link to="/profile" aria-label="Profile & preferences"><UserRound />{!collapsed && <span className="truncate">{user?.name}<span className="block text-xs text-muted-foreground">{isAdmin ? 'Administrator' : 'Staff'}</span></span>}</Link></SidebarMenuButton></SidebarMenuItem></SidebarMenu>
+    </SidebarFooter>
+  </Sidebar>;
 }

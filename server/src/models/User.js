@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      minlength: [12, 'Password must be at least 12 characters'],
       select: false,
     },
     role: {
@@ -78,8 +78,9 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
+    tokenVersion: { type: Number, default: 0 },
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpire: { type: Date, select: false },
   },
   {
     timestamps: true,
@@ -94,6 +95,7 @@ userSchema.index({ isActive: 1 });
 // Hash password before save
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
+  if (Buffer.byteLength(this.password, 'utf8') > 72) throw new Error('Password must not exceed 72 bytes');
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   next();
@@ -109,6 +111,9 @@ userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
   delete obj.refreshToken;
+  delete obj.resetPasswordToken;
+  delete obj.resetPasswordExpire;
+  delete obj.tokenVersion;
   delete obj.__v;
   return obj;
 };

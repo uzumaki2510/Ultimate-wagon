@@ -6,13 +6,13 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'node_modules', 'server/node_modules', 'scratch', 'test-results', 'playwright-report']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs.flat.recommended,
+      { plugins: { 'react-hooks': reactHooks }, rules: reactHooks.configs.recommended.rules },
       reactRefresh.configs.vite,
     ],
     languageOptions: {

@@ -27,4 +27,6 @@ for (const key of required) {
   }
 }
 
+if (env.NODE_ENV === 'production' && (env.JWT_SECRET.length < 32 || env.JWT_REFRESH_SECRET.length < 32 || env.JWT_SECRET === env.JWT_REFRESH_SECRET)) throw new Error('Production JWT secrets must be distinct and at least 32 characters');
+
 module.exports = env;

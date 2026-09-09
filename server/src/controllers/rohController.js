@@ -1,3 +1,4 @@
+const searchText = require('../utils/searchText');
 const ROH = require('../models/ROH');
 const Wagon = require('../models/Wagon');
 const ApiError = require('../utils/ApiError');
@@ -24,7 +25,7 @@ const getROHRecords = asyncHandler(async (req, res) => {
 
   const filter = {};
   if (status) filter.status = status;
-  if (station) filter.station = { $regex: station, $options: 'i' };
+  if (station) filter.station = { $regex: searchText(station), $options: 'i' };
 
   const [records, total] = await Promise.all([
     ROH.find(filter).sort(sort).skip(skip).limit(limit)
@@ -69,7 +70,7 @@ const startROH = asyncHandler(async (req, res) => {
   );
   if (!roh) throw ApiError.notFound('ROH record not found');
 
-  await Wagon.findByIdAndUpdate(roh.wagon, { status: 'Under Repair' });
+  await Wagon.findByIdAndUpdate(roh.wagon, { status: 'REPAIR_IN_PROGRESS' });
 
   return ApiResponse.success(res, 'ROH started', roh);
 });
@@ -89,7 +90,7 @@ const completeROH = asyncHandler(async (req, res) => {
   if (!roh) throw ApiError.notFound('ROH record not found');
 
   await Wagon.findByIdAndUpdate(roh.wagon, {
-    status: 'Fit For Loading',
+    status: 'FIT_CERTIFICATE_PENDING',
     lastROHDate: new Date(),
     rohStation: roh.station,
   });

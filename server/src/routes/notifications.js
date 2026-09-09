@@ -7,7 +7,7 @@ const notificationController = require('../controllers/notificationController');
 router.use(protect);
 
 router.get('/', paginate, notificationController.getNotifications);
-router.post('/', notificationController.createNotification);
+router.post('/', require('../middleware/rbac').restrictTo('admin', 'super_admin'), notificationController.createNotification);
 router.put('/read-all', notificationController.markAllAsRead);
 router.put('/:id/read', notificationController.markAsRead);
 

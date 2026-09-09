@@ -31,7 +31,7 @@ interface AddWagonModalProps {
     priority: PriorityLevel,
     isDegassed?: boolean,
     isSteamed?: boolean
-  ) => void;
+  ) => void | Promise<void>;
   existingWagons: Wagon[];
 }
 
@@ -185,11 +185,11 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
     setStep(s => Math.max(s - 1, 1));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isSubmitting || !parsedDetails) return;
     setIsSubmitting(true);
 
-    onSubmit(
+    try { await onSubmit(
       parsedDetails,
       trainNumber,
       arrivalDate,
@@ -203,6 +203,8 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
     );
 
     onOpenChange(false);
+    } catch { setStepError('Unable to save wagon. Your entries have been kept.'); }
+    finally { setIsSubmitting(false); }
   };
 
   const appendRemark = (remark: string) => {
@@ -240,6 +242,8 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
                 <div key={s.id} className="flex items-center">
                   <button
                     type="button"
+                    aria-label={`Step ${s.id}: ${s.label}`}
+                    aria-current={isActive ? "step" : undefined}
                     onClick={() => {
                       // Only allow going back, or to completed steps
                       if (s.id < step) {
@@ -263,7 +267,7 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
                       <StepIcon className="h-3.5 w-3.5" />
                     )}
                     <span className="hidden sm:inline whitespace-nowrap">{s.label}</span>
-                    <span className="sm:hidden">{s.id}</span>
+                    <span className="sm:hidden">{s.id}. {s.label}</span>
                   </button>
                   {idx < STEPS.length - 1 && (
                     <ChevronRight className={`h-3.5 w-3.5 mx-0.5 shrink-0 ${isCompleted ? "text-primary" : "text-muted-foreground/40"}`} />
@@ -281,9 +285,11 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
             {step === 1 && (
               <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Wagon Number <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="add-wagon-number" className="text-sm font-semibold">Wagon Number <span className="text-destructive">*</span></Label>
                   <div className="flex gap-2">
                     <Input
+                      id="add-wagon-number"
+                      inputMode="numeric"
                       placeholder="Enter 11-digit wagon number"
                       value={wagonNumber.replace(/\D/g, "").slice(0, 11)}
                       onChange={e => {
@@ -330,8 +336,9 @@ export function AddWagonModal({ open, onOpenChange, onSubmit, existingWagons }: 
 
                     {/* Train Number */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Train / Check Number <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="add-wagon-train" className="text-sm font-semibold">Train / Check Number <span className="text-destructive">*</span></Label>
                       <Input
+                        id="add-wagon-train"
                         value={trainNumber}
                         onChange={e => handleTrainNumberChange(e.target.value)}
                         className="font-mono h-10"

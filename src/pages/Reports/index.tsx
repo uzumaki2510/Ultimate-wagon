@@ -17,7 +17,7 @@ export default function ReportsDashboard() {
   const analytics = useMemo(() => {
     let totalSteamTime = 0, steamCount = 0;
     let totalRepairTime = 0, repairCount = 0;
-    let defectsMap: Record<string, number> = {};
+    const defectsMap: Record<string, number> = {};
     const monthlyThroughput: Record<string, number> = {};
     
     let totalDelays = 0, totalCompletedStages = 0;

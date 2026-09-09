@@ -1,3 +1,4 @@
+const searchText = require('../utils/searchText');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const Wagon = require('../models/Wagon');
@@ -50,9 +51,9 @@ const getAllUsers = asyncHandler(async (req, res) => {
   const filter = {};
   if (q) {
     filter.$or = [
-      { name: { $regex: q, $options: 'i' } },
-      { email: { $regex: q, $options: 'i' } },
-      { empCode: { $regex: q, $options: 'i' } },
+      { name: { $regex: searchText(q), $options: 'i' } },
+      { email: { $regex: searchText(q), $options: 'i' } },
+      { empCode: { $regex: searchText(q), $options: 'i' } },
     ];
   }
   if (status) filter.status = status;
@@ -153,6 +154,7 @@ const rejectUser = asyncHandler(async (req, res) => {
   }
 
   user.status = 'rejected';
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   user.isActive = false;
   await user.save();
 
@@ -177,6 +179,7 @@ const deactivateUser = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('Super Admins cannot be deactivated');
   }
 
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   user.isActive = false;
   await user.save();
 
@@ -215,7 +218,7 @@ const reactivateUser = asyncHandler(async (req, res) => {
 // @access  Super Admin
 const resetAdminPassword = asyncHandler(async (req, res) => {
   const { newPassword } = req.body;
-  if (!newPassword) throw ApiError.badRequest('New password is required');
+  if (typeof newPassword !== 'string' || newPassword.length < 12 || Buffer.byteLength(newPassword) > 72) throw ApiError.badRequest('Password must be 12–72 bytes');
 
   const user = await User.findById(req.params.id);
   if (!user) throw ApiError.notFound('User not found');
@@ -225,6 +228,8 @@ const resetAdminPassword = asyncHandler(async (req, res) => {
   }
 
   user.password = newPassword;
+  user.forcePasswordChange = true;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   await user.save(); // triggers pre-save hash
 
   await createAuditLog({

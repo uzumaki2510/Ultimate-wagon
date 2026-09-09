@@ -157,7 +157,16 @@ export const SICK_LINE_LOCATIONS = [
 
 export type SickLineLocation = typeof SICK_LINE_LOCATIONS[number];
 
+export interface WorkAssignment {
+  assigneeId?: string; assigneeName?: string; assignedAt?: string; assignedBy?: string; dueAt?: string; blockedReason?: string; handoffNote?: string;
+}
 export interface Wagon {
+  assignment?: WorkAssignment;
+  assignmentHistory?: { at: string; actorName: string; before: WorkAssignment; after: WorkAssignment }[];
+  certifiedAt?: string; releasedAt?: string;
+  archived?: boolean;
+  deletedAt?: string;
+  expectedUpdatedAt?: string;
   id: string;
   wagonNo: string;
   type: WagonType | string;
@@ -185,6 +194,8 @@ export interface Wagon {
 }
 
 export interface Rake {
+  updatedAt?: string;
+  expectedUpdatedAt?: string;
   id: string;
   rakeId: string;
   rakeName: string;
@@ -217,6 +228,8 @@ export interface Approval {
 }
 
 export interface UnitMemo {
+  updatedAt?: string;
+  expectedUpdatedAt?: string;
   id: string;
   memoNo: string;
   memoType?: "sick" | "fit";
@@ -245,6 +258,7 @@ export interface Employee {
 export type WorkflowStageStatus = "Pending" | "In Progress" | "Done" | "Delayed" | "Skipped" | "Paused";
 
 export interface WorkflowStageRecord {
+  selectedNextStage?: string;
   stageName: string;
   status: WorkflowStageStatus;
   startedAt?: string;
@@ -260,7 +274,7 @@ export interface WorkflowStageRecord {
 }
 
 export interface WorkflowActionHistory {
-  action: "START_STAGE" | "MARK_STAGE_DONE" | "ADVANCE_WORKFLOW" | "MARK_FIT" | "PAUSE_STAGE" | "RESUME_STAGE";
+  action: "START_STAGE" | "MARK_STAGE_DONE" | "ADVANCE_WORKFLOW" | "MARK_FIT" | "PAUSE_STAGE" | "RESUME_STAGE" | "CORRECTION";
   stageName: string;
   previousWorkflowSnapshot: string; // JSON stringified snapshot of the full WorkflowItem before action
   createdAt: string;
@@ -276,6 +290,7 @@ export interface WorkflowItem {
   wagonType: string;
   currentStage: string;
   stages: WorkflowStageRecord[];
+  cycleHistory?: { fromStage: string; returnedTo: string; reason: string; actorName: string; completedAt: string; stages: WorkflowStageRecord[] }[];
   updatedAt: string;
   sscJeName?: string;
   fitterName?: string;

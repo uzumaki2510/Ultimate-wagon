@@ -54,6 +54,8 @@ export function NotificationBell() {
   return (
     <div ref={wrapperRef} className="relative">
       <Button 
+        aria-label="Notifications"
+        aria-expanded={isOpen}
         variant="ghost" 
         size="icon" 
         className="relative rounded-full hover:bg-muted/50"
@@ -68,7 +70,7 @@ export function NotificationBell() {
       </Button>
 
       {isOpen && (
-        <Card className="absolute right-0 top-full mt-2 w-80 sm:w-96 shadow-xl border-border/50 z-50 animate-in fade-in zoom-in-95 origin-top-right">
+        <Card className="fixed right-3 left-3 top-20 md:absolute md:left-auto md:right-0 md:top-full mt-2 w-auto md:w-96 shadow-xl border-border/50 z-50 animate-in fade-in zoom-in-95 origin-top-right">
           <CardHeader className="p-4 border-b bg-muted/20 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               Notifications

@@ -1,5 +1,7 @@
+import { WorkflowChecklist } from "@/components/ManageWagon/WorkflowChecklist";
+import { readableStage } from "@/lib/navigation";
 import { useState, useMemo, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useAppStore } from "@/store/useAppStore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +30,7 @@ import { DefectCentre } from "@/components/passport/DefectCentre";
 export default function WagonDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   
   const { wagons, workflows, startStage, markStageDone } = useAppStore();
@@ -36,7 +39,10 @@ export default function WagonDetails() {
   const workflow = useMemo(() => wagon ? workflows.find(w => w.wagonId === wagon.id) : undefined, [workflows, wagon]);
   
   // States for interactive modules
-  const [activeTab, setActiveTab] = useState("overview");
+  const validTabs = ["overview", "work", "defects", "timeline", "maintenance", "documents"];
+  const requestedTab = searchParams.get("tab") || "overview";
+  const activeTab = validTabs.includes(requestedTab) ? requestedTab : "overview";
+  const setActiveTab = (tab: string) => setSearchParams({ tab });
   const [remarks, setRemarks] = useState("");
   
   const alerts = useMemo(() => {
@@ -47,7 +53,7 @@ export default function WagonDetails() {
   const handleAlertAction = (actionType: NonNullable<WagonAlert["actionType"]>) => {
     if (actionType === "VIEW_MAINTENANCE") setActiveTab("maintenance");
     if (actionType === "VIEW_INSPECTION") setActiveTab("defects"); // Or another relevant tab
-    if (actionType === "VIEW_WORKFLOW") setActiveTab("overview");
+    if (actionType === "VIEW_WORKFLOW") setActiveTab("work");
   };
   const [operator, setOperator] = useState(user?.name || "");
   const [certNumber, setCertNumber] = useState("");
@@ -95,8 +101,9 @@ export default function WagonDetails() {
   const handleStartStage = async () => {
     if (!activeStage || isSubmitting || !workflow) return;
     setIsSubmitting(true);
-    await startStage(workflow.id, activeStage.stageName, user?.name || "Unknown");
-    setIsSubmitting(false);
+    try { await startStage(workflow.id, activeStage.stageName, user?.name || "Unknown"); }
+    catch { /* Save errors are reported by the store. */ }
+    finally { setIsSubmitting(false); }
   };
 
   const handleCompleteStage = async (extraRemarks = "") => {
@@ -108,12 +115,14 @@ export default function WagonDetails() {
       finalRemarks = finalRemarks ? `${finalRemarks} | ${extraRemarks}` : extraRemarks;
     }
 
+    try {
     await markStageDone(workflow.id, activeStage.stageName, operator, user?.name || "Unknown", finalRemarks);
     
     // Reset forms
     setRemarks("");
     setCertNumber("");
-    setIsSubmitting(false);
+    } catch { /* Save errors are reported by the store. */ }
+    finally { setIsSubmitting(false); }
   };
 
   // Helper to check if a specific stage is completed
@@ -125,11 +134,11 @@ export default function WagonDetails() {
   const passportHeader = (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-[var(--density-spacing-lg,1.5rem)] animate-fade-in border-b pb-4">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full hover:bg-muted">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to wagons" className="rounded-full hover:bg-muted">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-h1 font-bold tracking-tight flex items-center gap-2 text-foreground">
               {wagon.wagonNo}
             </h1>
@@ -143,10 +152,10 @@ export default function WagonDetails() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="hidden sm:flex h-9">
+        <Button variant="outline" size="sm" className="hidden sm:flex h-9" onClick={() => window.print()}>
           <Printer className="h-4 w-4 mr-2" /> Print Passport
         </Button>
-        <div className="bg-white p-1 rounded-sm shadow-sm border cursor-pointer hover:scale-105 transition-transform" title="Scan to open passport">
+        <div className="hidden sm:block bg-white p-1 rounded-sm shadow-sm border cursor-pointer hover:scale-105 transition-transform" title="Scan to open passport">
           <QRCodeSVG value={window.location.href} size={36} level="L" includeMargin={false} />
         </div>
       </div>
@@ -164,109 +173,37 @@ export default function WagonDetails() {
         
         {/* Vertical Navigation Sidebar */}
         <div className="w-full md:w-56 shrink-0">
-          <TabsList className="flex flex-row md:flex-col h-auto w-full justify-start bg-transparent space-y-0 md:space-y-2 space-x-2 md:space-x-0 overflow-x-auto p-0">
+          <label className="md:hidden block"><span className="block text-xs font-medium text-muted-foreground mb-2">Wagon section</span><select aria-label="Wagon section" value={activeTab} onChange={e => setActiveTab(e.target.value)} className="w-full rounded-lg border bg-card px-3 py-3 text-sm"><option value="overview">Overview</option><option value="work">Work process</option><option value="defects">Defects & repairs</option><option value="timeline">Audit timeline</option><option value="maintenance">Maintenance</option><option value="documents">Documents</option></select></label>
+          <TabsList className="hidden md:flex md:flex-col h-auto w-full justify-start bg-transparent space-y-0 md:space-y-2 space-x-2 md:space-x-0 overflow-x-auto p-0">
             <TabsTrigger value="overview" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
-              <Info className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Overview</span>
+              <Info className="h-4 w-4 md:mr-2 shrink-0" /> <span className="inline">Overview</span>
             </TabsTrigger>
+            <TabsTrigger value="work" className="justify-start px-4 py-2 rounded-lg w-full text-left data-[state=active]:bg-primary/10 data-[state=active]:text-primary"><Activity className="h-4 w-4 mr-2 shrink-0" />Work</TabsTrigger>
             <TabsTrigger value="defects" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
-              <Wrench className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Defect Centre</span>
+              <Wrench className="h-4 w-4 md:mr-2 shrink-0" /> <span className="inline">Defect Centre</span>
             </TabsTrigger>
             <TabsTrigger value="timeline" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
-              <Clock className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Audit Timeline</span>
+              <Clock className="h-4 w-4 md:mr-2 shrink-0" /> <span className="inline">Audit Timeline</span>
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
-              <CheckCircle2 className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Maintenance</span>
+              <CheckCircle2 className="h-4 w-4 md:mr-2 shrink-0" /> <span className="inline">Maintenance</span>
             </TabsTrigger>
             <TabsTrigger value="documents" className="justify-start px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none border border-transparent data-[state=active]:border-primary/20 rounded-lg w-full text-left">
-              <FileStack className="h-4 w-4 md:mr-2 shrink-0" /> <span className="hidden md:inline">Documents & Gallery</span>
+              <FileStack className="h-4 w-4 md:mr-2 shrink-0" /> <span className="inline">Documents & Gallery</span>
             </TabsTrigger>
           </TabsList>
           
-          {/* Quick Actions (only visible on desktop) */}
-          <div className="hidden md:block mt-8 space-y-4">
-            {!workflow ? (
-              <Card className="shadow-sm border-warning/50 bg-warning/5">
-                <CardHeader className="p-4 pb-2 border-b border-warning/20">
-                  <CardTitle className="text-sm flex items-center gap-2 text-warning-foreground">
-                    Workflow Status
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    No active workflow found. This wagon has not yet entered the workshop process.
-                  </p>
-                  <div className="space-y-2">
-                    <Button onClick={handleCreateWorkflow} size="sm" className="w-full text-xs font-semibold">
-                      Create Workflow
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => navigate('/super-admin/wagons')} className="w-full text-xs bg-background">
-                      Back to Register
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                <h3 className="text-xs font-bold uppercase text-muted-foreground tracking-wider px-2">Operator Actions</h3>
-                {activeStage && activeStage.status !== "Skipped" && activeStage.status !== "Done" ? (
-                  <Card className="shadow-sm border-primary/20 bg-primary/5">
-                    <CardHeader className="p-4 pb-2 border-b border-primary/10">
-                      <CardTitle className="text-sm flex items-center gap-2 text-primary">
-                        <Activity className="h-4 w-4 shrink-0" />
-                        {activeStage.stageName}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-3 space-y-3">
-                      
-                      {/* Shared Inputs (Operator & Remarks) */}
-                      {activeStage.status === "In Progress" && (
-                        <>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Operator Name</Label>
-                            <Input size={1} className="h-8 text-xs" value={operator} onChange={e => setOperator(e.target.value)} />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Remarks</Label>
-                            <Textarea className="resize-none h-16 text-xs min-h-[4rem]" value={remarks} onChange={e => setRemarks(e.target.value)} />
-                          </div>
-                        </>
-                      )}
-    
-                      {/* Actions */}
-                      <div className="pt-2">
-                        {activeStage.status === "Pending" ? (
-                          <Button onClick={handleStartStage} disabled={isSubmitting} size="sm" className="w-full text-xs h-8">
-                            Start Stage
-                          </Button>
-                        ) : (
-                          <Button 
-                            onClick={() => handleCompleteStage()}
-                            disabled={isSubmitting}
-                            size="sm"
-                            className="w-full text-xs h-8 bg-success hover:bg-success/90 text-success-foreground"
-                          >
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Complete
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="text-xs text-muted-foreground px-2">No active stage awaiting action.</div>
-                )}
-              </>
-            )}
-          </div>
+          <div className="hidden md:block mt-6 rounded-xl border p-4 space-y-3"><p className="text-sm text-muted-foreground">Start, pause and complete stages from one work process.</p><Button className="w-full" onClick={() => setActiveTab("work")}>Open work process</Button></div>
         </div>
 
         {/* Main Workspace Area */}
         <div className="flex-1 min-w-0">
           <TabsContent value="overview" className="h-full m-0 space-y-4">
             <WagonAlerts alerts={alerts} onAction={handleAlertAction} />
-            <PassportOverview wagon={wagon as any} activeStage={workflow.currentStage} defectCount={wagon.repairTasks?.length} />
+            <PassportOverview wagon={wagon as any} activeStage={readableStage(workflow?.currentStage || "Not started")} defectCount={wagon.repairTasks?.length} />
           </TabsContent>
           
+          <TabsContent value="work" className="mt-0 space-y-4"><WorkflowChecklist wagon={wagon} /></TabsContent>
           <TabsContent value="defects" className="h-full m-0">
             <DefectCentre wagon={wagon as any} />
           </TabsContent>

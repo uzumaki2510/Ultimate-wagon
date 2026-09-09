@@ -6,6 +6,7 @@ const { paginate } = require('../middleware/pagination');
 const userController = require('../controllers/userController');
 
 router.use(protect);
+router.use(require('../middleware/rbac').restrictTo('admin', 'super_admin'));
 
 router.get('/pending', authorize('users', 'U'), userController.getPendingUsers);
 router.get('/', authorize('users', 'R'), paginate, userController.getUsers);

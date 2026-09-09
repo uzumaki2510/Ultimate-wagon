@@ -1,3 +1,4 @@
+const { assertFit } = require('../services/fitnessService');
 const Certification = require('../models/Certification');
 const Wagon = require('../models/Wagon');
 const ApiError = require('../utils/ApiError');
@@ -9,6 +10,7 @@ const createCertification = asyncHandler(async (req, res) => {
   const wagon = await Wagon.findById(req.body.wagon);
   if (!wagon) throw ApiError.notFound('Wagon not found');
 
+  if (req.body.type === 'Fitness') await assertFit(wagon, null);
   req.body.createdBy = req.user._id;
   const cert = await Certification.create(req.body);
   return ApiResponse.created(res, 'Certificate issued', cert);
@@ -45,6 +47,14 @@ const getCertification = asyncHandler(async (req, res) => {
 });
 
 const updateCertification = asyncHandler(async (req, res) => {
+  const existing = await Certification.findById(req.params.id);
+  if (!existing) throw ApiError.notFound('Certification not found');
+  if (req.body.wagon && String(req.body.wagon) !== String(existing.wagon)) throw ApiError.badRequest('Certificate wagon cannot change');
+  if ((req.body.type || existing.type) === 'Fitness') {
+    const wagon = await Wagon.findOne({ _id: existing.wagon, deletedAt: null });
+    if (!wagon) throw ApiError.notFound('Wagon not found');
+    await assertFit(wagon, null);
+  }
   const cert = await Certification.findByIdAndUpdate(req.params.id, req.body, {
     new: true, runValidators: true,
   });

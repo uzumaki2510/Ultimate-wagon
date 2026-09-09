@@ -19,14 +19,14 @@ export function FilterBar({ value, onChange, options, placeholder = "Filter", cl
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-[140px] sm:w-[180px] bg-background shadow-sm border-muted-foreground/20 h-10">
+        <SelectTrigger aria-label={placeholder} className="w-[140px] sm:w-[180px] bg-background shadow-sm border-muted-foreground/20 h-10">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Filter className="h-3.5 w-3.5" />
             <SelectValue placeholder={placeholder} />
           </div>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All</SelectItem>
+          <SelectItem value="all">All {placeholder.toLowerCase()}</SelectItem>
           {options.map((opt) => (
             <SelectItem key={opt.value} value={opt.value}>
               {opt.label}

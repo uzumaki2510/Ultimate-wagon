@@ -4,11 +4,12 @@ const { protect } = require('../middleware/auth');
 const rakeController = require('../controllers/rakeController');
 
 router.use(protect);
+const { authorize } = require('../middleware/rbac');
 
-router.post('/', rakeController.createRake);
+router.post('/', authorize('rakes', 'C'), rakeController.createRake);
 router.get('/', rakeController.getRakes);
 router.get('/:id', rakeController.getRake);
-router.put('/:id', rakeController.updateRake);
-router.delete('/:id', rakeController.deleteRake);
+router.put('/:id', authorize('rakes', 'U'), rakeController.updateRake);
+router.delete('/:id', authorize('rakes', 'D'), rakeController.deleteRake);
 
 module.exports = router;

@@ -26,8 +26,8 @@ export default function Employees() {
   const [pending, setPending] = useState<User[]>([]);
   const [toRemove, setToRemove] = useState<User | null>(null);
 
-  const { employees: rosterEmployees, addEmployee, updateEmployee, removeEmployee } = useAppStore();
-  const [form, setForm] = useState({ name: "", designation: "", role: "", empCode: "" });
+  const { employees: rosterEmployees } = useAppStore();
+
   
 
   const refresh = async () => {
@@ -128,7 +128,7 @@ export default function Employees() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table mobileCards>
                     <TableHeader className="bg-secondary/50">
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="font-semibold">Name</TableHead>
@@ -196,7 +196,7 @@ export default function Employees() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table mobileCards>
                     <TableHeader className="bg-secondary/50">
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="font-semibold">Name</TableHead>
@@ -237,25 +237,11 @@ export default function Employees() {
 
         {/* ── Approval Roster Tab ── */}
         <TabsContent value="roster" className="space-y-6">
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader className="bg-secondary/20 pb-4 border-b border-border/50">
-              <CardTitle>Add Staff Member</CardTitle>
-              <CardDescription>Add employees to the roster for assigning memo approvals and signatures.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 grid gap-4 md:grid-cols-5">
-              <Input placeholder="Emp Code" value={form.empCode} onChange={(e) => setForm({ ...form, empCode: e.target.value })} />
-              <Input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <Input placeholder="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
-              <Input placeholder="Role (e.g. SSE / JE)" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
-              <Button onClick={() => { if (form.name) { addEmployee(form); setForm({ name: "", designation: "", role: "", empCode: "" }); } }}>
-                <Plus className="h-4 w-4 mr-1" /> Add to Roster
-              </Button>
-            </CardContent>
-          </Card>
+          <p className="text-sm text-muted-foreground">This roster is derived from approved, active staff accounts. Use account approvals to manage membership; signer identities cannot be created locally.</p>
 
           <Card>
             <CardHeader><CardTitle>Approval Staff Roster</CardTitle></CardHeader>
-            <Table>
+            <Table mobileCards>
               <TableHeader>
                 <TableRow>
                   <TableHead>Code</TableHead>
@@ -269,21 +255,19 @@ export default function Employees() {
                 {rosterEmployees.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell>
-                      <Input value={e.empCode ?? ""} onChange={(ev) => updateEmployee(e.id, { empCode: ev.target.value })} className="h-8 font-mono" />
+                      {e.empCode ?? ""}
                     </TableCell>
                     <TableCell>
-                      <Input value={e.name} onChange={(ev) => updateEmployee(e.id, { name: ev.target.value })} className="h-8 font-medium" />
+                      {e.name}
                     </TableCell>
                     <TableCell>
-                      <Input value={e.designation} onChange={(ev) => updateEmployee(e.id, { designation: ev.target.value })} className="h-8" />
+                      {e.designation}
                     </TableCell>
                     <TableCell>
-                      <Input value={e.role} onChange={(ev) => updateEmployee(e.id, { role: ev.target.value })} className="h-8" />
+                      {e.role}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="icon" variant="ghost" onClick={() => removeEmployee(e.id)} className="text-destructive hover:bg-destructive/10">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <span className="text-xs text-muted-foreground">Account-managed</span>
                     </TableCell>
                   </TableRow>
                 ))}

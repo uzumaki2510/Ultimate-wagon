@@ -39,6 +39,7 @@ import { getWagonSubtypeDisplay, getRailwayShortName } from "@/lib/wagonDisplay"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface WagonTableProps {
+  showSearch?: boolean;
   wagons: WagonRepair[];
   onComplete: (id: string) => void;
   onUndoComplete: (id: string) => void;
@@ -52,7 +53,7 @@ interface WagonTableProps {
   isAdmin?: boolean;
 }
 
-export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpdateSickLine, onEdit, onUpdateBTPGLNWorkflow, onUpdateBTPNWorkflow, onSelectionChange, filter, isAdmin = false }: WagonTableProps) {
+export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpdateSickLine, onEdit, onUpdateBTPGLNWorkflow, onUpdateBTPNWorkflow, onSelectionChange, filter, isAdmin = false, showSearch = true }: WagonTableProps) {
   const nav = useNavigate();
   const memos = useAppStore((s) => s.memos);
   const zustandWagons = useAppStore((s) => s.wagons);
@@ -87,7 +88,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   const handleBulkDelete = async () => {
     setIsProcessingBulk(true);
     for (const id of selectedIds) {
-      onDelete(id);
+      await onDelete(id);
     }
     setSelectedIds(new Set());
     onSelectionChange?.([]);
@@ -98,7 +99,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   const handleBulkArchive = async () => {
     setIsProcessingBulk(true);
     for (const id of selectedIds) {
-      updateWagon(id, { status: "ARCHIVED" as any });
+      await updateWagon(id, { archived: true });
     }
     setSelectedIds(new Set());
     onSelectionChange?.([]);
@@ -109,7 +110,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
   const handleBulkMove = async () => {
     setIsProcessingBulk(true);
     for (const id of selectedIds) {
-      onUpdateSickLine(id, moveDestination as SickLine);
+      await onUpdateSickLine(id, moveDestination as SickLine);
     }
     setSelectedIds(new Set());
     onSelectionChange?.([]);
@@ -198,7 +199,7 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
                 </Badge>
               )}
             </CardTitle>
-            <div className="relative w-full sm:w-64">
+            <div className={showSearch ? "relative w-full sm:w-64" : "hidden"}>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search wagon no., type, railway..."
@@ -375,8 +376,8 @@ export function WagonTable({ wagons, onComplete, onUndoComplete, onDelete, onUpd
           defaultTab={manageWagonTab}
           open={!!manageWagonId} 
           onOpenChange={(open) => !open && setManageWagonId(null)} 
-          onDelete={() => {
-            onDelete(manageWagonId);
+          onDelete={async () => {
+            await onDelete(manageWagonId);
             setManageWagonId(null);
           }}
         />

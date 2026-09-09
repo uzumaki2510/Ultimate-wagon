@@ -1,3 +1,4 @@
+import { ProfilePreferences } from "@/components/ProfilePreferences";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,8 +44,9 @@ const Profile = () => {
     });
   };
 
-  const handleSave = () => {
-    updateProfile({ name, department, designation });
+  const handleSave = async () => {
+    try { await updateProfile({ name, department, designation }); }
+    catch { toast({ title: 'Unable to save profile', variant: 'destructive' }); return; }
     setIsEditing(false);
     toast({
       title: "Profile Updated",
@@ -54,8 +56,9 @@ const Profile = () => {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-3xl mx-auto pb-12">
+      <ProfilePreferences />
       <PageHeader 
-        title="Employee Profile"
+        title="Profile & preferences"
         description="Manage your personal information and department details."
         icon={User}
         actions={

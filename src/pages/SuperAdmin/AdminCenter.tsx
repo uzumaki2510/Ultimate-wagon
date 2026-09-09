@@ -55,7 +55,7 @@ export default function AdminCenter() {
         {isMobile ? (
           <div className="mb-4">
             <Select value={activeTab} onValueChange={handleTabChange}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Administration section" className="w-full">
                 <SelectValue placeholder="Select tab" />
               </SelectTrigger>
               <SelectContent>

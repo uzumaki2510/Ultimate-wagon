@@ -43,8 +43,8 @@ export default function SickLine() {
     nav("/memos/new?type=fit");
   };
 
-  const handleStartStage = (wfId: string, stageName: string) => {
-    startStage(wfId, stageName, "User Staff"); // Should pull from auth context
+  const handleStartStage = async (wfId: string, stageName: string) => {
+    await startStage(wfId, stageName, "User Staff"); // Should pull from auth context
     toast({ title: "Stage Started", description: `${stageName} is now In Progress.` });
   };
 
@@ -57,14 +57,14 @@ export default function SickLine() {
     setConfirmModalOpen(true);
   };
 
-  const submitConfirmation = () => {
+  const submitConfirmation = async () => {
     if (!inspectorName.trim() && !sessionStorage.getItem("lastInspectorName")) {
       toast({ title: "Validation Error", description: "SSC/JE Name is required.", variant: "destructive" });
       return;
     }
     if (activeWfId && activeStage) {
       const finalRemarks = remarks.trim() || `Stage ${activeStage} completed successfully by ${inspectorName}.`;
-      markStageDone(activeWfId, activeStage, staffName, inspectorName, finalRemarks);
+      await markStageDone(activeWfId, activeStage, staffName, inspectorName, finalRemarks);
       sessionStorage.setItem("lastInspectorName", inspectorName);
 
       const wf = workflows.find((w) => w.id === activeWfId);
@@ -72,7 +72,7 @@ export default function SickLine() {
         const currentIndex = wf.stages.findIndex((s: any) => s.stageName === activeStage);
         if (currentIndex > -1 && currentIndex < wf.stages.length - 1) {
           const nextStage = wf.stages[currentIndex + 1].stageName;
-          advanceWorkflow(wf.id, nextStage);
+          await advanceWorkflow(wf.id, nextStage);
           toast({ title: "Stage Completed", description: `Advanced to ${nextStage}.` });
         } else {
           toast({ title: "Stage Marked Done", description: `${activeStage} has been confirmed done.` });

@@ -20,9 +20,9 @@ export default function RakeManagement() {
   const rake = store.rakes.find((r) => r.id === selectedRake);
   const wagonsInRake = store.wagons.filter((w) => w.rakeId === selectedRake);
 
-  const createRake = () => {
+  const createRake = async () => {
     if (!form.rakeId) return toast.error("Rake ID required");
-    const r = store.addRake({ rakeId: form.rakeId, rakeName: form.rakeName, yard: form.yard });
+    const r = await store.addRake({ rakeId: form.rakeId, rakeName: form.rakeName, yard: form.yard });
     setSelectedRake(r.id);
     setForm({ rakeId: "", rakeName: "", yard: "" });
     toast.success("Rake created");
@@ -32,10 +32,10 @@ export default function RakeManagement() {
     ? masterData.filter(d => d.category === "WAGON_TYPE" && d.isActive).map(d => d.value) 
     : STATIC_WAGON_TYPES;
 
-  const handleAddWagon = () => {
+  const handleAddWagon = async () => {
     if (!selectedRake) return;
-    const w = store.addWagon({ wagonNo: "", type: WAGON_TYPES[0], owner: "", builtYear: new Date().getFullYear(), status: "IN_SERVICE", rakeId: selectedRake });
-    if (selectedRake) store.addWagonToRake(selectedRake, w.id);
+    const w = await store.addWagon({ wagonNo: "", type: WAGON_TYPES[0], owner: "", builtYear: new Date().getFullYear(), status: "IN_SERVICE", rakeId: selectedRake });
+    if (selectedRake) await store.addWagonToRake(selectedRake, w.id);
   };
 
   return (

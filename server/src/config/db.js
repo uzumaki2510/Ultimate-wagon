@@ -10,6 +10,9 @@ const connectDB = async () => {
       socketTimeoutMS: 45000,
     });
 
+    const topology = await conn.connection.db.admin().command({ hello: 1 });
+    if (!topology.setName && topology.msg !== 'isdbgrid') throw new Error('MongoDB replica set or sharded cluster required for transactional maintenance and audit writes');
+
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
     console.log('MongoDB connection success');
 

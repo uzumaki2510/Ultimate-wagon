@@ -20,7 +20,7 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET);
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] });
 
     const user = await User.findById(decoded.id).select('-password -refreshToken');
     if (!user) {
@@ -29,6 +29,15 @@ const protect = asyncHandler(async (req, res, next) => {
 
     if (!user.isActive) {
       throw ApiError.unauthorized('User account has been deactivated');
+    }
+
+    if (user.status !== 'approved') throw ApiError.forbidden('Account approval required');
+    if (decoded.purpose !== 'access' || decoded.version !== (user.tokenVersion || 0)) {
+      throw ApiError.unauthorized('Session expired');
+    }
+    const passwordRoutes = ['/change-password', '/logout', '/me'];
+    if (user.forcePasswordChange && !(req.baseUrl.endsWith('/auth') && passwordRoutes.includes(req.path))) {
+      throw ApiError.forbidden('Password change required');
     }
 
     req.user = user;
@@ -53,7 +62,7 @@ const optionalAuth = asyncHandler(async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, env.JWT_SECRET);
       const user = await User.findById(decoded.id).select('-password -refreshToken');
-      if (user && user.isActive) {
+      if (user && user.isActive && user.status === 'approved' && !user.forcePasswordChange && decoded.purpose === 'access' && decoded.version === (user.tokenVersion || 0)) {
         req.user = user;
       }
     } catch {

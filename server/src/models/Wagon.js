@@ -3,6 +3,9 @@ const { WAGON_TYPES, WAGON_CATEGORIES, WAGON_STATUSES, PRIORITY_LEVELS } = requi
 
 const repairTaskSchema = new mongoose.Schema(
   {
+    id: String,
+    status: { type: String, enum: ['pending', 'in_progress', 'repaired', 'blocked'], default: 'pending' },
+    location: String, inspector: String, reportedAt: Date, remarks: String,
     category: { type: String, required: true },
     subRepair: { type: String, required: true },
     severity: { type: String, enum: PRIORITY_LEVELS, default: 'Normal' },
@@ -42,7 +45,7 @@ const wagonSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: { values: WAGON_STATUSES, message: 'Invalid wagon status' },
-      default: 'In Service',
+      default: 'ARRIVED',
       index: true,
     },
     currentLocation: {
@@ -75,6 +78,17 @@ const wagonSchema = new mongoose.Schema(
     rohStation: String,
     pohStation: String,
     repairTasks: [repairTaskSchema],
+    repairTypes: [String],
+    inspectionChecklist: { type: Map, of: new mongoose.Schema({ checked: Boolean, checkedBy: String, checkedAt: Date, remarks: String }, { _id: false }) },
+    assignment: new mongoose.Schema({ assigneeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, assigneeName: String, assignedAt: Date, assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, dueAt: Date, blockedReason: String, handoffNote: String }, { _id: false }),
+    assignmentHistory: [mongoose.Schema.Types.Mixed],
+    certifiedAt: Date, releasedAt: Date,
+    certificationHistory: [mongoose.Schema.Types.Mixed],
+    documentSequence: { type: Number, default: 0 },
+    fitConfirmation: { type: mongoose.Schema.Types.Mixed },
+    pohDate: String, rohDate: String, returnDate: String,
+    deletedAt: { type: Date, default: null },
+    archived: { type: Boolean, default: false },
     isSteamed: { type: Boolean, default: false },
     isDegassed: { type: Boolean, default: false },
     createdBy: {

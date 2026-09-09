@@ -42,7 +42,7 @@ const errorHandler = (err, req, res, next) => {
 
   res.status(statusCode).json({
     success: false,
-    message,
+    message: statusCode >= 500 && process.env.NODE_ENV === 'production' ? 'Internal Server Error' : message,
     errors: error.errors || [],
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });

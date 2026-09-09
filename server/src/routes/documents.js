@@ -1,0 +1,12 @@
+const express = require('express');
+const router = express.Router();
+const { protect } = require('../middleware/auth');
+const { authorize, restrictTo } = require('../middleware/rbac');
+const controller = require('../controllers/documentController');
+router.use(protect);
+router.get('/wagon/:wagonId', authorize('wagons', 'R'), controller.list);
+router.post('/wagon/:wagonId', restrictTo('employee', 'admin', 'super_admin'), express.raw({ type: ['application/pdf', 'image/png', 'image/jpeg'], limit: '5mb' }), controller.upload);
+router.get('/:id/content', authorize('wagons', 'R'), controller.download);
+router.post('/:id/scan', restrictTo('admin', 'super_admin'), controller.rescan);
+router.delete('/:id', restrictTo('admin', 'super_admin'), controller.remove);
+module.exports = router;

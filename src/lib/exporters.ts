@@ -1,4 +1,5 @@
-import * as XLSX from "xlsx";
+import { csvCell } from "./safeExport";
+import * as XLSX from "@/lib/spreadsheetExport";
 import { UnitMemo, Wagon } from "@/types";
 
 function rows(memos: UnitMemo[], wagonsById: Record<string, Wagon>) {
@@ -21,17 +22,18 @@ export function exportExcel(memos: UnitMemo[], wagonsById: Record<string, Wagon>
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Memos");
-  XLSX.writeFile(wb, `${name}.xlsx`);
+  return XLSX.writeFile(wb, `${name}.xlsx`);
 }
 
 export function exportCsv(memos: UnitMemo[], wagonsById: Record<string, Wagon>, name = "memos") {
   const data = rows(memos, wagonsById);
   if (!data.length) return;
   const cols = Object.keys(data[0]);
-  const csv = [cols.join(","), ...data.map((r) => cols.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
+  const csv = [cols.map(csvCell).join(","), ...data.map((r) => cols.map((c) => csvCell(r[c])).join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `${name}.csv`;
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

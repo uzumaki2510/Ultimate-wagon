@@ -4,8 +4,8 @@ const env = require('../config/env');
 /**
  * Generate access token
  */
-const generateAccessToken = (userId) => {
-  return jwt.sign({ id: userId }, env.JWT_SECRET, {
+const generateAccessToken = (userId, version = 0) => {
+  return jwt.sign({ id: userId, version, purpose: 'access' }, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRE,
   });
 };
@@ -13,8 +13,9 @@ const generateAccessToken = (userId) => {
 /**
  * Generate refresh token
  */
-const generateRefreshToken = (userId) => {
-  return jwt.sign({ id: userId }, env.JWT_REFRESH_SECRET, {
+const generateRefreshToken = (userId, version = 0) => {
+  return jwt.sign({ id: userId, version, purpose: 'refresh' }, env.JWT_REFRESH_SECRET, {
+    jwtid: require('crypto').randomUUID(),
     expiresIn: env.JWT_REFRESH_EXPIRE,
   });
 };
@@ -23,16 +24,16 @@ const generateRefreshToken = (userId) => {
  * Verify refresh token
  */
 const verifyRefreshToken = (token) => {
-  return jwt.verify(token, env.JWT_REFRESH_SECRET);
+  return jwt.verify(token, env.JWT_REFRESH_SECRET, { algorithms: ['HS256'] });
 };
 
 /**
  * Generate both tokens
  */
-const generateTokenPair = (userId) => {
+const generateTokenPair = (userId, version = 0) => {
   return {
-    accessToken: generateAccessToken(userId),
-    refreshToken: generateRefreshToken(userId),
+    accessToken: generateAccessToken(userId, version),
+    refreshToken: generateRefreshToken(userId, version),
   };
 };
 

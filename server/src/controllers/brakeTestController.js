@@ -12,7 +12,7 @@ const createBrakeTest = asyncHandler(async (req, res) => {
   req.body.createdBy = req.user._id;
   const test = await BrakeTest.create(req.body);
 
-  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'Awaiting Testing' });
+  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'FIT_CERTIFICATE_PENDING' });
 
   return ApiResponse.created(res, 'Brake test recorded', test);
 });

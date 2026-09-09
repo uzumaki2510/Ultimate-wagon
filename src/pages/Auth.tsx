@@ -1,3 +1,4 @@
+import { Brand } from "@/components/Brand";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,10 +69,10 @@ const Auth = () => {
       return;
     }
 
-    if (signupPassword.length < 6) {
+    if (signupPassword.length < 12) {
       toast({
         title: "Password Too Short",
-        description: "Password must be at least 6 characters.",
+        description: "Password must be at least 12 characters.",
         variant: "destructive",
       });
       setIsLoading(false);
@@ -101,281 +102,33 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center">
-            <div className="p-3 rounded-xl bg-primary text-primary-foreground">
-              <Train className="h-8 w-8" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold">Railway C&W Department</h1>
-          <p className="text-muted-foreground">Wagon Repair Management System</p>
-        </div>
-
-        {/* Pending Approval Screen */}
-        {pendingApproval ? (
-          <Card className="glass border-amber-400/30">
-            <CardContent className="pt-8 pb-8 flex flex-col items-center gap-4 text-center">
-              <div className="p-4 rounded-full bg-amber-500/15">
-                <Clock className="h-10 w-10 text-amber-500" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">Awaiting Admin Approval</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Hi <span className="font-semibold text-foreground">{pendingName}</span>, your account request has been submitted.
-                </p>
-              </div>
-              <div className="w-full rounded-lg bg-amber-500/10 border border-amber-400/30 p-4 text-sm text-amber-800 dark:text-amber-300 text-left space-y-1">
-                <p className="font-semibold">What happens next?</p>
-                <ul className="list-disc list-inside space-y-0.5 text-amber-700 dark:text-amber-400">
-                  <li>The administrator reviews your request</li>
-                  <li>Once approved, you can log in with your credentials</li>
-                  <li>If rejected, contact your department head</li>
-                </ul>
-              </div>
-              <Button
-                className="w-full"
-                variant="outline"
-                onClick={() => { setPendingApproval(false); setPortal("employee"); }}
-              >
-                Back to Login
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-        <>
-        <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-secondary">
-          <Button
-            type="button"
-            variant={portal === "employee" ? "default" : "ghost"}
-            className="gap-2"
-            onClick={() => setPortal("employee")}
-          >
-            <UserIcon className="h-4 w-4" /> Employee
-          </Button>
-          <Button
-            type="button"
-            variant={portal === "admin" ? "default" : "ghost"}
-            className="gap-2"
-            onClick={() => setPortal("admin")}
-          >
-            <Shield className="h-4 w-4" /> Admin
-          </Button>
-        </div>
-
-        <Card className="glass border-primary/20">
-          {portal === "admin" ? (
-            <>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" /> Admin Login
-                </CardTitle>
-                <CardDescription>
-                  Restricted access.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-email">Admin Email</Label>
-                    <Input
-                      id="admin-email"
-                      type="email"
-                      placeholder="admin@railway.gov.in"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="admin-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign in as Admin"}
-                  </Button>
-                </form>
-              </CardContent>
-            </>
-          ) : (
-          <Tabs defaultValue="login" className="w-full">
-            <CardHeader className="pb-2">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Login
-                </TabsTrigger>
-                <TabsTrigger value="signup">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Sign Up
-                </TabsTrigger>
-              </TabsList>
-            </CardHeader>
-
-            <CardContent>
-              <TabsContent value="login" className="mt-0">
-                <CardTitle className="text-lg mb-1">Welcome Back</CardTitle>
-                <CardDescription className="mb-4">
-                  Enter your credentials to access the system
-                </CardDescription>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="your.email@railway.gov.in"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="login-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Logging in..." : "Login"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup" className="mt-0">
-                <CardTitle className="text-lg mb-1">Create Account</CardTitle>
-                <CardDescription className="mb-4">
-                  Register to access the wagon repair system
-                </CardDescription>
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name">Full Name *</Label>
-                      <Input
-                        id="signup-name"
-                        placeholder="John Doe"
-                        value={signupName}
-                        onChange={(e) => setSignupName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-employee-id">Employee ID *</Label>
-                      <Input
-                        id="signup-employee-id"
-                        placeholder="EMP001"
-                        value={signupEmpCode}
-                        onChange={(e) => setSignupEmpCode(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email *</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="your.email@railway.gov.in"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password *</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Min 6 characters"
-                        value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
-                        required
-                        minLength={6}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-department">Department</Label>
-                      <Input
-                        id="signup-department"
-                        placeholder="C&W Department"
-                        value={signupDepartment}
-                        onChange={(e) => setSignupDepartment(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-designation">Designation</Label>
-                      <Input
-                        id="signup-designation"
-                        placeholder="Senior Technician"
-                        value={signupDesignation}
-                        onChange={(e) => setSignupDesignation(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating Account..." : "Create Account"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </CardContent>
-          </Tabs>
-          )}
-        </Card>
-        </>
-        )} {/* end pendingApproval else */}
-
-      </div>
+  return <div className="min-h-svh flex items-center justify-center bg-background px-4 py-10">
+    <div className="w-full max-w-md space-y-6">
+      <div className="flex justify-center"><Brand /></div>
+      {pendingApproval ? <Card><CardHeader><CardTitle>Approval requested</CardTitle><CardDescription>{pendingName}, your account is waiting for administrator approval.</CardDescription></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">Your department administrator will review your request. You can sign in after approval.</p><Button className="w-full" variant="outline" onClick={() => setPendingApproval(false)}>Back to Login</Button></CardContent></Card> :
+      <Card className="shadow-sm"><CardHeader><CardTitle className="text-2xl">Welcome to YardPilot</CardTitle><CardDescription>Your wagon maintenance workspace.</CardDescription></CardHeader>
+        <CardContent><Tabs defaultValue="login"><TabsList className="grid w-full grid-cols-2 mb-5"><TabsTrigger value="login">Sign in</TabsTrigger><TabsTrigger value="signup">Request access</TabsTrigger></TabsList>
+          <TabsContent value="login"><form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2"><Label htmlFor="login-email">Work email</Label><Input id="login-email" type="email" autoComplete="username" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="login-password">Password</Label><div className="flex gap-2"><Input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required /><Button type="button" variant="outline" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(v => !v)}>{showPassword ? <EyeOff /> : <Eye />}</Button></div></div>
+            <Button className="w-full" disabled={isLoading}>{isLoading ? 'Signing in…' : 'Login'}</Button>
+            <p className="text-xs text-muted-foreground leading-relaxed">One secure sign-in for staff and administrators. Forgotten your password? Contact your administrator.</p>
+          </form></TabsContent>
+          <TabsContent value="signup"><form onSubmit={handleSignup} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{[
+              { key: 'name', label: 'Full name', value: signupName, change: setSignupName, required: true },
+              { key: 'code', label: 'Employee code', value: signupEmpCode, change: setSignupEmpCode, required: true },
+              { key: 'department', label: 'Department', value: signupDepartment, change: setSignupDepartment },
+              { key: 'designation', label: 'Designation', value: signupDesignation, change: setSignupDesignation },
+            ].map(f => <div key={f.key} className="space-y-2"><Label htmlFor={'signup-' + f.key}>{f.label}</Label><Input id={'signup-' + f.key} value={f.value} onChange={e => f.change(e.target.value)} required={f.required} /></div>)}</div>
+            <div className="space-y-2"><Label htmlFor="signup-email">Work email</Label><Input id="signup-email" type="email" autoComplete="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="signup-password">Password</Label><Input id="signup-password" type="password" autoComplete="new-password" minLength={12} value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required /><p className="text-xs text-muted-foreground">At least 12 characters. Your account must be approved before sign-in.</p></div>
+            <Button className="w-full" disabled={isLoading}>{isLoading ? 'Submitting…' : 'Request access'}</Button>
+          </form></TabsContent>
+        </Tabs></CardContent>
+      </Card>}
     </div>
-  );
+  </div>;
 };
 
 export default Auth;

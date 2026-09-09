@@ -1,3 +1,6 @@
+import { refreshSession } from '@/api/client';
+import { getAccessToken, setAccessToken, clearSession, getSessionGeneration } from '@/api/session';
+import { useAppStore } from '@/store/useAppStore';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { authApi } from "@/api/auth";
 import { usersApi } from "@/api/users";
@@ -16,6 +19,7 @@ export interface User {
   role: UserRole;
   status: ApprovalStatus;
   isActive: boolean;
+  forcePasswordChange?: boolean;
   createdAt?: string;
 }
 
@@ -27,7 +31,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (data: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  updateProfile: (data: Partial<User>) => void;
+  updateProfile: (data: Partial<User>) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   listEmployees: () => Promise<User[]>;
   listPendingEmployees: () => Promise<User[]>;
   approveEmployee: (userId: string, status: ApprovalStatus) => Promise<void>;
@@ -42,19 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
+    const generation = getSessionGeneration();
     try {
-      const token = localStorage.getItem("wagon_access_token");
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
+      if (!getAccessToken()) await refreshSession();
       const res = await authApi.getCurrentUser();
-      if (res.success && res.data) {
-        setUser(res.data);
+      if (generation === getSessionGeneration() && res.success && res.data) {
+        setUser({ ...res.data, id: res.data._id || res.data.id });
       }
     } catch (error) {
       console.error("Failed to fetch current user", error);
-      localStorage.removeItem("wagon_access_token");
+      if (generation === getSessionGeneration()) clearSession();
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await authApi.login(email, password);
       if (res.success && res.data?.accessToken) {
-        localStorage.setItem("wagon_access_token", res.data.accessToken);
+        localStorage.removeItem("wagon_signed_out");
+        setAccessToken(res.data.accessToken);
         await fetchUser();
         return { success: true };
       }
@@ -101,17 +104,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("wagon_access_token");
-  };
+  useEffect(() => {
+    const ended = () => { setUser(null); useAppStore.getState().resetStore(); };
+    window.addEventListener('wagon:session-ended', ended);
+    return () => window.removeEventListener('wagon:session-ended', ended);
+  }, []);
 
-  const updateProfile = (data: Partial<User>) => {
-    // Requires backend endpoint for profile update
-    console.warn("Profile update via API not implemented yet");
-    if (user) {
-      setUser({ ...user, ...data });
-    }
+  const logout = () => {
+    localStorage.setItem("wagon_signed_out", "1");
+    const pending = authApi.logout();
+    clearSession();
+    pending.catch(() => { /* Local session is already cleared. */ });
+  };
+  const updateProfile = async (data: Partial<User>) => {
+    const res = await authApi.updateProfile(data);
+    setUser({ ...res.data, id: res.data._id || res.data.id });
+  };
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const res = await authApi.changePassword(currentPassword, newPassword);
+    setAccessToken(res.data.accessToken);
+    await fetchUser();
   };
 
   const listEmployees = async (): Promise<User[]> => {
@@ -175,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         updateProfile,
+        changePassword,
         listEmployees,
         listPendingEmployees,
         approveEmployee,

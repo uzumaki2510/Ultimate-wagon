@@ -1,3 +1,7 @@
+import { wagonApi } from "@/api/wagons";
+import { Wagon } from "@/types";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAppStore } from "@/store/useAppStore";
@@ -26,19 +30,23 @@ import {
   loadMonthlyArchives,
 } from "@/lib/wagonData";
 import { Calendar, FileSpreadsheet, Download, CheckCircle, Clock, FileText, History } from "lucide-react";
-import * as XLSX from "xlsx";
+import * as XLSX from "@/lib/spreadsheetExport";
 
 interface ArchivesProps {
   embedded?: boolean;
 }
 
 export default function Archives({ embedded }: ArchivesProps = {}) {
+  const { isAdmin } = useAuth();
+  const [savedArchives, setSavedArchives] = useState<(Wagon & { _id?: string })[]>([]);
+  const [archiveError, setArchiveError] = useState("");
   const { memos, audit } = useAppStore();
   const archivedMemos = memos.filter((m) => m.archived);
   const [wagonArchives, setWagonArchives] = useState<MonthlyArchive[]>([]);
 
   useEffect(() => {
     setWagonArchives(loadMonthlyArchives());
+    wagonApi.getWagons(true).then(res => setSavedArchives(res.data)).catch(() => setArchiveError("Unable to load server archives. Refresh to retry."));
   }, []);
 
   const getSickLineName = (sickLineId?: string) => {
@@ -63,7 +71,7 @@ export default function Archives({ embedded }: ArchivesProps = {}) {
     };
   };
 
-  const exportArchive = (archive: MonthlyArchive) => {
+  const exportArchive = async (archive: MonthlyArchive) => {
     const exportData = archive.wagons.map((wagon, index) => ({
       "Sr. No.": index + 1,
       "Wagon Number": wagon.wagonNumber,
@@ -103,7 +111,7 @@ export default function Archives({ embedded }: ArchivesProps = {}) {
 
     XLSX.utils.book_append_sheet(wb, ws, "Wagon Register");
     const fileName = `Wagon_Register_CW_Dept_${archive.monthLabel.replace(/ /g, "_")}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    try { await XLSX.writeFile(wb, fileName); } catch { toast.error("Unable to export archive"); }
   };
 
   const getStats = (wagons: WagonRepair[]) => {
@@ -121,8 +129,22 @@ export default function Archives({ embedded }: ArchivesProps = {}) {
         </div>
       )}
 
+      <Card><CardHeader><CardTitle>Archived wagons</CardTitle></CardHeader><CardContent>
+        {archiveError && <p role="alert">{archiveError}</p>}
+        {savedArchives.length === 0 && !archiveError && <p className="text-muted-foreground">No server-archived wagons.</p>}
+        {savedArchives.map(wagon => <div key={wagon._id || wagon.id} className="flex items-center justify-between border-b py-2">
+          <span>{wagon.wagonNo} · {wagon.type} · {wagon.status}</span>
+          {isAdmin && <Button variant="outline" size="sm" onClick={async () => {
+            try {
+              await wagonApi.updateWagon(wagon._id || wagon.id, { archived: false, expectedUpdatedAt: wagon.updatedAt });
+              setSavedArchives(items => items.filter(item => (item._id || item.id) !== (wagon._id || wagon.id)));
+              await useAppStore.getState().initializeStore();
+            } catch { toast.error("Unable to restore archived wagon"); }
+          }}>Restore to register</Button>}
+        </div>)}
+      </CardContent></Card>
       <Tabs defaultValue="memos" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="flex-wrap !h-auto mb-4">
           <TabsTrigger value="memos" className="gap-2">
             <FileText className="h-4 w-4" />
             Archived Memos ({archivedMemos.length})

@@ -1,3 +1,4 @@
+import { conditionTasks, conditionCounts } from '@/lib/condition';
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { WagonRepair } from '@/lib/wagonData';
@@ -12,19 +13,11 @@ interface PassportOverviewProps {
 
 export function PassportOverview({ wagon, activeStage, defectCount = 0 }: PassportOverviewProps) {
   
-  // Compute Defect Information from repairTasks if available
-  const repairTasks = wagon.repairTasks || [];
-  const totalDefects = repairTasks.length;
-  const criticalDefects = repairTasks.filter((t: any) => t.severity === 'Safety Critical').length;
-  const majorDefects = repairTasks.filter((t: any) => t.severity === 'Urgent').length;
-  const minorDefects = repairTasks.filter((t: any) => t.severity === 'Normal').length;
-  
-  // Note: Since we don't have task-level completion status in repairTasks right now, 
-  // we'll simulate pending/completed based on wagon status for realistic UI structure
-  const isRepairDone = ["REPAIR_COMPLETE", "FIT_CERTIFICATE_PENDING", "FIT_READY", "RELEASED"].includes(wagon.status);
-  const completedRepairs = isRepairDone ? totalDefects : 0;
-  const pendingRepairs = totalDefects - completedRepairs;
-  const repairProgress = totalDefects === 0 ? 100 : Math.round((completedRepairs / totalDefects) * 100);
+  const repairTasks = conditionTasks(wagon);
+  const { total: totalDefects, repaired: completedRepairs, pending: pendingRepairs, critical: criticalDefects } = conditionCounts(repairTasks);
+  const majorDefects = repairTasks.filter(task => task.severity === 'Urgent' && task.status !== 'repaired').length;
+  const minorDefects = repairTasks.filter(task => task.severity === 'Normal' && task.status !== 'repaired').length;
+  const repairProgress = totalDefects ? Math.round(completedRepairs / totalDefects * 100) : 0;
 
   return (
     <div className="flex flex-col gap-6 h-full">
@@ -44,7 +37,7 @@ export function PassportOverview({ wagon, activeStage, defectCount = 0 }: Passpo
                   <Clock className="h-3 w-3"/> 
                   {activeStage ? "In Workshop Queue" : "Not yet inducted into workshop flow"}
                 </span>
-                {activeStage && <Badge variant="outline" className="border-primary/30 text-primary">Priority: Normal</Badge>}
+                {activeStage && <Badge variant="outline" className="border-primary/30 text-primary">Priority: {wagon.priority || "Not recorded"}</Badge>}
               </div>
             </div>
             <div className="text-right hidden sm:block">
@@ -71,13 +64,13 @@ export function PassportOverview({ wagon, activeStage, defectCount = 0 }: Passpo
               <InfoItem label="Wagon Number" value={wagon.wagonNo} valueClassName="font-mono" />
               <InfoItem label="Check Number" value="N/A" valueClassName="font-mono text-muted-foreground" />
               <InfoItem label="Type" value={wagon.type} />
-              <InfoItem label="Railway" value="WR" />
+              <InfoItem label="Railway" value={wagon.owner || "Not recorded"} />
               <InfoItem label="Owner" value={wagon.owner || "IR"} />
-              <InfoItem label="Load Status" value="Empty" />
+              <InfoItem label="Load Status" value={wagon.loadStatus || "Not recorded"} />
               <InfoItem label="Current Status" value={wagon.status?.replace(/_/g, ' ')} />
               <InfoItem label="Registration Date" value={wagon.createdAt ? new Date(wagon.createdAt).toLocaleDateString() : "N/A"} valueClassName="font-mono" />
               <InfoItem label="Last Updated" value={wagon.updatedAt ? new Date(wagon.updatedAt).toLocaleDateString() : "N/A"} valueClassName="font-mono" />
-              <InfoItem label="Current Line" value={wagon.bookedTo || "N/A"} />
+              <InfoItem label="Current Line" value={wagon.currentLocation || "Not recorded"} />
               <InfoItem label="Workshop Status" value={wagon.status === 'RELEASED' ? 'Dispatched' : 'In Workshop'} />
               <InfoItem label="Memo Number" value={wagon.memoId || "N/A"} valueClassName="font-mono" />
               <InfoItem label="Repair Category" value={wagon.repairTypes?.join(", ") || "General"} />
@@ -100,7 +93,7 @@ export function PassportOverview({ wagon, activeStage, defectCount = 0 }: Passpo
               <div className="flex flex-col items-center justify-center py-12 text-center border rounded-md bg-muted/20 border-dashed">
                 <CheckCircle2 className="h-8 w-8 text-success/50 mb-2" />
                 <p className="text-sm font-medium text-foreground">No defects recorded.</p>
-                <p className="text-xs text-muted-foreground mt-1">This wagon has a clean bill of health.</p>
+                <p className="text-xs text-muted-foreground mt-1">No repair tasks have been saved. Inspection and fitness still require verification.</p>
               </div>
             ) : (
               <div className="space-y-6">

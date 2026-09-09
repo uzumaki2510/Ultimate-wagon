@@ -137,7 +137,7 @@ export default function EmployeeApprovals({ embedded }: EmployeeApprovalsProps =
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table className="min-w-[700px]">
+              <Table mobileCards className="min-w-[700px]">
                 <TableHeader className="bg-muted/50">
                   <TableRow className="hover:bg-transparent h-10">
                     <TableHead className="font-semibold text-xs tracking-wider uppercase text-muted-foreground pl-4">Date</TableHead>

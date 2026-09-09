@@ -12,7 +12,7 @@ const createRepair = asyncHandler(async (req, res) => {
   req.body.createdBy = req.user._id;
   const repair = await Repair.create(req.body);
 
-  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'Under Repair' });
+  await Wagon.findByIdAndUpdate(req.body.wagon, { status: 'REPAIR_IN_PROGRESS' });
 
   return ApiResponse.created(res, 'Repair entry created', repair);
 });

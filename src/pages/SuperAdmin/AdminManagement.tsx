@@ -175,7 +175,7 @@ export default function AdminManagement({ embedded }: AdminManagementProps = {})
             />
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table mobileCards>
                 <TableHeader className="bg-secondary/50">
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="font-semibold pl-6">Name</TableHead>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { WagonTable } from "@/components/WagonTable";
 import { AddWagonModal } from "@/components/AddWagonModal";
@@ -7,7 +7,9 @@ import { ExportButton } from "@/components/ExportButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { WagonRepair, WagonDetails } from "@/lib/wagonData";
 import { PriorityLevel, RepairTask } from "@/types/index";
-import { Train } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { WagonCard } from "@/components/shared/WagonCard";
+import { Train, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
@@ -26,7 +28,8 @@ export default function WagonRegister() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState(searchParams.get("filterStatus") || "all");
   const [filterCategory, setFilterCategory] = useState("all");
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(searchParams.get("add") === "1");
+  useEffect(() => { if (searchParams.get("add") === "1") setAddModalOpen(true); }, [searchParams]);
 
   const mappedWagons: WagonRepair[] = useMemo(() => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -35,8 +38,10 @@ export default function WagonRegister() {
       const wf = workflows.find(wfItem => wfItem.wagonId === w.id);
       
       let mappedStatus = "all";
-      if (w.status === "FIT_READY" || w.status === "RELEASED" || (w.status as string) === "FIT_CERTIFICATE_PENDING" || (w.status as string) === "REPAIR_COMPLETE" || (w.status as string) === "completed") {
+      if (w.status === "FIT_READY" || w.status === "RELEASED" || (w.status as string) === "completed") {
         mappedStatus = "fit";
+      } else if (w.status === "FIT_CERTIFICATE_PENDING" || w.status === "REPAIR_COMPLETE") {
+        mappedStatus = "pending-fit";
       } else if (w.status === "REPAIR_IN_PROGRESS" || (w.status as string) === "Under Repair") {
         mappedStatus = "in-repair";
       } else if (w.status === "SICK_LINE" || (w.status as string) === "Issue Marked" || (w.status as string) === "Cut Off" || (w.status as string) === "Sick Line" || (w.status as string) === "Sick") {
@@ -125,7 +130,7 @@ export default function WagonRegister() {
     return { total, sick, fit, categories };
   }, [mappedWagons]);
 
-  const handleWagonParsed = (
+  const handleWagonParsed = async (
     details: WagonDetails, 
     trainNumber: string, 
     arrivalDate: string, 
@@ -137,7 +142,7 @@ export default function WagonRegister() {
     isDegassed?: boolean,
     isSteamed?: boolean
   ) => {
-    addWagon({
+    await addWagon({
       wagonNo: details.wagonNumber,
       type: details.typeName,
       owner: details.railwayName,
@@ -148,6 +153,7 @@ export default function WagonRegister() {
       priority: priority,
       repairTasks: repairTasks,
       rakeId: trainNumber,
+      currentLocation: sickLine,
       isSteamed: isSteamed,
       isDegassed: isDegassed
     });
@@ -157,7 +163,8 @@ export default function WagonRegister() {
   const statusOptions = [
     { label: "Sick Wagons", value: "sick" },
     { label: "In Repair", value: "in-repair" },
-    { label: "Completed / Fit", value: "fit" },
+    { label: "Fit / Released", value: "fit" },
+    { label: "Awaiting Fitness", value: "pending-fit" },
     { label: "Today Arrivals", value: "today" },
   ];
 
@@ -170,8 +177,8 @@ export default function WagonRegister() {
   ];
 
   const filterBar = (
-    <Card className="border-border/50 shadow-sm overflow-hidden mb-[var(--density-spacing-md,1rem)]">
-      <CardContent className="p-4 bg-muted/30">
+    <Card className="border-0 shadow-none md:border md:shadow-sm">
+      <CardContent className="p-0 md:p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <SearchBar 
             value={search} 
@@ -202,38 +209,39 @@ export default function WagonRegister() {
     <WorkspaceLayout 
       header={
         <PageHeader
-          title="Wagon Register"
-          description="Comprehensive search, filter, and management of all wagons."
+          title="Wagons"
+          description="Find a wagon, check its progress or register an arrival."
           icon={Train}
-          actions={<ExportButton wagons={filteredWagons} selectedWagons={[]} />}
+          actions={<><ExportButton wagons={filteredWagons} selectedWagons={[]} /><Button className="gap-2" onClick={() => setAddModalOpen(true)}><Plus className="h-4 w-4" />Add wagon</Button></>}
         />
       }
       filterBar={filterBar}
     >
       <div className="space-y-[var(--density-spacing-md,1rem)] animate-fade-in pb-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-[var(--density-spacing-sm,0.5rem)]">
+        <div className="hidden md:grid grid-cols-3 gap-[var(--density-spacing-sm,0.5rem)]">
         <StatCard title="Total" value={stats.total} className="bg-slate-50/50" />
         <StatCard title="In Repair" value={stats.sick} className="bg-red-50/50 text-red-700" />
         <StatCard title="Completed" value={stats.fit} className="bg-green-50/50 text-green-700" />
         
-        {["Open Wagon", "Covered Wagon", "Tank Wagon", "Flat Wagon", "Hopper Wagon"].map(cat => (
-          <StatCard key={cat} title={cat} value={stats.categories[cat] || 0} />
-        ))}
+
       </div>
 
-      <WagonTable 
+      <p className="md:hidden text-sm text-muted-foreground" aria-live="polite">{filteredWagons.length} wagons · {stats.sick} in repair · {stats.fit} fit / released</p>
+      <div className="md:hidden space-y-3">{filteredWagons.map(w => { const wagon = zustandWagons.find(record => record.id === w.id)!; return <WagonCard key={w.id} wagon={wagon} workflow={workflows.find(f => f.wagonId === w.id)} />; })}{!filteredWagons.length && <p className="rounded-xl border bg-card p-8 text-center text-muted-foreground">No matching wagons. Try clearing your filters.</p>}</div>
+      <div className="hidden md:block"><WagonTable
+        showSearch={false}
         wagons={filteredWagons}
         filter="all"
-        onComplete={(id) => { updateWagon(id, { status: "FIT_READY" as any }); toast({title:"Marked Fit"}); }}
-        onUndoComplete={(id) => { updateWagon(id, { status: "SICK_LINE" as any }); toast({title:"Undo Fit"}); }}
-        onDelete={(id) => { removeWagon(id); toast({title:"Deleted"}); }}
-        onUpdateSickLine={(id, sl) => updateWagon(id, { sickLine: sl } as any)}
+        onComplete={(id) => { window.location.assign(`/wagon/${id}?tab=defects`); }}
+        onUndoComplete={async (id) => { await updateWagon(id, { status: "SICK_LINE" }); toast({title:"Wagon reopened"}); }}
+        onDelete={async (id) => { await removeWagon(id); toast({title:"Deleted"}); }}
+        onUpdateSickLine={(id, sl) => updateWagon(id, { currentLocation: sl })}
         onEdit={(id, up) => updateWagon(id, { defect: up.comments })}
         isAdmin={isAdmin}
-      />
+      /></div>
 
       {/* Floating Action Button + Modal */}
-      <FloatingAddWagonButton onClick={() => setAddModalOpen(true)} />
+
       <AddWagonModal
         open={addModalOpen}
         onOpenChange={setAddModalOpen}

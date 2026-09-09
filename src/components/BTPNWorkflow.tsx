@@ -132,7 +132,6 @@ export function BTPNWorkflow({ wagon, workflowData, onUpdateWorkflow, onSickLine
       },
     ];
 
-    let nextStage: BTPNStage;
 
     // Get next stage in sequence
     const nextIndex = currentStageIndex + 1;
@@ -147,7 +146,7 @@ export function BTPNWorkflow({ wagon, workflowData, onUpdateWorkflow, onSickLine
       });
       return;
     }
-    nextStage = BTPN_STAGES[nextIndex].id;
+    const nextStage = BTPN_STAGES[nextIndex].id;
 
     const newData: BTPNWorkflowData = {
       ...data,

@@ -68,7 +68,7 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
                     size="sm"
                     className="h-6 py-0 px-2 text-xs text-muted-foreground hover:bg-muted ml-2"
                     title={`${linkedMemoCount} Linked Memo(s)`}
-                    onClick={() => nav("/operations/unit-memos")}
+                    onClick={() => { onOpenChange(false); nav(`/memos?wagon=${wagon.wagonNo}`); }}
                   >
                     <FileText className="h-3 w-3 mr-1" />
                     {linkedMemoCount}
@@ -91,7 +91,7 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
                 {isAdmin && onDelete && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
+                      <Button aria-label="Wagon actions" variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
                         <MoreVertical className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>

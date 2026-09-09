@@ -16,6 +16,10 @@ import NotFound from "@/pages/NotFound";
 import WorkflowBuilder from "@/pages/WorkflowBuilder";
 
 // Lazy load everything else
+const WorkflowIntegrity = lazy(() => import("./pages/WorkflowIntegrity"));
+const WorkspaceMenu = lazy(() => import("./pages/WorkspaceMenu"));
+const WorkshopOverview = lazy(() => import("./pages/WorkshopOverview"));
+const Help = lazy(() => import("./pages/Help"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const WagonRegister = lazy(() => import("@/pages/WagonRegister"));
 const WagonMaster = lazy(() => import("@/pages/WagonMaster"));
@@ -70,6 +74,12 @@ const App = () => (
 
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/more" element={<WorkspaceMenu />} />
+                <Route path="/help" element={<Help />} />
+                <Route path="/workflow-integrity" element={<AdminRoute><WorkflowIntegrity /></AdminRoute>} />
+                <Route path="/administration" element={<AdminRoute><WorkspaceMenu administration /></AdminRoute>} />
+                <Route path="/workshop" element={<WorkshopOverview />} />
+                <Route path="/wagon-archives" element={<Archives />} />
                 <Route path="/register" element={<WagonRegister />} />
                 <Route path="/wagon-directory" element={<WagonMaster />} />
                 <Route path="/wagon/:id" element={<WagonDetails />} />
@@ -82,7 +92,7 @@ const App = () => (
                 <Route path="/live-sick-line" element={<LiveSickLineBoard />} />
                 <Route path="/quick-board" element={<QuickBoard />} />
                 <Route path="/reports" element={<Reports />} />
-                <Route path="/reports/generate" element={<AdminRoute><ReportGenerator /></AdminRoute>} />
+                <Route path="/reports/generate" element={<AdminRoute><Navigate to="/reports" replace /></AdminRoute>} />
                 {/* System Settings & Redirections */}
                 <Route path="/settings" element={<Navigate to="/profile" replace />} />
                 <Route path="/workflow-builder" element={<Navigate to="/super-admin/center?tab=users" replace />} />
@@ -94,7 +104,7 @@ const App = () => (
                 {/* Legacy redirects */}
                 <Route path="/super-admin/users" element={<Navigate to="/super-admin/center?tab=users" replace />} />
                 <Route path="/super-admin/approvals" element={<Navigate to="/super-admin/center?tab=approvals" replace />} />
-                <Route path="/super-admin/master-data" element={<Navigate to="/super-admin/center?tab=users" replace />} />
+                <Route path="/super-admin/master-data" element={<SuperAdminRoute><MasterData /></SuperAdminRoute>} />
                 <Route path="/super-admin/admin-management" element={<Navigate to="/super-admin/center?tab=roles-access" replace />} />
                 <Route path="/super-admin/audit-logs" element={<Navigate to="/super-admin/security" replace />} />
                 <Route path="/super-admin/logs" element={<Navigate to="/super-admin/security" replace />} />

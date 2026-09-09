@@ -23,3 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 server/.env
+
+# Local credentials and test artifacts
+.env
+.env.*
+!.env.example
+!server/.env.example
+playwright-report/
+test-results/

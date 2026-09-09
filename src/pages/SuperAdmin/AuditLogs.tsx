@@ -89,7 +89,7 @@ export default function AuditLogs({ embedded }: AuditLogsProps = {}) {
             />
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table mobileCards>
                 <TableHeader className="bg-secondary/50">
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="font-semibold pl-6">Timestamp</TableHead>

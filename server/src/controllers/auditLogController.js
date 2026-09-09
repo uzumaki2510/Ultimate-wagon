@@ -1,3 +1,4 @@
+const searchText = require('../utils/searchText');
 const AuditLog = require('../models/AuditLog');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -17,9 +18,9 @@ const getAllAuditLogs = asyncHandler(async (req, res) => {
   if (q) {
     // Basic search on action or department in metadata
     filter.$or = [
-      { action: { $regex: q, $options: 'i' } },
-      { 'metadata.department': { $regex: q, $options: 'i' } },
-      { 'metadata.wagonNo': { $regex: q, $options: 'i' } }
+      { action: { $regex: searchText(q), $options: 'i' } },
+      { 'metadata.department': { $regex: searchText(q), $options: 'i' } },
+      { 'metadata.wagonNo': { $regex: searchText(q), $options: 'i' } }
     ];
   }
 

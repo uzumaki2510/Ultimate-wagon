@@ -8,6 +8,7 @@ const certValidation = require('../validations/certificationValidation');
 const certController = require('../controllers/certificationController');
 
 router.use(protect);
+router.use(require('../middleware/rbac').restrictTo('admin', 'super_admin'));
 
 router.get('/expiring', authorize('certifications', 'R'), certController.getExpiringCertifications);
 router.post('/', authorize('certifications', 'C'), validate(certValidation.create), certController.createCertification);

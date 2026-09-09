@@ -11,6 +11,9 @@ const workflowStageRecordSchema = new mongoose.Schema(
     startedAt: Date,
     completedAt: Date,
     durationHours: Number,
+    pausedAt: Date,
+    pausedDurationMs: { type: Number, default: 0 },
+    selectedNextStage: String,
     targetDurationHours: Number,
     staffName: String,
     inspectorName: String,
@@ -26,13 +29,14 @@ const workflowActionHistorySchema = new mongoose.Schema(
   {
     action: {
       type: String,
-      enum: ['START_STAGE', 'MARK_STAGE_DONE', 'ADVANCE_WORKFLOW', 'MARK_FIT', 'PAUSE_STAGE', 'RESUME_STAGE'],
+      enum: ['START_STAGE', 'MARK_STAGE_DONE', 'ADVANCE_WORKFLOW', 'MARK_FIT', 'PAUSE_STAGE', 'RESUME_STAGE', 'CORRECTION'],
     },
     stageName: String,
     previousWorkflowSnapshot: String,
     createdAt: Date,
     userName: String,
     reason: String,
+    undoneAt: Date,
   },
   { _id: false }
 );
@@ -52,6 +56,7 @@ const workflowSchema = new mongoose.Schema(
     wagonType: String,
     currentStage: String,
     stages: [workflowStageRecordSchema],
+    cycleHistory: [{ fromStage: String, returnedTo: String, reason: String, actorName: String, completedAt: Date, stages: [workflowStageRecordSchema] }],
     sscJeName: String,
     fitterName: String,
     actionHistory: [workflowActionHistorySchema],

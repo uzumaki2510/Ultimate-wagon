@@ -4,6 +4,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { generateTokenPair, verifyRefreshToken } = require('../services/authService');
 const RefreshToken = require('../models/RefreshToken');
+const { hashToken, readRefreshToken, issueSession, clearSessionCookie } = require('../services/sessionService');
 
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
@@ -22,17 +23,8 @@ const register = asyncHandler(async (req, res) => {
     status: 'pending'
   });
 
-  const tokens = generateTokenPair(user._id);
-  const decodedRefresh = verifyRefreshToken(tokens.refreshToken);
-  await RefreshToken.create({
-    token: tokens.refreshToken,
-    user: user._id,
-    expiresAt: new Date(decodedRefresh.exp * 1000)
-  });
-
   return ApiResponse.created(res, 'User registered successfully. Pending admin approval.', {
     user: user.toJSON(),
-    ...tokens,
   });
 });
 
@@ -77,21 +69,7 @@ const login = asyncHandler(async (req, res) => {
   user.failedLoginAttempts = 0;
   user.lockoutUntil = null;
   
-  if (user.forcePasswordChange) {
-    await user.save();
-    return ApiResponse.success(res, 'Must change password before continuing', {
-      user: user.toJSON(),
-      forcePasswordChange: true
-    });
-  }
-
-  const tokens = generateTokenPair(user._id);
-  const decodedRefresh = verifyRefreshToken(tokens.refreshToken);
-  await RefreshToken.create({
-    token: tokens.refreshToken,
-    user: user._id,
-    expiresAt: new Date(decodedRefresh.exp * 1000)
-  });
+  const tokens = await issueSession(user, res);
 
   user.lastLogin = new Date();
   await user.save();
@@ -106,10 +84,9 @@ const login = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/auth/logout
 // @access  Private
 const logout = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body;
-  if (refreshToken) {
-    await RefreshToken.findOneAndDelete({ token: refreshToken, user: req.user._id });
-  }
+  await User.updateOne({ _id: req.user._id }, { $inc: { tokenVersion: 1 } });
+  await RefreshToken.deleteMany({ user: req.user._id });
+  clearSessionCookie(res);
   return ApiResponse.success(res, 'Logged out successfully');
 });
 
@@ -135,18 +112,13 @@ const changePassword = asyncHandler(async (req, res) => {
   }
 
   user.password = newPassword;
-  user.forcePasswordChange = false; // Reset the flag
+  user.forcePasswordChange = false;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   await user.save();
 
   await RefreshToken.deleteMany({ user: user._id }); // Invalidate all old sessions
 
-  const tokens = generateTokenPair(user._id);
-  const decodedRefresh = verifyRefreshToken(tokens.refreshToken);
-  await RefreshToken.create({
-    token: tokens.refreshToken,
-    user: user._id,
-    expiresAt: new Date(decodedRefresh.exp * 1000)
-  });
+  const tokens = await issueSession(user, res);
 
   return ApiResponse.success(res, 'Password changed successfully', { ...tokens });
 });
@@ -155,7 +127,7 @@ const changePassword = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/auth/refresh-token
 // @access  Public
 const refreshToken = asyncHandler(async (req, res) => {
-  const { refreshToken: token } = req.body;
+  const token = readRefreshToken(req);
 
   if (!token) {
     throw ApiError.badRequest('Refresh token is required');
@@ -168,26 +140,18 @@ const refreshToken = asyncHandler(async (req, res) => {
     throw ApiError.unauthorized('Invalid or expired refresh token');
   }
 
-  const tokenDoc = await RefreshToken.findOne({ token, user: decoded.id });
+  const tokenDoc = await RefreshToken.findOneAndDelete({ token: hashToken(token), user: decoded.id, expiresAt: { $gt: new Date() } });
   if (!tokenDoc) {
     throw ApiError.unauthorized('Invalid refresh token');
   }
 
   const user = await User.findById(decoded.id);
-  if (!user) {
-    throw ApiError.unauthorized('User not found');
+  if (!user || !user.isActive || user.status !== 'approved' || decoded.purpose !== 'refresh' || decoded.version !== (user.tokenVersion || 0)) {
+    clearSessionCookie(res);
+    throw ApiError.unauthorized('Session expired');
   }
 
-  // Rotate token
-  await RefreshToken.findByIdAndDelete(tokenDoc._id);
-
-  const tokens = generateTokenPair(user._id);
-  const decodedNewRefresh = verifyRefreshToken(tokens.refreshToken);
-  await RefreshToken.create({
-    token: tokens.refreshToken,
-    user: user._id,
-    expiresAt: new Date(decodedNewRefresh.exp * 1000)
-  });
+  const tokens = await issueSession(user, res);
 
   return ApiResponse.success(res, 'Token refreshed', { ...tokens });
 });
@@ -196,25 +160,8 @@ const refreshToken = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/auth/forgot-password
 // @access  Public
 const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  const user = await User.findOne({ email });
-
-  if (!user) {
-    return ApiResponse.success(res, 'If that email exists, a password reset link has been sent.');
-  }
-
-  const crypto = require('crypto');
-  const resetToken = crypto.randomBytes(20).toString('hex');
-  user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-  await user.save({ validateBeforeSave: false });
-
-  // In a real application, send this token via email here.
-  // Since we don't have an email provider, we print it to console for testing/development.
-  console.log(`[PASSWORD RESET TOKEN for ${email}]: ${resetToken}`);
-
-  return ApiResponse.success(res, 'If that email exists, a password reset link has been sent. (Check console for token)');
+  // Password recovery requires a configured delivery channel. Never log reset credentials.
+  return ApiResponse.success(res, 'Contact your administrator to reset your password.');
 });
 
 // @desc    Reset Password
@@ -234,13 +181,22 @@ const resetPassword = asyncHandler(async (req, res) => {
   }
 
   user.password = req.body.password;
+  user.forcePasswordChange = false;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
   user.failedLoginAttempts = 0;
   user.lockoutUntil = undefined;
   await user.save();
 
+  await RefreshToken.deleteMany({ user: user._id });
+  clearSessionCookie(res);
   return ApiResponse.success(res, 'Password successfully reset. You can now login.');
 });
 
-module.exports = { register, login, logout, getMe, changePassword, refreshToken, forgotPassword, resetPassword };
+const updateProfile = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndUpdate(req.user._id, { $set: req.body }, { new: true, runValidators: true });
+  return ApiResponse.success(res, 'Profile updated', user);
+});
+
+module.exports = { updateProfile, register, login, logout, getMe, changePassword, refreshToken, forgotPassword, resetPassword };

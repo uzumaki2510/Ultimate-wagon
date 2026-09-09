@@ -1,11 +1,14 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { PasswordChangeRequired } from './PasswordChangeRequired';
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth();
   if (isLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
+  if (!user.isActive || user.status !== 'approved') return <Navigate to="/auth" replace />;
+  if (user.forcePasswordChange) return <PasswordChangeRequired />;
   return <>{children}</>;
 }
 
