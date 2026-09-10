@@ -55,32 +55,30 @@ export default function MemoList() {
         title="Unit Memos"
         description="All digital UNIT MEMOs created in the yard."
         icon={FileText}
-        actions={
-          <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-            <SearchBar 
-              value={q} 
-              onChange={setQ} 
-              placeholder="Search memo, rake, wagon no…" 
-              className="w-full sm:w-[250px]"
-              onClear={clearWagonFilter}
-            />
-            <div className="flex gap-2">
-              <Button asChild variant="outline" className="gap-2 border-warning/30 text-warning hover:bg-warning/10 hover:text-warning shadow-sm">
-                <Link to="/memos/new?type=sick">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span >Sick Memo</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="gap-2 border-success/30 text-success hover:bg-success/10 hover:text-success shadow-sm">
-                <Link to="/memos/new?type=fit">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span >Fit Memo</span>
-                </Link>
-              </Button>
-            </div>
-          </div>
-        }
       />
+      <div role="group" aria-label="Memo search and actions" className="flex min-w-0 flex-wrap items-center gap-3">
+        <SearchBar
+          value={q}
+          onChange={setQ}
+          placeholder="Search memo, rake, wagon no…"
+          className="w-full min-w-0 sm:w-[250px]"
+          onClear={clearWagonFilter}
+        />
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <Button asChild variant="outline" className="gap-2 border-warning/30 text-warning hover:bg-warning/10 hover:text-warning shadow-sm">
+            <Link to="/memos/new?type=sick">
+              <AlertTriangle className="h-4 w-4" />
+              <span >Sick Memo</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2 border-success/30 text-success hover:bg-success/10 hover:text-success shadow-sm">
+            <Link to="/memos/new?type=fit">
+              <CheckCircle2 className="h-4 w-4" />
+              <span >Fit Memo</span>
+            </Link>
+          </Button>
+        </div>
+      </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-4 h-auto p-1 bg-secondary/20 border">
