@@ -41,11 +41,13 @@ async function setup(page: Page, options: { fit?: boolean; missing?: boolean; fa
         failed = true; return route.fulfill({ status: 503, json: { message: 'Stage save temporarily unavailable' } });
       }
       const stage = workflow.stages.find(item => item.stageName === body.stageName)!;
+      if (body.action === 'start') stage.startedAt = '2026-09-10T04:00:00.000Z';
       stage.status = body.action === 'complete' ? 'Done' : body.action === 'pause' ? 'Paused' : 'In Progress';
-      if (body.action === 'complete') { doneWrites++; stage.completedAt = new Date().toISOString(); }
+      if (body.action === 'complete') { doneWrites++; stage.completedAt = '2026-09-10T05:30:00.000Z'; }
       if (body.nextStage) {
         workflow.currentStage = body.nextStage;
         workflow.stages.find(item => item.stageName === body.nextStage)!.status = 'In Progress';
+        workflow.stages.find(item => item.stageName === body.nextStage)!.startedAt = '2026-09-10T05:30:00.000Z';
       }
       workflow.updatedAt = new Date().toISOString(); wagon.status = 'REPAIR_IN_PROGRESS'; wagon.updatedAt = workflow.updatedAt;
       return route.fulfill({ json: { success: true, data: { workflow, wagon } } });
@@ -65,6 +67,61 @@ async function setup(page: Page, options: { fit?: boolean; missing?: boolean; fa
   return { wagon, counts: () => ({ doneWrites, creates, wagonWrites }), workflow: () => workflow };
 }
 
+test('simplified workflow saves and displays both timestamps after reload', async ({ page }) => {
+  const fixture = await setup(page);
+  await page.goto('/wagon/000000000000000000000002?tab=work');
+  await expect(page.getByRole('button', { name: 'Update assignment', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Confirm wagon fit', exact: true })).toBeHidden();
+  await page.getByRole('button', { name: 'Start stage', exact: true }).click();
+  await expect(page.locator('time[datetime="2026-09-10T04:00:00.000Z"]').first()).toBeVisible();
+  await page.getByLabel('Work notes', { exact: true }).fill('Inspection recorded');
+  await page.getByRole('button', { name: 'Complete stage & continue', exact: true }).click();
+  await page.reload();
+  const first = page.getByRole('list', { name: 'Saved workflow timeline' }).getByRole('listitem').first();
+  await expect(first).toContainText('Completed');
+  await expect(first.locator('time')).toHaveCount(2);
+  await expect(first.locator('time').first()).toHaveAttribute('datetime', '2026-09-10T04:00:00.000Z');
+  await expect(first.locator('time').last()).toHaveAttribute('datetime', '2026-09-10T05:30:00.000Z');
+  expect(fixture.counts().doneWrites).toBe(1);
+});
+
+for (const width of [390, 1440]) {
+  test(`simplified wagon dialog fits ${width}px and exposes saved times`, async ({ page }) => {
+    const fixture = await setup(page, { tank: true });
+    const workflow = fixture.workflow();
+    workflow.stages[0].status = 'Done';
+    workflow.stages[0].startedAt = '2026-09-10T04:00:00.000Z';
+    workflow.stages[0].completedAt = '2026-09-10T04:30:00.000Z';
+    workflow.currentStage = definitions.BTPN_LOCAL_TANK_WORKFLOW.stages[workflow.currentStage].nextStages[0];
+    const current = workflow.stages.find(stage => stage.stageName === workflow.currentStage)!;
+    current.status = 'In Progress'; current.startedAt = '2026-09-10T04:30:00.000Z';
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/register');
+    await page.getByRole('button', { name: '40059961419', exact: true }).click();
+    const panel = page.getByRole('dialog', { name: '40059961419' });
+    await panel.getByRole('tab', { name: 'Workflow', exact: true }).click();
+    await page.setViewportSize({ width, height: 950 });
+    await expect(panel.getByRole('button', { name: 'Complete stage & continue', exact: true })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Confirm wagon fit' })).toBeHidden();
+    await expect(panel.locator('time').first()).toBeVisible();
+    expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    await page.screenshot({ path: `/tmp/railflow-simple-workflow-${width}.png` });
+  });
+}
+
+test('inconsistent FIT record keeps a concise warning without offering release', async ({ page }) => {
+  const fixture = await setup(page, { fit: true, tank: true });
+  await page.goto('/wagon/000000000000000000000002?tab=work');
+  await expect(page.getByRole('alert')).toContainText('records need review');
+  await expect(page.getByRole('button', { name: 'Reopen for correction' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Release wagon', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Start stage', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Not ready to certify', { exact: true })).toBeHidden();
+  await page.locator('summary').filter({ hasText: 'Certification & record checks' }).click();
+  await expect(page.getByText('Not ready to certify', { exact: true })).toBeVisible();
+  expect(fixture.counts().wagonWrites).toBe(0);
+});
+
 test('condition panel uses repair evidence and warns about inconsistent fit records', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const fixture = await setup(page, { fit: true, tank: true });
@@ -79,7 +136,7 @@ test('condition panel uses repair evidence and warns about inconsistent fit reco
   await expect(panel.getByText('0 repaired · 1 open.', { exact: false })).toBeVisible();
   await expect(panel.getByRole('button', { name: /Update repair/ })).toHaveCount(0);
   await panel.getByRole('tab', { name: 'Workflow', exact: true }).click();
-  await expect(panel.getByText('Workflow is read-only')).toBeVisible();
+  await expect(panel.getByText('FIT status — records need review')).toBeVisible();
   expect(fixture.counts().wagonWrites).toBe(0);
 });
 

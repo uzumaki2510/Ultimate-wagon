@@ -8,7 +8,7 @@ import { getWorkflowDefinitionForWagon } from '@/lib/wagonWorkflows';
 import { Button } from '@/components/ui/button';
 import { CorrectionDialog } from '@/components/ui/CorrectionDialog';
 
-export function WorkRecordActions({ wagon }: { wagon: Wagon }) {
+export function WorkRecordActions({ wagon, allowRelease = true }: { wagon: Wagon; allowRelease?: boolean }) {
   const { isAdmin } = useAuth();
   const workflow = useAppStore(state => state.workflows.find(item => item.wagonId === wagon.id));
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
@@ -20,7 +20,7 @@ export function WorkRecordActions({ wagon }: { wagon: Wagon }) {
     {['FIT_READY', 'RELEASED'].includes(wagon.status) && <Button variant="outline" onClick={() => setAction('reopen')}>Reopen for correction</Button>}
     {legacy && !['FIT_READY', 'RELEASED', 'IN_SERVICE'].includes(wagon.status) && <Button variant="outline" onClick={() => setAction('reconcile')}>Review legacy stage names</Button>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    {wagon.status === 'FIT_READY' && <Button variant="outline" disabled={busy} className="ml-2" onClick={async () => {
+    {wagon.status === 'FIT_READY' && allowRelease && <Button variant="outline" disabled={busy} className="sm:ml-2" onClick={async () => {
       if (!window.confirm('Confirm this certified wagon is ready for release?')) return;
       setBusy(true); setError('');
       try { await useAppStore.getState().updateWagon(wagon.id, { status: 'RELEASED' }); }

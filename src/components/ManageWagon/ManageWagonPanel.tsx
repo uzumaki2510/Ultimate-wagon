@@ -56,8 +56,8 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 gap-0">
-        <div className="sticky top-0 z-10 bg-background border-b px-6 py-4 flex flex-col gap-3">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-[700px] max-h-[90dvh] overflow-y-auto p-0 gap-0">
+        <div className="sticky top-0 z-10 bg-background border-b px-4 sm:px-6 py-4 pr-12 sm:pr-14 flex flex-col gap-3">
           <div className="flex justify-between items-start">
             <div>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -105,24 +105,19 @@ export function ManageWagonPanel({ wagonId, defaultTab = "workflow", open, onOpe
                 )}
               </div>
               
-              {resolved && (
-                <div className="text-xs font-medium mt-1 pr-[32px]">
-                  {resolved.completedCount} / {resolved.totalCount} completed
-                </div>
-              )}
             </div>
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start h-auto p-1 bg-muted/50 rounded-lg">
-              <TabsTrigger value="workflow" className="flex-1 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Workflow</TabsTrigger>
-              <TabsTrigger value="details" className="flex-1 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Details</TabsTrigger>
-              <TabsTrigger value="repairs" className="flex-1 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Defects & Repairs</TabsTrigger>
+              <TabsTrigger value="workflow" className="flex-1 min-h-11 px-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Workflow</TabsTrigger>
+              <TabsTrigger value="details" className="flex-1 min-h-11 px-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">Details</TabsTrigger>
+              <TabsTrigger value="repairs" className="flex-1 min-h-11 px-2 whitespace-normal data-[state=active]:bg-background data-[state=active]:shadow-sm">Defects & Repairs</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
-        <div className="px-6 pb-6">
+        <div className="px-4 sm:px-6 pt-4 pb-6">
           <Tabs value={activeTab} className="w-full outline-none">
             <TabsContent value="workflow" className="mt-0 outline-none">
               <WorkflowChecklist wagon={wagon} />

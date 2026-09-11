@@ -11,6 +11,7 @@ test('assignment and blocker survive reload and feed My Work and blocked queues'
     await route.fulfill({ json: { success: true, data: wagon } });
   });
   await page.goto('/wagon/' + wagon._id + '?tab=work');
+  await page.locator('summary').filter({ hasText: 'Assignment & handoff' }).click();
   await page.getByRole('button', { name: 'Update assignment', exact: true }).click();
   await page.getByLabel('Responsible person').selectOption(fixture.user._id);
   await page.getByLabel('Blocker (clear when resolved)').fill('Waiting for brake pipe');
@@ -18,6 +19,7 @@ test('assignment and blocker survive reload and feed My Work and blocked queues'
   await page.getByRole('button', { name: 'Save assignment', exact: true }).click();
   await expect(page.getByText('Blocked: Waiting for brake pipe')).toBeVisible();
   await page.reload();
+  await page.locator('summary').filter({ hasText: 'Assignment & handoff' }).click();
   await expect(page.getByText('Latest handoff: Inspect replacement before fitting')).toBeVisible();
   await page.goto('/workshop?view=my');
   await expect(page.getByTestId('wagon-card')).toHaveCount(1);
@@ -48,10 +50,12 @@ test('evidence upload persists in quarantine and cannot be downloaded', async ({
 test('fitness shows saved blockers and rejects unavailable readiness checks', async ({ page }) => {
   const { wagons } = await mockWorkspace(page);
   await page.goto('/wagon/' + wagons[0]._id + '?tab=work');
+  await page.locator('summary').filter({ hasText: 'Fitness approval' }).click();
   await expect(page.getByText('Not ready to certify', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Confirm wagon fit' })).toBeDisabled();
   await page.route('**/api/v1/wagons/*/readiness', route => route.fulfill({ status: 503, json: { message: 'Unavailable' } }));
   await page.reload();
+  await page.locator('summary').filter({ hasText: 'Fitness approval' }).click();
   await expect(page.getByText('Unable to check saved evidence.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Confirm wagon fit' })).toBeDisabled();
 });
